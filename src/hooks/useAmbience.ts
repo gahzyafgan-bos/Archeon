@@ -1,0 +1,62 @@
+import { useEffect, useRef } from "react";
+import { Howl } from "howler";
+import { useMuseumStore } from "@/store/useMuseumStore";
+import type { RoomId } from "@/store/useMuseumStore";
+
+/**
+ * Panduan karakter musik ambience per ruangan:
+ * - Lobi: gamelan Jawa Timuran, ritmis dan hangat.
+ * - Ruang 1: ambience alam/gua minimalis (tetesan air, angin), tanpa musik, kesan purba.
+ * - Ruang 2: gamelan pelog/gender yang syahdu dan magis, sangat pelan.
+ * - Ruang 3: ambience mekanis-industrial ringan (detak jam, desis uap halus) dipadukan sedikit musik string sederhana.
+ */
+const AMBIENCE_TRACKS: Record<RoomId, string> = {
+  lobby: "/audio/ambience-lobby.mp3",
+  room1: "/audio/ambience-room1.mp3",
+  room2: "/audio/ambience-room2.mp3",
+  room3: "/audio/ambience-room3.mp3",
+};
+
+export function useAmbience(activeRoom: RoomId) {
+  const isAmbienceMuted = useMuseumStore((s) => s.isAmbienceMuted);
+  const settings = useMuseumStore((s) => s.settings);
+  const howlRef = useRef<Howl | null>(null);
+
+  const targetVolume =
+    settings.masterMuted || isAmbienceMuted ? 0 : settings.volumeAmbience / 100;
+
+  // Update volume whenever target changes
+  useEffect(() => {
+    if (!howlRef.current) return;
+    howlRef.current.fade(howlRef.current.volume(), targetVolume, 400);
+  }, [targetVolume]);
+
+  useEffect(() => {
+    howlRef.current?.fade(howlRef.current.volume(), 0, 400);
+    const prev = howlRef.current;
+    const timeout = setTimeout(() => prev?.unload(), 450);
+
+    const track = new Howl({
+      src: [AMBIENCE_TRACKS[activeRoom]],
+      loop: true,
+      volume: 0,
+      html5: true,
+      onloaderror: () => {
+        // Placeholder track missing — safe to ignore until real assets exist.
+      },
+    });
+    howlRef.current = track;
+
+    if (targetVolume > 0) {
+      track.play();
+      track.fade(0, targetVolume, 800);
+    }
+
+    return () => {
+      clearTimeout(timeout);
+      track.fade(track.volume(), 0, 300);
+      setTimeout(() => track.unload(), 350);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRoom]);
+}

@@ -1,0 +1,1 @@
+Letakkan file .glb/.gltf artefak di sini, lalu isi field "url_model_3d" di src/data/artifacts.json dengan path relatif, contoh: "/models/kapak-perimbas.glb"

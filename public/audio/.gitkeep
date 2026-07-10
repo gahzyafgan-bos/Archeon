@@ -1,0 +1,2 @@
+Letakkan file audio guide (.mp3) di sini, lalu isi field "url_audio" di src/data/artifacts.json.
+Untuk musik ambience per ruangan, gunakan nama file: ambience-lobby.mp3, ambience-room1.mp3, ambience-room2.mp3, ambience-room3.mp3 (lihat src/hooks/useAmbience.ts).
