@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Museum Mpu Tantular Virtual — IDRL Experience
 
 Starting point untuk simulasi penjelajahan museum 3D berbasis web, sesuai
@@ -128,3 +129,10 @@ datanya.
 - Mode AR via `<model-viewer>`
 - Subtitle otomatis untuk audio guide
 - Backend REST sungguhan (saat ini JSON lokal, lihat bagian di atas)
+=======
+# Archeon
+Museum penjelajahan virtual 3D berbasis web yang mensimulasikan Museum Mpu Tantular Sidoarjo, dibangun dengan pendekatan Immersive Dual Reality Learning (IDRL). Jelajahi koleksi sejarah Jawa Timur secara bebas, putar artefak 360°, dan dengarkan audio guide  langsung dari browser.
+
+ Archeon adalah aplikasi web 3D interaktif yang menghadirkan pengalaman menjelajahi Museum Mpu Tantular Sidoarjo secara virtual, menggunakan pendekatan Immersive Dual Reality Learning (IDRL). Pengguna bebas berjalan menyusuri Lobi dan tiga ruangan galeri (Prasejarah, Hindu-Buddha, IPTEK), mendekati artefak koleksi, memutarnya 360° secara interaktif, membaca infografik, dan mendengarkan audio guide — semua langsung dari browser tanpa instalasi.
+Dibangun dengan React, Three.js (React Three Fiber), TypeScript, dan Zustand.
+>>>>>>> e35f3e5d2a2e38801ec2090092a762efebe8d9c5
