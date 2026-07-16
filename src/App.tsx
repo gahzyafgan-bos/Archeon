@@ -4,6 +4,7 @@ import { RoomTransition } from "@/components/ui/RoomTransition";
 import { OnboardingFlow } from "@/components/ui/OnboardingFlow";
 import { HUD } from "@/components/ui/HUD";
 import { InfoPanel } from "@/components/ui/InfoPanel";
+import { VRHud } from "@/components/vr/VRHud";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
 import { useKeyboardControls } from "@/hooks/useKeyboardControls";
 import { useMouseLookControls } from "@/hooks/useMouseLookControls";
@@ -28,6 +29,7 @@ export default function App() {
     <div ref={setRootEl} className="relative w-full h-full bg-museum-void overflow-hidden">
       <MuseumExperience />
       <HUD />
+      <VRHud />
       <InfoPanel />
       <RoomTransition />
       <OnboardingFlow />

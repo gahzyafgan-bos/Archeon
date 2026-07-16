@@ -9,7 +9,7 @@ import type { Artifact } from "@/types/artifact";
  * `url_audio` yet (placeholder data), so the UI still works before real
  * narration files are added.
  */
-export function useAudioGuide(artifact: Artifact | null) {
+export function useAudioGuide(artifact: Artifact | null, autoPlay = false) {
   const isGuideAudioPlaying = useMuseumStore((s) => s.isGuideAudioPlaying);
   const setGuideAudioPlaying = useMuseumStore((s) => s.setGuideAudioPlaying);
   const settings = useMuseumStore((s) => s.settings);
@@ -32,12 +32,22 @@ export function useAudioGuide(artifact: Artifact | null) {
     setGuideAudioPlaying(false);
 
     if (artifact?.url_audio) {
-      howlRef.current = new Howl({
+      const howl = new Howl({
         src: [artifact.url_audio],
         volume: targetVolume,
         html5: true,
         onend: () => setGuideAudioPlaying(false),
       });
+      howlRef.current = howl;
+
+      // VR mode has no play button to tap (no touch access inside the headset),
+      // so the guide has to start itself as soon as it's ready.
+      if (autoPlay && targetVolume > 0) {
+        howl.once("load", () => {
+          howl.play();
+          setGuideAudioPlaying(true);
+        });
+      }
     }
 
     return () => {
@@ -45,7 +55,7 @@ export function useAudioGuide(artifact: Artifact | null) {
       howlRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artifact?.id]);
+  }, [artifact?.id, autoPlay]);
 
   const toggle = () => {
     if (!howlRef.current) return; // no audio file for this artifact yet

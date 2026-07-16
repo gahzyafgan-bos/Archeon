@@ -107,6 +107,18 @@ interface MuseumState {
   settings: Settings;
   updateSettings: (newSettings: Partial<Settings>) => void;
   resetSettings: () => void;
+
+  // --- VR Cardboard mode ---
+  isVRMode: boolean;
+  setVRMode: (v: boolean) => void;
+  /** Absolute look rotation (radians) derived from the phone's gyroscope, consumed by PlayerRig instead of lookInput while isVRMode is true. */
+  vrLook: { yaw: number; pitch: number };
+  setVRLook: (v: { yaw: number; pitch: number }) => void;
+  /** Bumped by useGamepadControls' recenter button; useDeviceOrientationLook watches it to re-baseline "facing forward". */
+  vrRecenterSignal: number;
+  requestVRRecenter: () => void;
+  isGamepadConnected: boolean;
+  setIsGamepadConnected: (v: boolean) => void;
 }
 
 export const useMuseumStore = create<MuseumState>()(
@@ -174,6 +186,15 @@ export const useMuseumStore = create<MuseumState>()(
         set((state) => ({
           settings: defaultSettings,
         })),
+
+      isVRMode: false,
+      setVRMode: (v) => set({ isVRMode: v }),
+      vrLook: { yaw: 0, pitch: 0 },
+      setVRLook: (v) => set({ vrLook: v }),
+      vrRecenterSignal: 0,
+      requestVRRecenter: () => set((state) => ({ vrRecenterSignal: state.vrRecenterSignal + 1 })),
+      isGamepadConnected: false,
+      setIsGamepadConnected: (v) => set({ isGamepadConnected: v }),
     }),
     {
       name: "museum-settings",

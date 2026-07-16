@@ -1,11 +1,12 @@
-<<<<<<< HEAD
-# Museum Mpu Tantular Virtual — IDRL Experience
+# Archeon — Museum Mpu Tantular Virtual (IDRL Experience)
 
-Starting point untuk simulasi penjelajahan museum 3D berbasis web, sesuai
-brief *Immersive Dual Reality Learning (IDRL)*. Berisi Lobi + 3 ruangan
-galeri (Prasejarah, Hindu-Buddha, Transisi IPTEK) yang bisa dijelajahi
-bebas dengan joystick virtual / WASD, sistem interaksi zoom-artefak, panel
-info melayang, audio guide, dan musik ambience.
+Simulasi penjelajahan Museum Mpu Tantular Sidoarjo secara 3D berbasis web,
+dibangun dengan pendekatan *Immersive Dual Reality Learning (IDRL)*: React,
+Three.js (React Three Fiber), TypeScript, dan Zustand. Berisi Lobi + 3
+ruangan galeri (Prasejarah, Hindu-Buddha, Transisi IPTEK) yang bisa
+dijelajahi bebas dengan joystick virtual / WASD, sistem interaksi
+zoom-artefak, panel info melayang, audio guide, musik ambience, dan sebuah
+**Mode VR Cardboard/Sinecone** opsional untuk headset + gamepad Bluetooth.
 
 Semua model 3D artefak masih berupa **placeholder primitif** (kubus, bola,
 kerucut, dst) — sistem interaksi dan alurnya sudah berjalan penuh, tinggal
@@ -22,7 +23,8 @@ npm run dev
 Buka `http://localhost:5173`. Di desktop, kontrol memakai **WASD** (gerak),
 **drag mouse** (lihat sekeliling), dan **E** (interaksi). Di perangkat
 sentuh, dua joystick virtual otomatis muncul di kiri-bawah (gerak) dan
-kanan-bawah (lihat sekeliling), plus tombol "X" untuk berinteraksi.
+kanan-bawah (lihat sekeliling), plus tombol "X" untuk berinteraksi. Untuk
+Mode VR Cardboard + gamepad, lihat bagian tersendiri di bawah.
 
 ## Struktur folder
 
@@ -32,13 +34,14 @@ src/
     rooms/        # RoomShell (shell arsitektur bersama), Lobby, GalleryRoom
     artifacts/     # ArtifactMesh — render placeholder/model 3D artefak
     ui/             # LoadingScreen, HUD, InfoPanel, RoomTransition, MiniMap
+    vr/             # CardboardStereoView, VREntryOverlay, VRHud — Mode VR
     PlayerRig.tsx   # Movement, kamera, collision, deteksi pintu & proximity
     MuseumExperience.tsx  # Canvas R3F + lazy-load per ruangan
   data/
     artifacts.json        # Data seluruh artefak (lihat skema di bawah)
     artifactRepository.ts # Lapisan akses data — gampang diganti fetch() API
     roomConfig.ts          # Layout, batas ruangan, titik spawn, pintu
-  hooks/            # Joystick (nipplejs), keyboard, mouse-look, audio, dsb
+  hooks/            # Joystick (nipplejs), keyboard, mouse-look, gyro, gamepad, audio, dsb
   store/
     useMuseumStore.ts # Zustand — satu sumber kebenaran untuk semua state
   types/artifact.ts   # Tipe TypeScript untuk data artefak
@@ -94,6 +97,92 @@ endpoint `GET /api/artifacts?ruangan=...` — komponen lain tidak perlu
 diubah karena semuanya bergantung pada tipe `Artifact`, bukan sumber
 datanya.
 
+## Mode VR Cardboard/Sinecone + Gamepad Bluetooth
+
+Mode VR adalah lapisan alternatif di atas scene dan state yang sama persis
+(Zustand, data artefak) — bukan scene terpisah. Diaktifkan lewat tombol
+"Masuk Mode VR" di HUD (`HUD.tsx`), yang hanya muncul di perangkat yang
+mendukung `DeviceOrientationEvent`.
+
+**Alur masuk:** tombol HUD → izin sensor gyroscope (wajib di-*trigger* dari
+klik, khusus iOS 13+) → `requestFullscreen()` → coba
+`screen.orientation.lock('landscape')` (best-effort, ada fallback kalau
+browser tidak mendukung) → layar instruksi 4 detik ("Lanjutkan") supaya
+sempat memasang HP ke headset → render stereo aktif
+(`CardboardStereoView.tsx`).
+
+**Saat aktif:**
+- Render jadi dua viewport (kiri/kanan) via `THREE.StereoCamera`, bukan dua
+  `<Canvas>` terpisah — lihat `src/components/vr/CardboardStereoView.tsx`.
+  Jarak antar-mata (eye separation) di-set 0.032 unit dunia sebagai titik
+  awal; dunia scene ini ≈ 1 unit = 1 meter (lihat `EYE_HEIGHT` di
+  `PlayerRig.tsx`), jadi kalau kedalaman stereo terasa terlalu tipis di
+  headset asli, naikkan `EYE_SEPARATION` menuju ~0.06.
+- Resolusi render otomatis diturunkan (`dpr={[1,1]}` alih-alih `[1,1.8]`)
+  dan post-processing bloom dimatikan (`PostProcessing`), karena stereo
+  merender scene dua kali per frame.
+- Arah pandang mengikuti giroskop HP (`useDeviceOrientationLook.ts`),
+  bukan joystick kanan/mouse — logic look lama tetap ada dan tetap dipakai
+  di luar Mode VR.
+- Gerak jalan & interaksi datang dari gamepad Bluetooth
+  (`useGamepadControls.ts`, lewat `navigator.getGamepads()`), bukan
+  joystick kiri/tombol sentuh — HUD sentuh biasa disembunyikan total dan
+  digantikan overlay minimal (`VRHud.tsx`): crosshair kecil + indikator
+  proximity/nama artefak, dicerminkan di kedua viewport.
+- Panel info artefak (`InfoPanel.tsx`) yang biasa (drag-to-rotate 360°)
+  disembunyikan di Mode VR karena butuh sentuhan — sebagai gantinya, audio
+  guide **otomatis mulai** begitu artefak difokuskan (lihat
+  `useAudioGuide(artifact, autoPlay)` di `VRHud.tsx`).
+
+**Pemetaan tombol gamepad** (diasumsikan layout "standard" ala Xbox — pad
+lain mungkin berbeda index, sesuaikan konstanta di
+`useGamepadControls.ts` kalau perlu):
+
+| Tombol           | Index | Aksi                                             |
+| ----------------- | ----- | ------------------------------------------------- |
+| Analog stick kiri | axes 0/1 | Gerak jalan (`moveInput`)                       |
+| A / X             | 0     | Interaksi artefak (sama seperti E/X sentuh)        |
+| B                 | 1     | Kembali/keluar dari fokus artefak                  |
+| Back / Select     | 8     | Kalibrasi ulang arah depan (gyro drift correction) |
+| Start             | 9     | Keluar dari Mode VR                                |
+
+Deadzone stick gamepad memakai nilai `settings.deadzone` yang sama dengan
+joystick sentuh — diterapkan satu kali secara terpusat di `PlayerRig.tsx`
+(bukan diduplikasi di `useGamepadControls.ts`), karena `moveInput` sudah
+melewati logic deadzone itu apa pun sumbernya.
+
+**Batasan penting:**
+- **HTTPS wajib untuk produksi.** `DeviceOrientationEvent` dan sensor
+  browser lain hanya aktif di *secure context* (HTTPS atau `localhost`).
+  Tanpa HTTPS, tombol "Masuk Mode VR" tetap muncul tapi giroskop tidak
+  akan pernah mengirim data.
+- **Tidak ada positional tracking** — murni rotational (nengok kepala) +
+  gamepad untuk gerak, sesuai keterbatasan tier Cardboard.
+- Gamepad harus sudah dipasangkan (paired) via Bluetooth OS *sebelum*
+  masuk Mode VR, dan banyak browser butuh minimal satu tekanan tombol dari
+  gamepad dulu sebelum `navigator.getGamepads()` mengembalikan datanya.
+- Diuji dengan satu gamepad Bluetooth ber-layout "standard"/Xbox-style di
+  desktop Chrome untuk memverifikasi input axes/tombol — **belum** diuji
+  di HP fisik + Cardboard sungguhan dengan gamepad ter-pairing (lihat
+  catatan di bawah).
+
+**Menguji Mode VR secara lokal (butuh HTTPS lokal juga):**
+
+Vite 5 tidak lagi punya flag `--https` bawaan. Dua opsi termudah:
+
+```bash
+# Opsi 1: plugin self-signed cert bawaan Vite ecosystem
+npm install -D @vitejs/plugin-basic-ssl
+# lalu tambahkan plugin basicSsl() di vite.config.ts, plugins: [react(), basicSsl()]
+
+# Opsi 2: tunnel HTTPS ke dev server yang sudah jalan di :5173
+npx ngrok http 5173
+```
+
+Buka URL HTTPS-nya di HP (harus di jaringan yang sama untuk opsi 1, atau
+lewat internet untuk opsi 2 via ngrok), baru tombol "Masuk Mode VR" akan
+benar-benar bisa membaca sensor.
+
 ## Catatan performa
 
 - Setiap ruangan hanya di-*mount* satu per satu (`MuseumExperience.tsx`) —
@@ -105,6 +194,10 @@ datanya.
   (`public/audio/ambience-<ruangan>.mp3`); jika file belum ada, sistem akan
   diam-diam gagal tanpa mematikan aplikasi (lihat `onloaderror` di
   `useAmbience.ts`).
+- Mode VR merender scene dua kali per frame (stereo) — dpr diturunkan
+  otomatis saat aktif; kalau frame rate masih jatuh di HP kelas menengah,
+  turunkan lagi lewat `dpr` di `MuseumExperience.tsx` atau kecilkan
+  `EYE_SEPARATION`'s viewport resolution lebih lanjut.
 
 ## Fitur yang sudah diimplementasikan
 
@@ -121,18 +214,20 @@ datanya.
 - [x] Joystick otomatis di touch device, WASD+mouse di desktop
 - [x] Lazy load per ruangan (hanya ruangan aktif yang di-mount)
 - [x] Mini-map sederhana (fitur opsional)
+- [x] Mode VR Cardboard/Sinecone: render stereoscopic + gyro look + gamepad
+      Bluetooth untuk gerak/interaksi (lihat bagian di atas)
 
 ## Belum diimplementasikan (opsional, lanjutan)
 
 - Checklist eksplorasi per-artefak yang tervisualisasi di UI (state-nya
   sudah ada di `viewedArtifactIds` pada store, tinggal dibuatkan tampilan)
+- Koreksi distorsi lensa (barrel distortion) untuk Mode VR — versi
+  sekarang pakai stereo split-screen polos tanpa koreksi optik lensa
 - Mode AR via `<model-viewer>`
 - Subtitle otomatis untuk audio guide
 - Backend REST sungguhan (saat ini JSON lokal, lihat bagian di atas)
-=======
-# Archeon
-Museum penjelajahan virtual 3D berbasis web yang mensimulasikan Museum Mpu Tantular Sidoarjo, dibangun dengan pendekatan Immersive Dual Reality Learning (IDRL). Jelajahi koleksi sejarah Jawa Timur secara bebas, putar artefak 360°, dan dengarkan audio guide  langsung dari browser.
-
- Archeon adalah aplikasi web 3D interaktif yang menghadirkan pengalaman menjelajahi Museum Mpu Tantular Sidoarjo secara virtual, menggunakan pendekatan Immersive Dual Reality Learning (IDRL). Pengguna bebas berjalan menyusuri Lobi dan tiga ruangan galeri (Prasejarah, Hindu-Buddha, IPTEK), mendekati artefak koleksi, memutarnya 360° secara interaktif, membaca infografik, dan mendengarkan audio guide — semua langsung dari browser tanpa instalasi.
-Dibangun dengan React, Three.js (React Three Fiber), TypeScript, dan Zustand.
->>>>>>> e35f3e5d2a2e38801ec2090092a762efebe8d9c5
+- **Konfirmasi akhir Mode VR di perangkat fisik** — kode ini belum diuji
+  di HP sungguhan dengan Cardboard fisik + gamepad Bluetooth yang benar-
+  benar dipasangkan (giroskop & Gamepad API berperilaku berbeda dari
+  simulasi DevTools desktop); lakukan pengujian ini sebelum menganggap
+  Mode VR selesai.

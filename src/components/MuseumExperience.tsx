@@ -11,6 +11,7 @@ import { useAmbience } from "@/hooks/useAmbience";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
 import { MiniMapFrame, MiniMapTracker } from "./ui/MiniMap";
 import { PostProcessing } from "./PostProcessing";
+import { CardboardStereoView } from "./vr/CardboardStereoView";
 
 /**
  * Renders exactly one room's geometry/artifacts at a time — the spec's
@@ -27,6 +28,8 @@ export function MuseumExperience() {
   const setPendingSpawnPoint = useMuseumStore((s) => s.setPendingSpawnPoint);
   const finishLoading = useMuseumStore((s) => s.finishLoading);
   const setLoadProgress = useMuseumStore((s) => s.setLoadProgress);
+
+  const isVRMode = useMuseumStore((s) => s.isVRMode);
 
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [renderedRoom, setRenderedRoom] = useState<RoomId>(activeRoom);
@@ -81,7 +84,13 @@ export function MuseumExperience() {
 
   return (
     <>
-      <Canvas shadows camera={{ fov: 68, near: 0.1, far: 200 }} dpr={[1, 1.8]}>
+      <Canvas
+        shadows
+        camera={{ fov: 68, near: 0.1, far: 200 }}
+        // Stereo mode renders the scene twice per frame — halve the pixel
+        // ratio while it's active so mid-range phones keep a usable frame rate.
+        dpr={isVRMode ? [1, 1] : [1, 1.8]}
+      >
         <Suspense fallback={null}>
           {renderedRoom === "lobby" ? (
             <Lobby artifacts={artifacts} />
@@ -89,11 +98,12 @@ export function MuseumExperience() {
             <GalleryRoom room={room} artifacts={artifacts} />
           )}
           <PlayerRig room={room} artifacts={artifacts} onEnterDoor={handleEnterDoor} />
-          <MiniMapTracker canvasEl={miniMapCanvasRef.current} room={renderedRoom} />
-          <PostProcessing />
+          {!isVRMode && <MiniMapTracker canvasEl={miniMapCanvasRef.current} room={renderedRoom} />}
+          {isVRMode ? <CardboardStereoView /> : <PostProcessing />}
         </Suspense>
       </Canvas>
-      <MiniMapFrame canvasRef={miniMapCanvasRef} />
+      {/* Hidden in VR mode: a single unmirrored corner overlay doesn't read correctly split across two eye viewports. */}
+      {!isVRMode && <MiniMapFrame canvasRef={miniMapCanvasRef} />}
     </>
   );
 }

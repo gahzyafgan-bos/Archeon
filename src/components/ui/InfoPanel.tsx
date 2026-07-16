@@ -9,10 +9,14 @@ export function InfoPanel() {
   const isInfoPanelOpen = useMuseumStore((s) => s.isInfoPanelOpen);
   const toggleInfoPanel = useMuseumStore((s) => s.toggleInfoPanel);
   const focusArtifact = useMuseumStore((s) => s.focusArtifact);
-  const audio = useAudioGuide(focusedArtifact);
+  const isVRMode = useMuseumStore((s) => s.isVRMode);
+  // VR mode plays the guide itself (see VRHud) and shows a minimal stereo
+  // indicator instead of this drag-to-rotate panel, which needs touch input
+  // that's unreachable inside a Cardboard headset.
+  const audio = useAudioGuide(isVRMode ? null : focusedArtifact);
   const settings = useMuseumStore((s) => s.settings);
 
-  if (!focusedArtifact) return null;
+  if (!focusedArtifact || isVRMode) return null;
 
   const handleClose = () => focusArtifact(null);
 
