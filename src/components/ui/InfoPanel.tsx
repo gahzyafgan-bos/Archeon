@@ -30,7 +30,7 @@ export function InfoPanel() {
           isInfoPanelOpen ? "translate-x-0 opacity-100" : "translate-x-8 opacity-0"
         }`}
       >
-        <div className="glass-panel rounded-2xl overflow-hidden flex flex-col max-h-[85vh] animate-slide-up-fade">
+        <div className="glass-panel rounded-2xl overflow-hidden flex flex-col max-h-[85dvh] animate-slide-up-fade">
           {/* Mini 360° model viewer */}
           <div className="h-56 sm:h-64 bg-museum-charcoal/60 relative">
             <Canvas camera={{ position: [0, 0.4, 2.6], fov: settings.cameraFOV }}>

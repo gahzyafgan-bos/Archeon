@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { useMuseumStore } from "@/store/useMuseumStore";
+import { useFullscreen } from "@/hooks/useFullscreen";
 
 export function OnboardingFlow() {
   const hasCompletedOnboarding = useMuseumStore((s) => s.hasCompletedOnboarding);
   const setHasCompletedOnboarding = useMuseumStore((s) => s.setHasCompletedOnboarding);
   const isTouchDevice = useMuseumStore((s) => s.isTouchDevice);
+  const { enterFullscreen, isFullscreenSupported } = useFullscreen();
 
   const [activeSlide, setActiveSlide] = useState(0);
 
@@ -16,6 +18,27 @@ export function OnboardingFlow() {
     if (activeSlide < totalSlides - 1) {
       setActiveSlide(activeSlide + 1);
     } else {
+      // Finishing onboarding ("Mulai Jelajahi") is a valid user gesture — the
+      // only context where requestFullscreen()/screen.orientation.lock() are
+      // allowed. Fullscreen is requested first (synchronously, before any
+      // await) and orientation lock only once it settles, because several
+      // browsers refuse to lock orientation unless fullscreen is already
+      // active. Both are best-effort: browsers that don't support them fail
+      // silently, and LandscapeGate remains the guaranteed fallback.
+      const lockLandscape = () => {
+        try {
+          screen.orientation?.lock?.("landscape").catch(() => {});
+        } catch {
+          // Unsupported — LandscapeGate handles it.
+        }
+      };
+      if (isTouchDevice) {
+        if (isFullscreenSupported) {
+          enterFullscreen().finally(lockLandscape);
+        } else {
+          lockLandscape();
+        }
+      }
       setHasCompletedOnboarding(true);
     }
   };
@@ -31,7 +54,7 @@ export function OnboardingFlow() {
   };
 
   return (
-    <div className="fixed inset-0 z-45 flex items-center justify-center bg-black/60 backdrop-blur-md transition-all duration-500">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-all duration-500">
       {/* Inline styles for custom onboarding animations */}
       <style>{`
         @keyframes ping-pong {
@@ -61,19 +84,24 @@ export function OnboardingFlow() {
       `}</style>
 
       {/* Main Container */}
-      <div className="glass-panel w-[92vw] max-w-[620px] min-h-[460px] md:min-h-[480px] rounded-2xl flex flex-col justify-between relative overflow-hidden text-museum-bone shadow-2xl animate-slide-up-fade">
-        {/* Skip button (only shown if not on the last slide) */}
-        {activeSlide < totalSlides - 1 && (
-          <button
-            onClick={handleSkip}
-            className="absolute top-5 right-6 z-50 text-xs text-museum-mist hover:text-museum-gold transition-colors font-semibold tracking-wider uppercase px-2 py-1 rounded bg-museum-charcoal/40 border border-white/5 hover:border-museum-gold/30"
-          >
-            Lewati Perkenalan
-          </button>
-        )}
+      <div className="glass-panel w-[92vw] max-w-[620px] min-h-[420px] max-h-[92dvh] rounded-2xl flex flex-col relative overflow-hidden text-museum-bone shadow-2xl animate-slide-up-fade">
+        {/* Header row reserving space for the skip button so it can never
+            overlap a slide's (vertically-centered, variable-length) title. */}
+        <div className="flex items-center justify-end px-6 pt-4 h-12 flex-shrink-0">
+          {activeSlide < totalSlides - 1 && (
+            <button
+              onClick={handleSkip}
+              className="text-xs text-museum-mist hover:text-museum-gold transition-colors font-semibold tracking-wider uppercase px-2.5 py-1 rounded bg-museum-charcoal/40 border border-white/5 hover:border-museum-gold/30"
+            >
+              Lewati Perkenalan
+            </button>
+          )}
+        </div>
 
         {/* Slides Track Wrapper */}
-        <div className="flex-grow overflow-hidden relative flex flex-col justify-center min-h-[350px]">
+        {/* min-h-0 lets this track shrink on short phone viewports so the footer
+            (dots + Kembali/Lanjut) is never pushed off-screen or clipped. */}
+        <div className="flex-1 min-h-0 overflow-hidden relative flex flex-col justify-center">
           <div
             className="flex h-full transition-transform duration-500 ease-museum w-full"
             style={{
@@ -90,7 +118,7 @@ export function OnboardingFlow() {
                   </div>
                 </div>
               </div>
-              <h2 className="font-display text-2.5xl md:text-3.5xl tracking-wide text-museum-bone mb-4 transition-all duration-700 leading-tight">
+              <h2 className="font-display text-[clamp(1.4rem,4.5vw,2.25rem)] tracking-wide text-museum-bone mb-4 transition-all duration-700 leading-tight">
                 Selamat Datang di <br className="hidden sm:inline" />
                 <span className="text-museum-gold">Museum Mpu Tantular Virtual</span>
               </h2>
@@ -101,7 +129,7 @@ export function OnboardingFlow() {
 
             {/* Slide 2: Preview Ruangan */}
             <div className="w-full flex-shrink-0 flex flex-col items-center justify-center px-6 md:px-10 text-center h-full">
-              <h2 className="font-display text-2.5xl md:text-3.5xl tracking-wide text-museum-bone mb-6 leading-tight">
+              <h2 className="font-display text-[clamp(1.4rem,4.5vw,2.25rem)] tracking-wide text-museum-bone mb-6 leading-tight">
                 Tiga Babak Sejarah Menantimu
               </h2>
               
@@ -145,7 +173,7 @@ export function OnboardingFlow() {
 
             {/* Slide 3: Cara Bergerak */}
             <div className="w-full flex-shrink-0 flex flex-col items-center justify-center px-6 md:px-12 text-center h-full">
-              <h2 className="font-display text-2.5xl md:text-3.5xl tracking-wide text-museum-bone mb-2 leading-tight">
+              <h2 className="font-display text-[clamp(1.4rem,4.5vw,2.25rem)] tracking-wide text-museum-bone mb-2 leading-tight">
                 Melangkahlah Bebas
               </h2>
               <p className="text-museum-mist text-xs md:text-sm mb-6 max-w-sm">
@@ -230,7 +258,7 @@ export function OnboardingFlow() {
 
             {/* Slide 4: Cara Berinteraksi */}
             <div className="w-full flex-shrink-0 flex flex-col items-center justify-center px-6 md:px-12 text-center h-full">
-              <h2 className="font-display text-2.5xl md:text-3.5xl tracking-wide text-museum-bone mb-2 leading-tight">
+              <h2 className="font-display text-[clamp(1.4rem,4.5vw,2.25rem)] tracking-wide text-museum-bone mb-2 leading-tight">
                 Sentuh Setiap Kisah
               </h2>
               <p className="text-museum-mist text-xs md:text-sm mb-6 max-w-sm">
@@ -274,7 +302,7 @@ export function OnboardingFlow() {
                 </svg>
               </div>
 
-              <h2 className="font-display text-2.5xl md:text-3.5xl tracking-wide text-museum-bone mb-3 leading-tight">
+              <h2 className="font-display text-[clamp(1.4rem,4.5vw,2.25rem)] tracking-wide text-museum-bone mb-3 leading-tight">
                 Petualangan Dimulai Sekarang
               </h2>
               <p className="text-museum-mist text-sm leading-relaxed max-w-sm mb-4">
@@ -316,12 +344,19 @@ export function OnboardingFlow() {
           </div>
 
           {/* Next / Start button */}
-          <button
-            onClick={handleNext}
-            className="bg-museum-gold text-museum-void text-xs uppercase tracking-wider font-semibold py-2.5 px-5 rounded hover:bg-museum-gold/90 border border-museum-gold hover:border-museum-gold shadow-lg shadow-museum-gold/5 transition-all"
-          >
-            {activeSlide === totalSlides - 1 ? "Mulai Jelajahi" : "Lanjut"}
-          </button>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={handleNext}
+              className="bg-museum-gold text-museum-void text-xs uppercase tracking-wider font-semibold py-2.5 px-5 rounded hover:bg-museum-gold/90 border border-museum-gold hover:border-museum-gold shadow-lg shadow-museum-gold/5 transition-all"
+            >
+              {activeSlide === totalSlides - 1 ? "Mulai Jelajahi" : "Lanjut"}
+            </button>
+            {activeSlide === totalSlides - 1 && isTouchDevice && isFullscreenSupported && (
+              <span className="text-museum-mist/60 text-[9px] tracking-wide">
+                Mode layar penuh akan aktif
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>

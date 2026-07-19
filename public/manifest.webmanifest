@@ -1,0 +1,15 @@
+{
+  "name": "Museum Mpu Tantular Virtual",
+  "short_name": "Mpu Tantular",
+  "description": "Jelajahi Museum Mpu Tantular secara virtual dalam 3D interaktif — Immersive Dual Reality Learning (IDRL).",
+  "start_url": "/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#0a0a0b",
+  "theme_color": "#0a0a0b",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

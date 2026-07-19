@@ -11,12 +11,36 @@
       name="description"
       content="Jelajahi Museum Mpu Tantular secara virtual dalam 3D interaktif — Immersive Dual Reality Learning (IDRL)."
     />
+
+    <!-- PWA: lets Chrome offer "Add to Home Screen" and is the only real
+         fullscreen path on iOS Safari, which has no Fullscreen API for
+         ordinary elements (see src/hooks/useFullscreen.ts). -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mpu Tantular" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <style>
-      html, body, #root {
+      html, body {
         margin: 0;
         padding: 0;
         width: 100%;
         height: 100%;
+        background: #0a0a0b;
+        overscroll-behavior: none;
+        touch-action: none;
+      }
+      #root {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        /* Fallbacks first, precise JS-driven value last (later wins).
+           100dvh = the dynamic viewport, correct even while the address bar
+           is visible; --app-height is set from visualViewport for exactness. */
+        height: 100%;
+        height: 100dvh;
+        height: var(--app-height, 100dvh);
         background: #0a0a0b;
         overscroll-behavior: none;
         touch-action: none;

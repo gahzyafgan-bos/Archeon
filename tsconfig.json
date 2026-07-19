@@ -15,10 +15,10 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
+    // ✅ Hapus "baseUrl": "." - tidak perlu lagi karena sudah pakai paths
     "paths": {
-      "@/*": ["src/*"]
-    }
+  "@/*": ["./src/*"]  // ✅ Tambah "./"
+}
   },
   "include": ["src"]
 }
