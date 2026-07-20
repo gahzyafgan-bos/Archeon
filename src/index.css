@@ -38,6 +38,13 @@ canvas {
   border: 1px solid rgba(201, 169, 97, 0.18);
 }
 
+/* Subtle top/bottom fade hinting that a scrollable panel has more content
+   above/below, without an explicit scroll button. */
+.museum-scroll-fade {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent);
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;

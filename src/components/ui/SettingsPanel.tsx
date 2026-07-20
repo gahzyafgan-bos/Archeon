@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useMuseumStore } from "@/store/useMuseumStore";
 
 export function SettingsPanel() {
-  const [activeTab, setActiveTab] = useState<"controls" | "audio" | "visual">("controls");
+  const [activeTab, setActiveTab] = useState<"controls" | "audio" | "visual" | "vr">("controls");
   const isSettingsOpen = useMuseumStore((s) => s.isSettingsOpen);
   const setIsSettingsOpen = useMuseumStore((s) => s.setIsSettingsOpen);
   const settings = useMuseumStore((s) => s.settings);
@@ -21,12 +21,20 @@ export function SettingsPanel() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm"
+      style={{
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
+      }}
       onClick={handleOverlayClick}
     >
-      <div className="glass-panel w-[90vw] max-w-[600px] rounded-2xl p-6 text-museum-bone shadow-2xl animate-slide-up-fade">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+      {/* max-h + flex-col: same 3-zone pattern as OnboardingFlow — header and
+          footer (Reset/Replay) are fixed zones that must always stay
+          reachable in short landscape viewports; only the tab content
+          between them scrolls. */}
+      <div className="glass-panel w-[90vw] max-w-[600px] max-h-[92dvh] rounded-2xl flex flex-col text-museum-bone shadow-2xl animate-slide-up-fade">
+        {/* Header (fixed) */}
+        <div className="flex-shrink-0 flex items-center justify-between px-6 pt-6 pb-4">
           <h2 className="font-display text-2xl">Pengaturan</h2>
           <button
             onClick={() => setIsSettingsOpen(false)}
@@ -37,42 +45,51 @@ export function SettingsPanel() {
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="mb-6 flex gap-2 border-b border-white/10 pb-4">
-          <button
-            onClick={() => setActiveTab("controls")}
-            className={`px-4 py-2 rounded-full transition-all ${
-              activeTab === "controls"
-                ? "bg-museum-gold/20 text-museum-gold border border-museum-gold/50"
-                : "text-museum-mist hover:text-museum-bone"
-            }`}
-          >
-            Kontrol
-          </button>
-          <button
-            onClick={() => setActiveTab("audio")}
-            className={`px-4 py-2 rounded-full transition-all ${
-              activeTab === "audio"
-                ? "bg-museum-gold/20 text-museum-gold border border-museum-gold/50"
-                : "text-museum-mist hover:text-museum-bone"
-            }`}
-          >
-            Suara
-          </button>
-          <button
-            onClick={() => setActiveTab("visual")}
-            className={`px-4 py-2 rounded-full transition-all ${
-              activeTab === "visual"
-                ? "bg-museum-gold/20 text-museum-gold border border-museum-gold/50"
-                : "text-museum-mist hover:text-museum-bone"
-            }`}
-          >
-            Visual
-          </button>
-        </div>
+        {/* Scrollable middle: tabs + tab content */}
+        <div className="museum-scroll-fade flex-1 min-h-0 overflow-y-auto museum-scroll px-6 pb-6">
+          <div className="mb-6 flex gap-2 border-b border-white/10 pb-4">
+            <button
+              onClick={() => setActiveTab("controls")}
+              className={`px-4 py-2 rounded-full transition-all ${
+                activeTab === "controls"
+                  ? "bg-museum-gold/20 text-museum-gold border border-museum-gold/50"
+                  : "text-museum-mist hover:text-museum-bone"
+              }`}
+            >
+              Kontrol
+            </button>
+            <button
+              onClick={() => setActiveTab("audio")}
+              className={`px-4 py-2 rounded-full transition-all ${
+                activeTab === "audio"
+                  ? "bg-museum-gold/20 text-museum-gold border border-museum-gold/50"
+                  : "text-museum-mist hover:text-museum-bone"
+              }`}
+            >
+              Suara
+            </button>
+            <button
+              onClick={() => setActiveTab("visual")}
+              className={`px-4 py-2 rounded-full transition-all ${
+                activeTab === "visual"
+                  ? "bg-museum-gold/20 text-museum-gold border border-museum-gold/50"
+                  : "text-museum-mist hover:text-museum-bone"
+              }`}
+            >
+              Visual
+            </button>
+            <button
+              onClick={() => setActiveTab("vr")}
+              className={`px-4 py-2 rounded-full transition-all ${
+                activeTab === "vr"
+                  ? "bg-museum-gold/20 text-museum-gold border border-museum-gold/50"
+                  : "text-museum-mist hover:text-museum-bone"
+              }`}
+            >
+              Mode VR
+            </button>
+          </div>
 
-        {/* Tab Content */}
-        <div className="max-h-[50vh] overflow-y-auto museum-scroll">
           {activeTab === "controls" && (
             <div className="space-y-6">
               {/* Look Sensitivity */}
@@ -344,10 +361,80 @@ export function SettingsPanel() {
               </div>
             </div>
           )}
+
+          {activeTab === "vr" && (
+            <div className="space-y-6">
+              <p className="text-museum-mist text-xs leading-relaxed -mt-2">
+                Kalibrasi untuk Mode VR Cardboard. Sesuaikan sambil melihat lewat lensa sampai
+                gambar kiri-kanan menyatu jadi satu dan terasa nyaman di mata.
+              </p>
+
+              {/* IPD (Interpupillary Distance) */}
+              <div>
+                <div className="mb-2 flex justify-between">
+                  <label>Jarak Antar Mata (IPD)</label>
+                  <span className="text-museum-gold">{Math.round(settings.vrIPD * 1000)} mm</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="0.075"
+                  step="0.001"
+                  value={settings.vrIPD}
+                  onChange={(e) => updateSettings({ vrIPD: parseFloat(e.target.value) })}
+                  className="w-full h-2 bg-museum-charcoal/50 rounded-lg appearance-none cursor-pointer accent-museum-gold"
+                />
+                <p className="text-museum-mist/70 text-[10px] mt-1">
+                  Jika gambar terasa "kebelah" atau kedalaman 3D kurang terasa, coba ubah nilai ini.
+                </p>
+              </div>
+
+              {/* Barrel distortion K1 */}
+              <div>
+                <div className="mb-2 flex justify-between">
+                  <label>Distorsi Lensa (K1)</label>
+                  <span className="text-museum-gold">{settings.vrDistortionK1.toFixed(2)}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="0.5"
+                  step="0.01"
+                  value={settings.vrDistortionK1}
+                  onChange={(e) => updateSettings({ vrDistortionK1: parseFloat(e.target.value) })}
+                  className="w-full h-2 bg-museum-charcoal/50 rounded-lg appearance-none cursor-pointer accent-museum-gold"
+                />
+              </div>
+
+              {/* Barrel distortion K2 */}
+              <div>
+                <div className="mb-2 flex justify-between">
+                  <label>Distorsi Lensa (K2)</label>
+                  <span className="text-museum-gold">{settings.vrDistortionK2.toFixed(2)}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="0.5"
+                  step="0.01"
+                  value={settings.vrDistortionK2}
+                  onChange={(e) => updateSettings({ vrDistortionK2: parseFloat(e.target.value) })}
+                  className="w-full h-2 bg-museum-charcoal/50 rounded-lg appearance-none cursor-pointer accent-museum-gold"
+                />
+                <p className="text-museum-mist/70 text-[10px] mt-1">
+                  Naikkan K1/K2 kalau tepi gambar masih terlihat melengkung lewat lensa; turunkan
+                  kalau tengah gambar terasa "ditarik" atau terlalu banyak area hitam di tepi.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Footer with Reset and Replay Intro */}
-        <div className="mt-6 pt-4 border-t border-white/10 flex flex-col sm:flex-row gap-3">
+        {/* Footer with Reset and Replay Intro (fixed zone, always reachable) */}
+        <div
+          className="flex-shrink-0 px-6 pt-4 border-t border-white/10 flex flex-col sm:flex-row gap-3"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
+        >
           <button
             onClick={() => {
               setIsSettingsOpen(false);

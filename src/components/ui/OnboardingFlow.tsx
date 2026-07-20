@@ -54,7 +54,13 @@ export function OnboardingFlow() {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-all duration-500">
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/60 backdrop-blur-md transition-all duration-500"
+      style={{
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
+      }}
+    >
       {/* Inline styles for custom onboarding animations */}
       <style>{`
         @keyframes ping-pong {
@@ -81,13 +87,23 @@ export function OnboardingFlow() {
           0%, 100% { background-color: rgba(20, 20, 22, 0.4); border-color: rgba(255, 255, 255, 0.1); color: #8a8a92; }
           50% { background-color: rgba(201, 169, 97, 0.25); border-color: rgba(201, 169, 97, 0.7); color: #c9a961; }
         }
+
+        /* Short landscape phones (e.g. ~360-375px tall): trim chrome so more
+           of the fixed nav zones fit without pushing slide content into scroll. */
+        @media (max-height: 500px) and (orientation: landscape) {
+          .onboarding-header-row { height: 2.25rem !important; padding-top: 0.5rem !important; }
+          .onboarding-footer-row { padding-top: 0.5rem !important; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem) !important; }
+          .onboarding-slide h2 { font-size: clamp(1.05rem, 4vw, 1.4rem) !important; margin-bottom: 0.5rem !important; }
+          .onboarding-slide p { margin-bottom: 0.5rem !important; }
+        }
       `}</style>
 
       {/* Main Container */}
-      <div className="glass-panel w-[92vw] max-w-[620px] min-h-[420px] max-h-[92dvh] rounded-2xl flex flex-col relative overflow-hidden text-museum-bone shadow-2xl animate-slide-up-fade">
+      <div className="glass-panel w-[92vw] max-w-[620px] min-h-[min(420px,90dvh)] max-h-[92dvh] rounded-2xl flex flex-col relative overflow-hidden text-museum-bone shadow-2xl animate-slide-up-fade">
         {/* Header row reserving space for the skip button so it can never
-            overlap a slide's (vertically-centered, variable-length) title. */}
-        <div className="flex items-center justify-end px-6 pt-4 h-12 flex-shrink-0">
+            overlap a slide's (vertically-centered, variable-length) title.
+            flex-shrink-0: fixed zone, always visible, never scrolls. */}
+        <div className="onboarding-header-row flex items-center justify-end px-6 pt-4 h-12 flex-shrink-0">
           {activeSlide < totalSlides - 1 && (
             <button
               onClick={handleSkip}
@@ -100,8 +116,13 @@ export function OnboardingFlow() {
 
         {/* Slides Track Wrapper */}
         {/* min-h-0 lets this track shrink on short phone viewports so the footer
-            (dots + Kembali/Lanjut) is never pushed off-screen or clipped. */}
-        <div className="flex-1 min-h-0 overflow-hidden relative flex flex-col justify-center">
+            (dots + Kembali/Lanjut) is never pushed off-screen or clipped.
+            overflow-y-auto (with overflow-x-hidden to preserve the carousel
+            clip) makes THIS zone scroll internally when a slide's content is
+            taller than the available space, instead of the whole card
+            growing past the viewport. museum-scroll-fade hints there's more
+            content above/below without needing an explicit scroll button. */}
+        <div className="onboarding-body museum-scroll-fade flex-1 min-h-0 overflow-x-hidden overflow-y-auto relative flex flex-col justify-center">
           <div
             className="flex h-full transition-transform duration-500 ease-museum w-full"
             style={{
@@ -109,7 +130,7 @@ export function OnboardingFlow() {
             }}
           >
             {/* Slide 1: Welcome */}
-            <div className="w-full flex-shrink-0 flex flex-col items-center justify-center px-6 md:px-12 text-center h-full">
+            <div className="onboarding-slide w-full flex-shrink-0 flex flex-col items-center [justify-content:safe_center] px-6 md:px-12 text-center h-full">
               <div className="flex justify-center items-center mb-6">
                 <div className="w-16 h-16 border border-museum-gold/30 rotate-45 flex items-center justify-center relative">
                   <div className="absolute inset-0 border border-museum-gold/60 scale-90 animate-ping opacity-45 rounded-sm" />
@@ -128,7 +149,7 @@ export function OnboardingFlow() {
             </div>
 
             {/* Slide 2: Preview Ruangan */}
-            <div className="w-full flex-shrink-0 flex flex-col items-center justify-center px-6 md:px-10 text-center h-full">
+            <div className="onboarding-slide w-full flex-shrink-0 flex flex-col items-center [justify-content:safe_center] px-6 md:px-10 text-center h-full">
               <h2 className="font-display text-[clamp(1.4rem,4.5vw,2.25rem)] tracking-wide text-museum-bone mb-6 leading-tight">
                 Tiga Babak Sejarah Menantimu
               </h2>
@@ -172,7 +193,7 @@ export function OnboardingFlow() {
             </div>
 
             {/* Slide 3: Cara Bergerak */}
-            <div className="w-full flex-shrink-0 flex flex-col items-center justify-center px-6 md:px-12 text-center h-full">
+            <div className="onboarding-slide w-full flex-shrink-0 flex flex-col items-center [justify-content:safe_center] px-6 md:px-12 text-center h-full">
               <h2 className="font-display text-[clamp(1.4rem,4.5vw,2.25rem)] tracking-wide text-museum-bone mb-2 leading-tight">
                 Melangkahlah Bebas
               </h2>
@@ -257,7 +278,7 @@ export function OnboardingFlow() {
             </div>
 
             {/* Slide 4: Cara Berinteraksi */}
-            <div className="w-full flex-shrink-0 flex flex-col items-center justify-center px-6 md:px-12 text-center h-full">
+            <div className="onboarding-slide w-full flex-shrink-0 flex flex-col items-center [justify-content:safe_center] px-6 md:px-12 text-center h-full">
               <h2 className="font-display text-[clamp(1.4rem,4.5vw,2.25rem)] tracking-wide text-museum-bone mb-2 leading-tight">
                 Sentuh Setiap Kisah
               </h2>
@@ -293,7 +314,7 @@ export function OnboardingFlow() {
             </div>
 
             {/* Slide 5: CTA/Penutup */}
-            <div className="w-full flex-shrink-0 flex flex-col items-center justify-center px-6 md:px-12 text-center h-full animate-fade-in">
+            <div className="onboarding-slide w-full flex-shrink-0 flex flex-col items-center [justify-content:safe_center] px-6 md:px-12 text-center h-full animate-fade-in">
               <div className="w-16 h-22 border-t border-x border-museum-gold/30 rounded-t-lg bg-gradient-to-t from-museum-gold/5 to-museum-gold/15 flex items-center justify-center mb-6 relative overflow-hidden">
                 <div className="absolute inset-0 opacity-40 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-museum-gold via-transparent to-transparent animate-pulse" />
                 <div className="w-8 h-8 rounded-full bg-museum-gold/25 filter blur-sm animate-pulse" />
@@ -312,8 +333,14 @@ export function OnboardingFlow() {
           </div>
         </div>
 
-        {/* Footer controls: indicator + prev/next buttons */}
-        <div className="px-6 py-4 bg-museum-charcoal/50 border-t border-white/5 flex items-center justify-between z-20">
+        {/* Footer controls: indicator + prev/next buttons.
+            Fixed zone — flex-shrink-0 so it can never be squeezed out, plus a
+            safe-area-inset-bottom reservation so gesture-bar Android phones
+            don't overlap "Mulai Jelajahi". */}
+        <div
+          className="onboarding-footer-row flex-shrink-0 px-6 pt-4 bg-museum-charcoal/50 border-t border-white/5 flex items-center justify-between z-20"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }}
+        >
           {/* Back button */}
           <button
             onClick={handleBack}

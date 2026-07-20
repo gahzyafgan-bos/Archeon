@@ -32,17 +32,26 @@ export function HUD() {
   useGamepadControls();
   const { isFullscreen, isFullscreenSupported, enterFullscreen } = useFullscreen();
   const [isEnteringVR, setIsEnteringVR] = useState(false);
-  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [vrError, setVrError] = useState<null | "unsupported" | "denied">(null);
 
   const handleEnterVR = async () => {
-    setPermissionDenied(false);
+    setVrError(null);
+    // If the gyroscope API isn't exposed at all — almost always because the
+    // page is served over insecure HTTP, since mobile browsers gate
+    // `DeviceOrientationEvent` behind a secure context — entering VR would
+    // leave the user unable to look around. Tell them why instead of silently
+    // failing (or, worse, hiding the button so they think VR is gone).
+    if (!isVRSupported) {
+      setVrError("unsupported");
+      return;
+    }
     // Kick off fullscreen synchronously (before any await) so it stays inside
     // this click's user-gesture window — Safari in particular revokes that
     // window after the first await.
     const fullscreenPromise = document.documentElement.requestFullscreen?.().catch(() => {});
     const granted = await requestPermission();
     if (!granted) {
-      setPermissionDenied(true);
+      setVrError("denied");
       return;
     }
     await fullscreenPromise;
@@ -71,9 +80,11 @@ export function HUD() {
         />
       )}
 
-      {permissionDenied && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-30 glass-panel rounded-full px-4 py-2 text-museum-mist text-xs">
-          Izin sensor gyroscope ditolak — Mode VR butuh akses ini untuk mengontrol arah pandang.
+      {vrError && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-30 glass-panel rounded-2xl px-4 py-2.5 text-museum-mist text-xs max-w-[90vw] text-center leading-relaxed">
+          {vrError === "unsupported"
+            ? "Sensor gerak tak terdeteksi. Mode VR butuh koneksi HTTPS (ikon gembok) — buka situs lewat https:// lalu coba lagi."
+            : "Izin sensor gyroscope ditolak — Mode VR butuh akses ini untuk mengontrol arah pandang."}
         </div>
       )}
       {/* Room label, top-left — quiet, translucent. Offset by the safe-area
@@ -99,11 +110,14 @@ export function HUD() {
           right: "calc(env(safe-area-inset-right, 0px) + 1.25rem)",
         }}
       >
-        {/* VR entry is offered only on actual touch devices: desktop Chrome/
-            Firefox still define DeviceOrientationEvent (so isVRSupported is
-            true there) despite having no motion sensor, which would otherwise
-            surface a dead VR button on desktop — spec 4.3 requires it hidden. */}
-        {isVRSupported && isTouchDevice && (
+        {/* VR entry is offered on every touch device (phones/tablets, which
+            physically have orientation sensors) — NOT gated on isVRSupported.
+            The gyroscope API is hidden on insecure HTTP origins, so gating on
+            it wrongly hid the button on real phones during LAN testing; instead
+            the button always shows here and handleEnterVR explains if the
+            sensor can't actually be used. Desktop is excluded by isTouchDevice
+            (spec 4.3: no dead VR button on desktop). */}
+        {isTouchDevice && (
           <button
             onClick={handleEnterVR}
             className="h-9 rounded-full border border-museum-gold/60 bg-museum-gold/10 flex items-center gap-1.5 px-3.5 text-museum-gold hover:bg-museum-gold/20 transition-colors text-xs tracking-wide font-semibold"

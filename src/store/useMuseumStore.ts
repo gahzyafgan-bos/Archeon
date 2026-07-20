@@ -30,6 +30,11 @@ export interface Settings {
   highContrast: boolean;
   textSize: TextSize;
   roomTransitionSpeed: number; // 0.5x to 2x, multiplier for current transition speed
+  // VR (Cardboard) lens calibration — different Cardboard viewers and faces
+  // need different values to make the stereo image actually fuse comfortably.
+  vrIPD: number; // world units between eyes; real-world average is ~0.063 (63mm), scene scale is 1 unit = 1 meter
+  vrDistortionK1: number; // barrel pre-distortion, 1st order radial coefficient
+  vrDistortionK2: number; // barrel pre-distortion, 2nd order radial coefficient
 }
 
 const defaultSettings: Settings = {
@@ -48,6 +53,9 @@ const defaultSettings: Settings = {
   highContrast: false,
   textSize: "medium",
   roomTransitionSpeed: 1,
+  vrIPD: 0.063,
+  vrDistortionK1: 0.22,
+  vrDistortionK2: 0.24,
 };
 
 interface MuseumState {
