@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useMuseumStore } from "@/store/useMuseumStore";
+import { GRAPHICS_QUALITY_LABELS, type GraphicsQuality } from "@/utils/graphicsPresets";
 
 export function SettingsPanel() {
   const [activeTab, setActiveTab] = useState<"controls" | "audio" | "visual" | "vr">("controls");
@@ -9,6 +10,7 @@ export function SettingsPanel() {
   const updateSettings = useMuseumStore((s) => s.updateSettings);
   const resetSettings = useMuseumStore((s) => s.resetSettings);
   const setHasCompletedOnboarding = useMuseumStore((s) => s.setHasCompletedOnboarding);
+  const setGraphicsQuality = useMuseumStore((s) => s.setGraphicsQuality);
 
   if (!isSettingsOpen) return null;
 
@@ -274,6 +276,31 @@ export function SettingsPanel() {
 
           {activeTab === "visual" && (
             <div className="space-y-6">
+              {/* Graphics Quality */}
+              <div>
+                <div className="mb-2">
+                  <label>Kualitas Grafis</label>
+                </div>
+                <div className="flex gap-2">
+                  {(Object.keys(GRAPHICS_QUALITY_LABELS) as GraphicsQuality[]).map((quality) => (
+                    <button
+                      key={quality}
+                      onClick={() => setGraphicsQuality(quality)}
+                      className={`flex-1 py-2 rounded-full border transition-all ${
+                        settings.graphicsQuality === quality
+                          ? "bg-museum-gold/20 border-museum-gold/50 text-museum-gold"
+                          : "border-white/10 text-museum-mist hover:text-museum-bone"
+                      }`}
+                    >
+                      {GRAPHICS_QUALITY_LABELS[quality].title}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-museum-mist/70 text-[10px] mt-1">
+                  {GRAPHICS_QUALITY_LABELS[settings.graphicsQuality].desc}
+                </p>
+              </div>
+
               {/* Reduce Motion */}
               <div className="flex items-center justify-between">
                 <label>Kurangi Gerakan Kamera (Anti Mabuk)</label>

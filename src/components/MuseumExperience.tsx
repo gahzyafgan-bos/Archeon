@@ -8,6 +8,7 @@ import { PlayerRig } from "./PlayerRig";
 import { Hall } from "./rooms/Hall";
 import { useAmbience } from "@/hooks/useAmbience";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
+import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
 import { MiniMapFrame, MiniMapTracker } from "./ui/MiniMap";
 import { PostProcessing } from "./PostProcessing";
 import { CardboardStereoView } from "./vr/CardboardStereoView";
@@ -29,6 +30,7 @@ export function MuseumExperience() {
   const setLoadProgress = useMuseumStore((s) => s.setLoadProgress);
 
   const isVRMode = useMuseumStore((s) => s.isVRMode);
+  const graphicsPreset = useGraphicsPreset();
 
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [renderedRoom, setRenderedRoom] = useState<RoomId>(activeRoom);
@@ -57,7 +59,9 @@ export function MuseumExperience() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fade-to-black transition whenever the active room changes.
+  // Brief crossfade whenever the active hall changes — the archway is an
+  // open walk-through now, so this only needs to be long enough to hide the
+  // new hall's artifacts popping in, not a scene-change beat (see RoomTransition.tsx).
   useEffect(() => {
     if (activeRoom === renderedRoom) return;
     setTransitioning(true);
@@ -65,8 +69,8 @@ export function MuseumExperience() {
       const data = await fetchArtifactsByRoom(activeRoom);
       setArtifacts(data);
       setRenderedRoom(activeRoom);
-      setTimeout(() => setTransitioning(false), 60);
-    }, 420);
+      setTimeout(() => setTransitioning(false), 30);
+    }, 130);
     return () => clearTimeout(fadeOut);
   }, [activeRoom, renderedRoom, setTransitioning]);
 
@@ -84,16 +88,18 @@ export function MuseumExperience() {
   return (
     <>
       <Canvas
-        shadows
+        shadows={graphicsPreset.shadowsEnabled}
         camera={{ fov: 68, near: 0.1, far: 200 }}
         // Stereo mode renders the scene twice per frame — halve the pixel
         // ratio while it's active so mid-range phones keep a usable frame rate.
-        dpr={isVRMode ? [1, 1] : [1, 1.8]}
-        // R3F defaults to ACESFilmicToneMapping, which compresses midtones —
-        // raw light-intensity numbers alone read darker on screen than they
-        // "should". A modest exposure lift is a free (zero GPU cost) way to
-        // brighten the whole image without touching individual light values.
-        gl={{ toneMappingExposure: 1.25 }}
+        // Otherwise follow the user's graphics-quality DPR cap.
+        dpr={isVRMode ? [1, 1] : graphicsPreset.dpr}
+        // R3F defaults to ACESFilmicToneMapping, which rolls off highlights
+        // naturally instead of clipping to white. Exposure kept at/below 1.0
+        // (rather than the earlier 1.25) so ivory walls don't wash out to
+        // flat white — the actual brightness now comes from a directional
+        // key light + rebalanced fill (see RoomShell) instead of exposure.
+        gl={{ toneMappingExposure: 0.95 }}
       >
         <Suspense fallback={null}>
           <Hall hall={room} artifacts={artifacts} />

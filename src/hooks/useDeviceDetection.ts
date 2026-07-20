@@ -9,6 +9,7 @@ import { useMuseumStore } from "@/store/useMuseumStore";
 export function useDeviceDetection() {
   const setIsTouchDevice = useMuseumStore((s) => s.setIsTouchDevice);
   const setIsLowEndDevice = useMuseumStore((s) => s.setIsLowEndDevice);
+  const applyAutoGraphicsQuality = useMuseumStore((s) => s.applyAutoGraphicsQuality);
 
   useEffect(() => {
     const isTouch =
@@ -23,5 +24,16 @@ export function useDeviceDetection() {
       window.screen.width < 768 ||
       navigator.hardwareConcurrency < 4;
     setIsLowEndDevice(isLowEnd);
-  }, [setIsTouchDevice, setIsLowEndDevice]);
+
+    // Graphics quality default (only applies while the user hasn't
+    // overridden it in SettingsPanel — see applyAutoGraphicsQuality):
+    // desktop -> Tinggi, mobile -> Sedang, weak/low-end mobile -> Rendah.
+    if (!isTouch) {
+      applyAutoGraphicsQuality("tinggi");
+    } else if (window.screen.width < 480 || navigator.hardwareConcurrency < 4) {
+      applyAutoGraphicsQuality("rendah");
+    } else {
+      applyAutoGraphicsQuality("sedang");
+    }
+  }, [setIsTouchDevice, setIsLowEndDevice, applyAutoGraphicsQuality]);
 }

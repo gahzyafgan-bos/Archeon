@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Artifact, RoomId, ZoneId } from "@/types/artifact";
+import type { GraphicsQuality } from "@/utils/graphicsPresets";
 
 // Re-exported so existing `import type { RoomId } from "@/store/useMuseumStore"`
 // call sites across the app don't need to change — canonical definition now
@@ -39,6 +40,8 @@ export interface Settings {
   vrIPD: number; // world units between eyes; real-world average is ~0.063 (63mm), scene scale is 1 unit = 1 meter
   vrDistortionK1: number; // barrel pre-distortion, 1st order radial coefficient
   vrDistortionK2: number; // barrel pre-distortion, 2nd order radial coefficient
+  // Kualitas Grafis
+  graphicsQuality: GraphicsQuality;
 }
 
 const defaultSettings: Settings = {
@@ -60,6 +63,7 @@ const defaultSettings: Settings = {
   vrIPD: 0.063,
   vrDistortionK1: 0.22,
   vrDistortionK2: 0.24,
+  graphicsQuality: "tinggi",
 };
 
 interface MuseumState {
@@ -123,6 +127,13 @@ interface MuseumState {
   settings: Settings;
   updateSettings: (newSettings: Partial<Settings>) => void;
   resetSettings: () => void;
+  /** True once the user has explicitly picked a graphics quality tier in
+   * SettingsPanel — after that, useDeviceDetection's auto-default no longer
+   * overwrites their choice. */
+  graphicsQualityCustomized: boolean;
+  setGraphicsQuality: (quality: GraphicsQuality) => void;
+  /** Device-detection default — only takes effect while the user hasn't customized it. */
+  applyAutoGraphicsQuality: (quality: GraphicsQuality) => void;
 
   // --- VR Cardboard mode ---
   isVRMode: boolean;
@@ -205,6 +216,19 @@ export const useMuseumStore = create<MuseumState>()(
           settings: defaultSettings,
         })),
 
+      graphicsQualityCustomized: false,
+      setGraphicsQuality: (quality) =>
+        set((state) => ({
+          settings: { ...state.settings, graphicsQuality: quality },
+          graphicsQualityCustomized: true,
+        })),
+      applyAutoGraphicsQuality: (quality) =>
+        set((state) =>
+          state.graphicsQualityCustomized
+            ? {}
+            : { settings: { ...state.settings, graphicsQuality: quality } }
+        ),
+
       isVRMode: false,
       setVRMode: (v) => set({ isVRMode: v }),
       vrLook: { yaw: 0, pitch: 0 },
@@ -218,6 +242,7 @@ export const useMuseumStore = create<MuseumState>()(
       name: "museum-settings",
       partialize: (state) => ({
         settings: state.settings,
+        graphicsQualityCustomized: state.graphicsQualityCustomized,
       }),
     }
   )

@@ -1,5 +1,6 @@
 import { ReactNode, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
+import { ContactShadows, Environment } from "@react-three/drei";
 import * as THREE from "three";
 import type { RoomConfig, Door, ZoneConfig } from "@/data/roomConfig";
 import { ARCHWAY_WIDTH, ARCHWAY_HEIGHT } from "@/data/roomConfig";
@@ -9,9 +10,12 @@ import { Dwarapala } from "@/components/artifacts/Dwarapala";
 import { Pillar } from "@/components/architecture/Pillar";
 import { HangingLamp } from "@/components/architecture/HangingLamp";
 import { PottedPlant } from "@/components/architecture/PottedPlant";
+import { HallColonnade, HallBenches } from "@/components/architecture/HallEdgeDecor";
+import { FloorPath } from "@/components/architecture/FloorPath";
 import { ZoneFloorMotif } from "@/components/architecture/ZoneFloorMotif";
 import { ZoneSignboard } from "@/components/architecture/ZoneSignboard";
 import { createBatikPattern } from "@/utils/batikPatterns";
+import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
 
 const WALL_THICKNESS = 0.3;
 const WOOD_COLOR = "#7A5230";
@@ -47,7 +51,7 @@ function ZWall({
 }) {
   if (!gapDoor) {
     return (
-      <mesh position={[(minX + maxX) / 2, wallHeight / 2, z]}>
+      <mesh position={[(minX + maxX) / 2, wallHeight / 2, z]} receiveShadow>
         <boxGeometry args={[maxX - minX, wallHeight, WALL_THICKNESS]} />
         <meshStandardMaterial color={color} roughness={0.85} />
       </mesh>
@@ -61,13 +65,13 @@ function ZWall({
   return (
     <group>
       {leftWidth > 0.2 && (
-        <mesh position={[minX + leftWidth / 2, wallHeight / 2, z]}>
+        <mesh position={[minX + leftWidth / 2, wallHeight / 2, z]} receiveShadow>
           <boxGeometry args={[leftWidth, wallHeight, WALL_THICKNESS]} />
           <meshStandardMaterial color={color} roughness={0.85} />
         </mesh>
       )}
       {rightWidth > 0.2 && (
-        <mesh position={[maxX - rightWidth / 2, wallHeight / 2, z]}>
+        <mesh position={[maxX - rightWidth / 2, wallHeight / 2, z]} receiveShadow>
           <boxGeometry args={[rightWidth, wallHeight, WALL_THICKNESS]} />
           <meshStandardMaterial color={color} roughness={0.85} />
         </mesh>
@@ -102,6 +106,7 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
   const centerZ = (minZ + maxZ) / 2;
   const wallHeight = 7;
   const { scene } = useThree();
+  const graphicsPreset = useGraphicsPreset();
 
   useMemo(() => {
     // Warm, light fog matching the Batik Modern base palette — closes off
@@ -151,6 +156,7 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
       {room.zones.map((zone) => (
         <ZoneFloorMotif key={zone.id} zone={zone} />
       ))}
+      <FloorPath room={room} />
 
       {/* Ceiling: joglo beam grid, consistent style across both halls */}
       <group position={[0, wallHeight, 0]}>
@@ -183,32 +189,81 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
       {/* Perimeter walls — collision-relevant sides only; no internal walls between zones */}
       <ZWall z={minZ} minX={minX} maxX={maxX} wallHeight={wallHeight} color={room.wallColor} gapDoor={gapDoorMinZ} />
       <ZWall z={maxZ} minX={minX} maxX={maxX} wallHeight={wallHeight} color={room.wallColor} gapDoor={gapDoorMaxZ} />
-      <mesh position={[minX, wallHeight / 2, centerZ]}>
+      <mesh position={[minX, wallHeight / 2, centerZ]} receiveShadow>
         <boxGeometry args={[WALL_THICKNESS, wallHeight, depth]} />
         <meshStandardMaterial color={room.wallColor} roughness={0.88} />
       </mesh>
-      <mesh position={[maxX, wallHeight / 2, centerZ]}>
+      <mesh position={[maxX, wallHeight / 2, centerZ]} receiveShadow>
         <boxGeometry args={[WALL_THICKNESS, wallHeight, depth]} />
         <meshStandardMaterial color={room.wallColor} roughness={0.88} />
       </mesh>
 
-      {/* Lighting System — physically-based light units (three r155+), so
-          point/directional intensities need to be well above the old
-          "legacy" convention to read as bright; ambient/hemisphere aren't
-          distance-attenuated so they're the cheapest way to guarantee every
-          surface stays readable regardless of viewing angle. */}
-      <ambientLight intensity={1.7} color="#FFF6E6" />
-      <hemisphereLight args={["#FFF6E6", "#C9B48A", 1.4]} />
-      <directionalLight
-        position={[centerX + 8, wallHeight + 6, centerZ + 8]}
-        intensity={1.8}
-        color="#FFF0D0"
-        castShadow
-        shadow-mapSize={[1024, 1024]}
+      {/* Lighting System — ambient/hemisphere are now just a soft fill floor
+          (no direction, so on their own they flatten everything to the same
+          brightness); a single directional key light is the actual source of
+          form/shadow, mimicking sun coming through the joglo roof. Kept low
+          enough that highlights don't clip to white at exposure 0.95 (see
+          MuseumExperience) but still leaves visible tonal range top-to-bottom. */}
+      <ambientLight intensity={0.4} color="#FFF6E6" />
+      <hemisphereLight args={["#FFF6E6", "#C9B48A", 0.42]} />
+      {graphicsPreset.shadowsEnabled ? (
+        <directionalLight
+          position={[centerX + width * 0.18, wallHeight + 6, centerZ + depth * 0.22]}
+          intensity={1.4}
+          color="#FFDFA6"
+          castShadow
+          shadow-mapSize={[graphicsPreset.shadowMapSize, graphicsPreset.shadowMapSize]}
+          shadow-camera-left={-width / 2 - 2}
+          shadow-camera-right={width / 2 + 2}
+          shadow-camera-top={depth / 2 + 2}
+          shadow-camera-bottom={-depth / 2 - 2}
+          shadow-camera-near={0.5}
+          shadow-camera-far={wallHeight + 24}
+          shadow-bias={-0.0005}
+        />
+      ) : (
+        <directionalLight
+          position={[centerX + width * 0.18, wallHeight + 6, centerZ + depth * 0.22]}
+          intensity={1.4}
+          color="#FFDFA6"
+        />
+      )}
+      {/* Accent fill lights — count follows graphics quality (spec 4b "jumlah
+          spotLight aksen"); kept to a handful per hall either way (spec 7). */}
+      {[
+        { x: centerX - width * 0.25, z: centerZ },
+        { x: centerX + width * 0.25, z: centerZ },
+      ]
+        .slice(0, graphicsPreset.accentLightCount)
+        .map((p, i) => (
+          <pointLight key={i} position={[p.x, 4.5, p.z]} intensity={8} distance={14} decay={2} color="#E8A020" />
+        ))}
+
+      {/* Contact shadows: the cheap, always-on way to "ground" every object —
+          a single baked-once (frames=1, nothing here moves) shadow plane
+          under the whole hall floor, resolution scaling with graphics quality. */}
+      <ContactShadows
+        // Re-key on artifact count: frames=1 bakes once and stops, so this
+        // forces one fresh bake after the (async-loaded) artifacts actually
+        // mount instead of baking an empty floor on first render.
+        key={`contact-shadows-${artifacts.length}`}
+        position={[centerX, 0.015, centerZ]}
+        opacity={0.45}
+        scale={[width, depth]}
+        blur={2.2}
+        far={6}
+        resolution={graphicsPreset.contactShadowResolution}
+        color="#2a2015"
+        frames={1}
       />
-      {/* Key fill lights — kept to a handful per hall (spec 7: 4-6 spot/point max) */}
-      <pointLight position={[centerX - width * 0.25, 4.5, centerZ]} intensity={8} distance={14} decay={2} color="#E8A020" />
-      <pointLight position={[centerX + width * 0.25, 4.5, centerZ]} intensity={8} distance={14} decay={2} color="#E8A020" />
+
+      {/* Soft indoor env map — improves how metal/glossy materials (Garudeya
+          vitrine, pillar caps) respond to light without adding a real light.
+          Kept at low intensity + gated off on Rendah so it can't tip back
+          into overexposed. */}
+      {graphicsPreset.environmentMap && (
+        <Environment preset="apartment" environmentIntensity={graphicsPreset.environmentIntensity} />
+      )}
 
       {/* Soft threshold pillars between zones — reads as a gateway without blocking movement */}
       {room.zones.length > 1 &&
@@ -234,6 +289,10 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
       {room.zones.map((zone) => (
         <ZoneSignboard key={`sign-${zone.id}`} zone={zone} />
       ))}
+
+      {/* Bulk edge decor — instanced, so the count doesn't cost extra draw calls */}
+      <HallColonnade room={room} />
+      <HallBenches room={room} />
 
       {/* Hanging lamps — decorative "reason" for the warm base light, 3 spread along the hall centerline */}
       {[minZ + depth * 0.2, centerZ, maxZ - depth * 0.2].map((z, i) => (

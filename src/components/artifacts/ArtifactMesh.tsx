@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import type { Artifact } from "@/types/artifact";
 import { DustParticles } from "./DustParticles";
+import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
 
 interface ArtifactMeshProps {
   artifact: Artifact;
@@ -19,6 +20,7 @@ interface ArtifactMeshProps {
  */
 export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const graphicsPreset = useGraphicsPreset();
   const nearbyId = useMuseumStore((s) => s.nearbyArtifact?.id);
   const focusedId = useMuseumStore((s) => s.focusedArtifact?.id);
   const focusArtifact = useMuseumStore((s) => s.focusArtifact);
@@ -92,8 +94,8 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
             penumbra={0.5}
             intensity={50}
             color="#e6c76e"
-            castShadow
-            shadow-mapSize={[1024, 1024]}
+            castShadow={graphicsPreset.shadowsEnabled}
+            shadow-mapSize={[graphicsPreset.shadowMapSize, graphicsPreset.shadowMapSize]}
           />
         </group>
       )}
@@ -151,8 +153,8 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
           penumbra={0.6}
           intensity={isDurga ? 35 : 25}
           color={accentColor}
-          castShadow
-          shadow-mapSize={[1024, 1024]}
+          castShadow={graphicsPreset.shadowsEnabled}
+          shadow-mapSize={[graphicsPreset.shadowMapSize, graphicsPreset.shadowMapSize]}
         />
       )}
 
