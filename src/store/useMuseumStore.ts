@@ -1,8 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Artifact } from "@/types/artifact";
+import type { Artifact, RoomId, ZoneId } from "@/types/artifact";
 
-export type RoomId = "lobby" | "room1" | "room2" | "room3";
+// Re-exported so existing `import type { RoomId } from "@/store/useMuseumStore"`
+// call sites across the app don't need to change — canonical definition now
+// lives in types/artifact.ts (Artifact.ruangan needs it too, and types/
+// can't import from the store without creating a cycle).
+export type { RoomId, ZoneId };
 
 export type MoveVector = { x: number; y: number }; // -1..1, from left joystick
 export type LookVector = { x: number; y: number }; // -1..1, from right joystick
@@ -65,13 +69,17 @@ interface MuseumState {
   setLoadProgress: (v: number) => void;
   finishLoading: () => void;
 
-  // --- Room navigation ---
+  // --- Hall navigation ---
   activeRoom: RoomId;
   setActiveRoom: (room: RoomId) => void;
   isTransitioning: boolean;
   setTransitioning: (v: boolean) => void;
   pendingSpawnPoint: { x: number; z: number; facingY: number } | null;
   setPendingSpawnPoint: (spawn: { x: number; z: number; facingY: number } | null) => void;
+  /** Nearest zone to the player's current position — purely presentational
+   * (minimap highlight, signage, per-zone ambience), doesn't gate anything. */
+  activeZoneId: ZoneId;
+  setActiveZoneId: (zone: ZoneId) => void;
 
   // --- Player movement (driven by joystick/keyboard hooks) ---
   moveInput: MoveVector;
@@ -140,8 +148,10 @@ export const useMuseumStore = create<MuseumState>()(
       hasCompletedOnboarding: false,
       setHasCompletedOnboarding: (v) => set({ hasCompletedOnboarding: v, isMovementLocked: !v }),
 
-      activeRoom: "lobby",
+      activeRoom: "hall-1",
       setActiveRoom: (room) => set({ activeRoom: room }),
+      activeZoneId: "welcome",
+      setActiveZoneId: (zone) => set({ activeZoneId: zone }),
       isTransitioning: false,
       setTransitioning: (v) => set({ isTransitioning: v }),
       pendingSpawnPoint: null,

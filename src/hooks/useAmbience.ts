@@ -4,17 +4,15 @@ import { useMuseumStore } from "@/store/useMuseumStore";
 import type { RoomId } from "@/store/useMuseumStore";
 
 /**
- * Panduan karakter musik ambience per ruangan:
- * - Lobi: gamelan Jawa Timuran, ritmis dan hangat.
- * - Ruang 1: ambience alam/gua minimalis (tetesan air, angin), tanpa musik, kesan purba.
- * - Ruang 2: gamelan pelog/gender yang syahdu dan magis, sangat pelan.
- * - Ruang 3: ambience mekanis-industrial ringan (detak jam, desis uap halus) dipadukan sedikit musik string sederhana.
+ * Panduan karakter musik ambience per hall:
+ * - Aula Nusantara Kuno (Hall 1): gamelan Jawa Timuran hangat di zona Welcome,
+ *   melebur ke nuansa gua/purba & gamelan pelog magis di zona koleksinya.
+ * - Aula Transisi & IPTEK (Hall 2): ambience mekanis-industrial ringan
+ *   dipadukan sedikit musik string sederhana.
  */
 const AMBIENCE_TRACKS: Record<RoomId, string> = {
-  lobby: "/audio/ambience-lobby.mp3",
-  room1: "/audio/ambience-room1.mp3",
-  room2: "/audio/ambience-room2.mp3",
-  room3: "/audio/ambience-room3.mp3",
+  "hall-1": "/audio/ambience-hall-1.mp3",
+  "hall-2": "/audio/ambience-hall-2.mp3",
 };
 
 export function useAmbience(activeRoom: RoomId) {

@@ -7,11 +7,16 @@
     "placeholder_shape": "sphere",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -4, "y": 1, "z": -6 },
+    "koordinat_ruangan": {
+      "x": -15.4,
+      "y": 1,
+      "z": -2.3
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room1",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "prasejarah"
   },
   {
     "id": "r1-fosil-homo-erectus",
@@ -21,11 +26,16 @@
     "placeholder_shape": "sphere",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -4, "y": 1, "z": -4 },
+    "koordinat_ruangan": {
+      "x": -12,
+      "y": 1,
+      "z": -2.3
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room1",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "prasejarah"
   },
   {
     "id": "r1-kapak-perimbas",
@@ -35,11 +45,16 @@
     "placeholder_shape": "box",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -4, "y": 1, "z": -2 },
+    "koordinat_ruangan": {
+      "x": -8.6,
+      "y": 1,
+      "z": -2.3
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room1",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "prasejarah"
   },
   {
     "id": "r1-kapak-genggam",
@@ -49,11 +64,16 @@
     "placeholder_shape": "box",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -4, "y": 1, "z": 0 },
+    "koordinat_ruangan": {
+      "x": -15.4,
+      "y": 1,
+      "z": -5.7
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room1",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "prasejarah"
   },
   {
     "id": "r1-nekara-perunggu",
@@ -63,11 +83,16 @@
     "placeholder_shape": "cylinder",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -4, "y": 1, "z": 2 },
+    "koordinat_ruangan": {
+      "x": -12,
+      "y": 1,
+      "z": -5.7
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room1",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "prasejarah"
   },
   {
     "id": "r1-koleksi-batuan",
@@ -77,11 +102,16 @@
     "placeholder_shape": "box",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": 4, "y": 1, "z": -4 },
+    "koordinat_ruangan": {
+      "x": -8.6,
+      "y": 1,
+      "z": -5.7
+    },
     "rotasi_y": 3.14,
     "url_thumbnail": "",
-    "ruangan": "room1",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "prasejarah"
   },
   {
     "id": "r2-arca-ganesha",
@@ -91,11 +121,16 @@
     "placeholder_shape": "cone",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": 0, "y": 1.2, "z": -6 },
+    "koordinat_ruangan": {
+      "x": 6.9,
+      "y": 1.2,
+      "z": 1.1
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room2",
-    "is_ikonik": true
+    "ruangan": "hall-1",
+    "is_ikonik": true,
+    "zoneId": "hindu-buddha"
   },
   {
     "id": "r2-arca-durga-mahisasuramardhini",
@@ -105,11 +140,16 @@
     "placeholder_shape": "cone",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -5, "y": 1.2, "z": -6 },
+    "koordinat_ruangan": {
+      "x": 10.3,
+      "y": 1.2,
+      "z": 1.1
+    },
     "rotasi_y": 0.4,
     "url_thumbnail": "",
-    "ruangan": "room2",
-    "is_ikonik": true
+    "ruangan": "hall-1",
+    "is_ikonik": true,
+    "zoneId": "hindu-buddha"
   },
   {
     "id": "r2-arca-siwa-mahadewa",
@@ -119,11 +159,16 @@
     "placeholder_shape": "cone",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -6, "y": 1.2, "z": -2 },
+    "koordinat_ruangan": {
+      "x": 17.1,
+      "y": 1.2,
+      "z": 1.1
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room2",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "hindu-buddha"
   },
   {
     "id": "r2-arca-wisnu",
@@ -133,11 +178,16 @@
     "placeholder_shape": "cone",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -6, "y": 1.2, "z": 0 },
+    "koordinat_ruangan": {
+      "x": 6.9,
+      "y": 1.2,
+      "z": -2.3
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room2",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "hindu-buddha"
   },
   {
     "id": "r2-arca-brahma",
@@ -147,11 +197,16 @@
     "placeholder_shape": "cone",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -6, "y": 1.2, "z": 2 },
+    "koordinat_ruangan": {
+      "x": 10.3,
+      "y": 1.2,
+      "z": -2.3
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room2",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "hindu-buddha"
   },
   {
     "id": "r2-arca-parwati",
@@ -161,11 +216,16 @@
     "placeholder_shape": "cone",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -6, "y": 1.2, "z": 4 },
+    "koordinat_ruangan": {
+      "x": 13.7,
+      "y": 1.2,
+      "z": -2.3
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room2",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "hindu-buddha"
   },
   {
     "id": "r2-nandi",
@@ -175,11 +235,16 @@
     "placeholder_shape": "cylinder",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": 6, "y": 1, "z": -2 },
+    "koordinat_ruangan": {
+      "x": 17.1,
+      "y": 1,
+      "z": -2.3
+    },
     "rotasi_y": 3.14,
     "url_thumbnail": "",
-    "ruangan": "room2",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "hindu-buddha"
   },
   {
     "id": "r2-dwarapala-1",
@@ -189,11 +254,16 @@
     "placeholder_shape": "cone",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": 6, "y": 1.2, "z": 0 },
+    "koordinat_ruangan": {
+      "x": 6.9,
+      "y": 1.2,
+      "z": -5.7
+    },
     "rotasi_y": 3.14,
     "url_thumbnail": "",
-    "ruangan": "room2",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "hindu-buddha"
   },
   {
     "id": "r2-dwarapala-2",
@@ -203,11 +273,16 @@
     "placeholder_shape": "cone",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": 6, "y": 1.2, "z": 2 },
+    "koordinat_ruangan": {
+      "x": 10.3,
+      "y": 1.2,
+      "z": -5.7
+    },
     "rotasi_y": 3.14,
     "url_thumbnail": "",
-    "ruangan": "room2",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "hindu-buddha"
   },
   {
     "id": "r2-relief-bentang-alam",
@@ -217,11 +292,16 @@
     "placeholder_shape": "box",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": 6, "y": 1, "z": 4 },
+    "koordinat_ruangan": {
+      "x": 13.7,
+      "y": 1,
+      "z": -5.7
+    },
     "rotasi_y": 3.14,
     "url_thumbnail": "",
-    "ruangan": "room2",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "hindu-buddha"
   },
   {
     "id": "r2-garudeya-emas",
@@ -231,11 +311,16 @@
     "placeholder_shape": "torus",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": 5, "y": 1.2, "z": -6 },
+    "koordinat_ruangan": {
+      "x": 13.7,
+      "y": 1.2,
+      "z": 1.1
+    },
     "rotasi_y": 2.8,
     "url_thumbnail": "",
-    "ruangan": "room2",
-    "is_ikonik": true
+    "ruangan": "hall-1",
+    "is_ikonik": true,
+    "zoneId": "hindu-buddha"
   },
   {
     "id": "r2-prasasti-loceret",
@@ -245,11 +330,16 @@
     "placeholder_shape": "box",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -6, "y": 1, "z": -6 },
+    "koordinat_ruangan": {
+      "x": 17.1,
+      "y": 1,
+      "z": -5.7
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room2",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "hindu-buddha"
   },
   {
     "id": "r2-prasasti-sangguran-info",
@@ -259,11 +349,16 @@
     "placeholder_shape": "box",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -6, "y": 1, "z": -4 },
+    "koordinat_ruangan": {
+      "x": 12,
+      "y": 1,
+      "z": -9.1
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room2",
-    "is_ikonik": false
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "hindu-buddha"
   },
   {
     "id": "r3-telepon-antik",
@@ -273,11 +368,16 @@
     "placeholder_shape": "box",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -4, "y": 1, "z": -4 },
+    "koordinat_ruangan": {
+      "x": -3.4,
+      "y": 1,
+      "z": 1.4
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room3",
-    "is_ikonik": false
+    "ruangan": "hall-2",
+    "is_ikonik": false,
+    "zoneId": "transisi-iptek"
   },
   {
     "id": "r3-sepeda-tinggi",
@@ -287,11 +387,16 @@
     "placeholder_shape": "torus",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -4, "y": 1, "z": -2 },
+    "koordinat_ruangan": {
+      "x": 0,
+      "y": 1,
+      "z": 1.4
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room3",
-    "is_ikonik": false
+    "ruangan": "hall-2",
+    "is_ikonik": false,
+    "zoneId": "transisi-iptek"
   },
   {
     "id": "r3-sepeda-motor-uap",
@@ -301,11 +406,16 @@
     "placeholder_shape": "cylinder",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -4, "y": 1, "z": 0 },
+    "koordinat_ruangan": {
+      "x": 3.4,
+      "y": 1,
+      "z": 1.4
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room3",
-    "is_ikonik": false
+    "ruangan": "hall-2",
+    "is_ikonik": false,
+    "zoneId": "transisi-iptek"
   },
   {
     "id": "r3-jam-matahari",
@@ -315,11 +425,16 @@
     "placeholder_shape": "cylinder",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": -4, "y": 1, "z": 2 },
+    "koordinat_ruangan": {
+      "x": -3.4,
+      "y": 1,
+      "z": -2
+    },
     "rotasi_y": 0,
     "url_thumbnail": "",
-    "ruangan": "room3",
-    "is_ikonik": false
+    "ruangan": "hall-2",
+    "is_ikonik": false,
+    "zoneId": "transisi-iptek"
   },
   {
     "id": "r3-teleskop",
@@ -329,11 +444,16 @@
     "placeholder_shape": "cylinder",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": 4, "y": 1, "z": -4 },
+    "koordinat_ruangan": {
+      "x": 0,
+      "y": 1,
+      "z": -2
+    },
     "rotasi_y": 3.14,
     "url_thumbnail": "",
-    "ruangan": "room3",
-    "is_ikonik": false
+    "ruangan": "hall-2",
+    "is_ikonik": false,
+    "zoneId": "transisi-iptek"
   },
   {
     "id": "r3-model-plta",
@@ -343,11 +463,16 @@
     "placeholder_shape": "box",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": 4, "y": 1, "z": -2 },
+    "koordinat_ruangan": {
+      "x": 3.4,
+      "y": 1,
+      "z": -2
+    },
     "rotasi_y": 3.14,
     "url_thumbnail": "",
-    "ruangan": "room3",
-    "is_ikonik": false
+    "ruangan": "hall-2",
+    "is_ikonik": false,
+    "zoneId": "transisi-iptek"
   },
   {
     "id": "r3-senjata-api-kolonial",
@@ -357,10 +482,15 @@
     "placeholder_shape": "box",
     "url_audio": "",
     "transkrip_audio": "",
-    "koordinat_ruangan": { "x": 4, "y": 1, "z": 0 },
+    "koordinat_ruangan": {
+      "x": 0,
+      "y": 1,
+      "z": -5.4
+    },
     "rotasi_y": 3.14,
     "url_thumbnail": "",
-    "ruangan": "room3",
-    "is_ikonik": false
+    "ruangan": "hall-2",
+    "is_ikonik": false,
+    "zoneId": "transisi-iptek"
   }
 ]

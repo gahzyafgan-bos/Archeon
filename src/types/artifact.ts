@@ -1,4 +1,10 @@
-export type RoomId = "lobby" | "room1" | "room2" | "room3";
+/** Two big open halls (see roomConfig.ts) — each hall is its own fetch/collision unit. */
+export type RoomId = "hall-1" | "hall-2";
+
+/** Themed area within a hall (see roomConfig.ts `zones`). Zones are a visual/
+ * spatial grouping only — they don't affect data fetching or collision, both
+ * of which stay per-hall. */
+export type ZoneId = "welcome" | "prasejarah" | "hindu-buddha" | "transisi-iptek";
 
 /**
  * Data model for a single museum artifact.
@@ -24,7 +30,10 @@ export interface Artifact {
   /** Optional Y-axis rotation (radians) so pieces can face the walkway. */
   rotasi_y?: number;
   url_thumbnail: string;
+  /** Which hall this artifact loads/collides with — see artifactRepository.ts. */
   ruangan: RoomId;
+  /** Which themed zone within that hall it's displayed in — purely presentational. */
+  zoneId: ZoneId;
   /** Iconic pieces get a dramatic spotlight + pedestal; others are in a shared vitrine. */
   is_ikonik: boolean;
 }

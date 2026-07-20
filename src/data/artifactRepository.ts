@@ -8,7 +8,7 @@ const ALL_ARTIFACTS = artifactsJson as Artifact[];
  *
  * Today this reads from the local `artifacts.json` file. To switch to the
  * real backend described in the requirements
- * (`GET /api/artifacts?ruangan=room1`), replace the body of these two
+ * (`GET /api/artifacts?ruangan=hall-1`), replace the body of these two
  * functions with `fetch()` calls — every component that consumes this file
  * (Room components, InfoPanel, etc.) stays unchanged because they only
  * depend on the `Artifact` type, not on where the data comes from.

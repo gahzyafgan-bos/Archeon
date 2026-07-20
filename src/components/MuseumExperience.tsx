@@ -5,8 +5,7 @@ import { ROOM_CONFIGS, type Door } from "@/data/roomConfig";
 import { fetchArtifactsByRoom } from "@/data/artifactRepository";
 import type { Artifact } from "@/types/artifact";
 import { PlayerRig } from "./PlayerRig";
-import { Lobby } from "./rooms/Lobby";
-import { GalleryRoom } from "./rooms/GalleryRoom";
+import { Hall } from "./rooms/Hall";
 import { useAmbience } from "@/hooks/useAmbience";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
 import { MiniMapFrame, MiniMapTracker } from "./ui/MiniMap";
@@ -46,7 +45,7 @@ export function MuseumExperience() {
       if (progress >= 100) clearInterval(tick);
     }, 140);
 
-    fetchArtifactsByRoom("lobby").then((data) => {
+    fetchArtifactsByRoom("hall-1").then((data) => {
       setArtifacts(data);
       setTimeout(() => {
         setLoadProgress(100);
@@ -90,13 +89,14 @@ export function MuseumExperience() {
         // Stereo mode renders the scene twice per frame — halve the pixel
         // ratio while it's active so mid-range phones keep a usable frame rate.
         dpr={isVRMode ? [1, 1] : [1, 1.8]}
+        // R3F defaults to ACESFilmicToneMapping, which compresses midtones —
+        // raw light-intensity numbers alone read darker on screen than they
+        // "should". A modest exposure lift is a free (zero GPU cost) way to
+        // brighten the whole image without touching individual light values.
+        gl={{ toneMappingExposure: 1.25 }}
       >
         <Suspense fallback={null}>
-          {renderedRoom === "lobby" ? (
-            <Lobby artifacts={artifacts} />
-          ) : (
-            <GalleryRoom room={room} artifacts={artifacts} />
-          )}
+          <Hall hall={room} artifacts={artifacts} />
           <PlayerRig room={room} artifacts={artifacts} onEnterDoor={handleEnterDoor} />
           {!isVRMode && <MiniMapTracker canvasEl={miniMapCanvasRef.current} room={renderedRoom} />}
           {isVRMode ? <CardboardStereoView /> : <PostProcessing />}

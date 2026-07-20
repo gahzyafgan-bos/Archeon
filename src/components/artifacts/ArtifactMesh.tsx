@@ -93,6 +93,7 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
             intensity={50}
             color="#e6c76e"
             castShadow
+            shadow-mapSize={[1024, 1024]}
           />
         </group>
       )}
@@ -142,7 +143,7 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
         )}
       </mesh>
 
-      {/* Iconic spotlights (adjusted intensity) */}
+      {/* Iconic spotlights: shadow-casting, since there are only a handful per room */}
       {artifact.is_ikonik && !isGarudeya && (
         <spotLight
           position={[0, 5, 0.5]}
@@ -151,6 +152,26 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
           intensity={isDurga ? 35 : 25}
           color={accentColor}
           castShadow
+          shadow-mapSize={[1024, 1024]}
+        />
+      )}
+
+      {/* Every regular (non-iconic) artifact gets its own spotlight too, so the
+          "disorot" pool-of-light effect isn't limited to the handful of iconic
+          pieces. Shadows are deliberately left off here — a room can have a
+          dozen-plus regular artifacts, and a shadow map per light is what
+          actually costs frame rate; the soft pool from a shadowless spotlight
+          reads just as well at this scale. */}
+      {!artifact.is_ikonik && (
+        <spotLight
+          position={[0, 4.2, 0.3]}
+          angle={0.32}
+          penumbra={0.7}
+          intensity={12}
+          distance={6}
+          decay={2}
+          color="#e8c877"
+          castShadow={false}
         />
       )}
     </group>
