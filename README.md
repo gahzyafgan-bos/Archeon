@@ -195,6 +195,7 @@ benar-benar bisa membaca sensor.
   diam-diam gagal tanpa mematikan aplikasi (lihat `onloaderror` di
   `useAmbience.ts`).
 - Mode VR merender scene dua kali per frame (stereo) — dpr diturunkan
+
   otomatis saat aktif; kalau frame rate masih jatuh di HP kelas menengah,
   turunkan lagi lewat `dpr` di `MuseumExperience.tsx` atau kecilkan
   `EYE_SEPARATION`'s viewport resolution lebih lanjut.

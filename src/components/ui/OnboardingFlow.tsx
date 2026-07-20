@@ -150,10 +150,13 @@ export function OnboardingFlow() {
 
             {/* Slide 2: Preview Ruangan */}
             <div className="onboarding-slide w-full flex-shrink-0 flex flex-col items-center [justify-content:safe_center] px-6 md:px-10 text-center h-full">
-              <h2 className="font-display text-[clamp(1.4rem,4.5vw,2.25rem)] tracking-wide text-museum-bone mb-6 leading-tight">
+              <h2 className="font-display text-[clamp(1.4rem,4.5vw,2.25rem)] tracking-wide text-museum-bone mb-2 leading-tight">
                 Tiga Babak Sejarah Menantimu
               </h2>
-              
+              <p className="text-museum-mist text-xs md:text-sm mb-4 max-w-md">
+                Dua aula besar yang terbuka, mengalir dari satu zaman ke zaman berikutnya tanpa sekat.
+              </p>
+
               <div className="flex flex-col sm:flex-row gap-4 w-full max-w-lg mb-2">
                 {/* Prasejarah */}
                 <div className="flex-1 p-4 rounded-xl bg-museum-charcoal/40 border border-white/5 flex flex-col items-center text-center transition-all hover:border-[#c17a4a]/40 group">

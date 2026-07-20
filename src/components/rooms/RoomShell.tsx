@@ -371,26 +371,31 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
 
         const transisi = room.zones.find((z) => z.id === "transisi-iptek");
         if (transisi) {
-          const { x: zx, z: zz } = transisi.center;
-          const wallPanels = [
-            { x: minX + 0.15, z: zz },
-            { x: maxX - 0.15, z: zz },
+          // Was a flat #4a4a4a metal slab over a plain brown block — read as
+          // an ugly black-over-brown panel with zero tie-in to the palette.
+          // Rebuilt as a wood-framed display board using the same artDeco
+          // motif (tinted with this zone's own accent) as its floor inlay
+          // (see ZoneFloorMotif), so it reads as "the zone's signage" rather
+          // than a stray placeholder.
+          const panelTexture = createBatikPattern("artDeco", "#EDE0C4", transisi.accent, 128);
+          const panelSides: Array<[number, number]> = [
+            [minX + 0.15, 1], // left wall, face points +X into the room
+            [maxX - 0.15, -1], // right wall, face points -X into the room
           ];
-          wallPanels.forEach((pos, i) => {
+          panelSides.forEach(([panelX, faceDir], i) => {
             elements.push(
-              <group key={`wall-panel-${i}`} position={[pos.x, 0, pos.z]}>
-                <mesh position={[0, 1.5, 0]}>
-                  <boxGeometry args={[0.1, 3, depth * 0.4]} />
+              <group key={`wall-panel-${i}`} position={[panelX, 0, transisi.center.z]}>
+                <mesh position={[0, 3, 0]} receiveShadow>
+                  <boxGeometry args={[0.12, 6.2, depth * 0.42]} />
                   <meshStandardMaterial color={WOOD_COLOR} roughness={0.8} />
                 </mesh>
-                <mesh position={[0, 4.5, 0]}>
-                  <boxGeometry args={[0.1, 3, depth * 0.4]} />
-                  <meshStandardMaterial color="#4a4a4a" roughness={0.4} metalness={0.8} />
+                <mesh position={[faceDir * 0.07, 3, 0]}>
+                  <boxGeometry args={[0.02, 6, depth * 0.4]} />
+                  <meshStandardMaterial map={panelTexture} emissive={transisi.accent} emissiveIntensity={0.05} roughness={0.55} />
                 </mesh>
               </group>
             );
           });
-          void zx;
         }
 
         return elements;

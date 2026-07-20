@@ -65,7 +65,10 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
         position: { x: 0, z: -11.5 },
         radius: 3.2,
         targetRoom: "hall-2",
-        targetSpawn: { x: 0, z: 9, facingY: 0 },
+        // Must land clearly outside Hall 2's own return-door trigger (below,
+        // radius 3.2 around z=11.5) or the player bounces straight back the
+        // instant its cooldown clears — z=6 keeps ~5.5 units of margin.
+        targetSpawn: { x: 0, z: 6, facingY: 0 },
         label: "Aula Transisi & IPTEK",
       },
     ],
@@ -79,7 +82,7 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
     id: "hall-2",
     name: "Aula Transisi & IPTEK",
     bounds: { minX: -16, maxX: 16, minZ: -12, maxZ: 12 },
-    spawn: { x: 0, z: 9, facingY: 0 },
+    spawn: { x: 0, z: 6, facingY: 0 },
     wallColor: "#F2E9D8",
     floorColor: "#E4D5B7",
     accentColor: "#1F7A6E",
@@ -88,7 +91,9 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
         position: { x: 0, z: 11.5 },
         radius: 3.2,
         targetRoom: "hall-1",
-        targetSpawn: { x: 0, z: -9, facingY: Math.PI },
+        // Same margin fix as Hall 1's door above — must clear Hall 1's own
+        // archway trigger (radius 3.2 around z=-11.5).
+        targetSpawn: { x: 0, z: -6, facingY: Math.PI },
         label: "Kembali ke Aula Nusantara Kuno",
       },
     ],
