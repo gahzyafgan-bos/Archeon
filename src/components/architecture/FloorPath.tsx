@@ -9,7 +9,15 @@ interface PathNode {
 
 function getPathNodes(room: RoomConfig): PathNode[] {
   const zones = [...room.zones].sort((a, b) => a.pathOrder - b.pathOrder);
-  const nodes: PathNode[] = zones.map((z) => ({ x: z.center.x, z: z.center.z, accent: z.accent }));
+  // Route through each zone's hero (if it has one) rather than its bare
+  // center — the wayfinding line should flow toward the staged piece and
+  // pause there (spec 2c "berhenti sejenak di depan hero"), not stop short
+  // at an empty midpoint.
+  const nodes: PathNode[] = zones.map((z) => ({
+    x: z.heroFocus?.x ?? z.center.x,
+    z: z.heroFocus?.z ?? z.center.z,
+    accent: z.accent,
+  }));
 
   // Hall 2 has no "welcome" zone of its own to start the route from — lead
   // in from the archway arrival point instead.

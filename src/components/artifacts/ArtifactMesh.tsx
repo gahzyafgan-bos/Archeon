@@ -252,13 +252,18 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
         )}
       </mesh>
 
-      {/* Iconic spotlights: shadow-casting, since there are only a handful per room */}
+      {/* Iconic spotlights: shadow-casting, since there are only a handful per
+          room. Hero tier gets the brightest/tightest pool of light of the
+          non-signature pieces — the actual "focal lighting" contrast (spec
+          section 6) that makes each zone's hero read as the brightest thing
+          in the room, featured pieces a notch down, everything else dimmer
+          still (see the shadowless regular spotlight below). */}
       {isElevated && !isGarudeya && (
         <spotLight
           position={[0, y + 3.8, 0.5]}
-          angle={isDurga ? 0.25 : 0.35}
-          penumbra={0.6}
-          intensity={isDurga ? 35 : 25}
+          angle={isHeroTier ? 0.22 : isDurga ? 0.25 : 0.32}
+          penumbra={0.55}
+          intensity={isHeroTier ? 42 : isDurga ? 35 : 25}
           color={accentColor}
           castShadow={graphicsPreset.shadowsEnabled}
           shadow-mapSize={[graphicsPreset.shadowMapSize, graphicsPreset.shadowMapSize]}
