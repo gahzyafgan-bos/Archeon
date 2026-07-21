@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import type { RoomConfig } from "@/data/roomConfig";
 import type { Artifact } from "@/types/artifact";
+import { objectFootprintRadius } from "@/utils/artifactSize";
 
 const BASE_MOVE_SPEED = 4.2; // world units / second
 const BASE_LOOK_SPEED = 2.2; // radians / second at full joystick deflection
@@ -241,8 +242,11 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
       for (const artifact of artifacts) {
         const artifactX = artifact.koordinat_ruangan.x;
         const artifactZ = artifact.koordinat_ruangan.z;
-        const artifactRadius = 0.8; // Collision radius for artifacts
-        
+        // Collision radius for artifacts — grows with real_world_size so a
+        // life-size bicycle/statue isn't walkable-through past its old flat
+        // 0.8m stand-in radius (spec: fix skala, update bounding/collision).
+        const artifactRadius = Math.max(0.8, objectFootprintRadius(artifact) ?? 0);
+
         const dx = nextX - artifactX;
         const dz = nextZ - artifactZ;
         const distance = Math.sqrt(dx * dx + dz * dz);
@@ -288,12 +292,15 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
     // --- Artifact proximity (skip while an artifact is already focused) ---
     if (!focusedArtifact) {
       let closest: Artifact | null = null;
-      let closestDist = PROXIMITY_RADIUS;
+      let closestDist = Infinity;
       for (const artifact of artifacts) {
         const dx = camera.position.x - artifact.koordinat_ruangan.x;
         const dz = camera.position.z - artifact.koordinat_ruangan.z;
         const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < closestDist) {
+        // Big real-world objects (spec: fix skala) should trigger the `E`
+        // prompt from farther away than their old miniature placeholder did.
+        const triggerRadius = PROXIMITY_RADIUS + (objectFootprintRadius(artifact) ?? 0);
+        if (dist < triggerRadius && dist < closestDist) {
           closest = artifact;
           closestDist = dist;
         }

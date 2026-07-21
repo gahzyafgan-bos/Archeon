@@ -9,7 +9,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -16,
-      "y": 1.45,
+      "y": 1.08,
       "z": -8.5
     },
     "rotasi_y": 0.73,
@@ -18,7 +18,12 @@
     "is_ikonik": true,
     "zoneId": "prasejarah",
     "display_tier": "hero",
-    "pedestal_height": 1.0
+    "pedestal_height": 1,
+    "real_world_size": {
+      "width": 0.2,
+      "height": 0.16,
+      "depth": 0.22
+    }
   },
   {
     "id": "r1-fosil-homo-erectus",
@@ -30,7 +35,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -12,
-      "y": 1.3,
+      "y": 0.88,
       "z": -10.3
     },
     "rotasi_y": -1.15,
@@ -39,19 +44,24 @@
     "is_ikonik": false,
     "zoneId": "prasejarah",
     "display_tier": "featured",
-    "pedestal_height": 0.8
+    "pedestal_height": 0.8,
+    "real_world_size": {
+      "width": 0.19,
+      "height": 0.15,
+      "depth": 0.21
+    }
   },
   {
     "id": "r1-kapak-perimbas",
     "nama": "Kapak Perimbas",
     "deskripsi": "Alat batu masif dari masa Paleolitikum, digunakan untuk menebang, memotong, dan mengolah bahan makanan. Ditemukan di beberapa situs prasejarah Jawa Timur, menjadi bukti awal aktivitas manusia purba di wilayah ini.",
-    "url_model_3d": "",
+    "url_model_3d": "/models/r1-kapak-persegi-a.glb",
     "placeholder_shape": "box",
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -11.3,
-      "y": 1.45,
+      "y": 1.29,
       "z": -6.3
     },
     "rotasi_y": 0.3,
@@ -60,7 +70,12 @@
     "is_ikonik": false,
     "zoneId": "prasejarah",
     "display_tier": "regular",
-    "pedestal_height": 1.25
+    "pedestal_height": 1.25,
+    "real_world_size": {
+      "width": 0.22,
+      "height": 0.08,
+      "depth": 0.11
+    }
   },
   {
     "id": "r1-kapak-genggam",
@@ -71,8 +86,8 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": -9.0,
-      "y": 1.45,
+      "x": -9,
+      "y": 1.28,
       "z": -7.6
     },
     "rotasi_y": -0.4,
@@ -81,7 +96,12 @@
     "is_ikonik": false,
     "zoneId": "prasejarah",
     "display_tier": "regular",
-    "pedestal_height": 1.25
+    "pedestal_height": 1.25,
+    "real_world_size": {
+      "width": 0.16,
+      "height": 0.06,
+      "depth": 0.09
+    }
   },
   {
     "id": "r1-nekara-perunggu",
@@ -93,8 +113,8 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -7.6,
-      "y": 1.2,
-      "z": -3.0
+      "y": 0.95,
+      "z": -3
     },
     "rotasi_y": 0.5,
     "url_thumbnail": "",
@@ -102,7 +122,12 @@
     "is_ikonik": false,
     "zoneId": "prasejarah",
     "display_tier": "featured",
-    "pedestal_height": 0.6
+    "pedestal_height": 0.6,
+    "real_world_size": {
+      "width": 0.6,
+      "height": 0.7,
+      "depth": 0.6
+    }
   },
   {
     "id": "r1-koleksi-batuan",
@@ -123,7 +148,12 @@
     "is_ikonik": false,
     "zoneId": "prasejarah",
     "display_tier": "regular",
-    "display_mode": "vitrine"
+    "display_mode": "vitrine",
+    "real_world_size": {
+      "width": 0.5,
+      "height": 0.25,
+      "depth": 0.4
+    }
   },
   {
     "id": "r2-arca-ganesha",
@@ -134,8 +164,8 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 7.0,
-      "y": 1.25,
+      "x": 7,
+      "y": 1.15,
       "z": 1.5
     },
     "rotasi_y": 0,
@@ -144,7 +174,12 @@
     "is_ikonik": true,
     "zoneId": "hindu-buddha",
     "display_tier": "featured",
-    "pedestal_height": 0.75
+    "pedestal_height": 0.75,
+    "real_world_size": {
+      "width": 0.5,
+      "height": 0.8,
+      "depth": 0.45
+    }
   },
   {
     "id": "r2-arca-durga-mahisasuramardhini",
@@ -156,7 +191,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 10.3,
-      "y": 1.3,
+      "y": 1.45,
       "z": 1.2
     },
     "rotasi_y": 0.4,
@@ -165,7 +200,12 @@
     "is_ikonik": true,
     "zoneId": "hindu-buddha",
     "display_tier": "featured",
-    "pedestal_height": 0.8
+    "pedestal_height": 0.8,
+    "real_world_size": {
+      "width": 0.6,
+      "height": 1.3,
+      "depth": 0.5
+    }
   },
   {
     "id": "r2-arca-siwa-mahadewa",
@@ -176,8 +216,8 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 13.0,
-      "y": 1.0,
+      "x": 13,
+      "y": 1.1,
       "z": -0.8
     },
     "rotasi_y": 0,
@@ -186,7 +226,12 @@
     "is_ikonik": false,
     "zoneId": "hindu-buddha",
     "display_tier": "regular",
-    "pedestal_height": 0.5
+    "pedestal_height": 0.5,
+    "real_world_size": {
+      "width": 0.65,
+      "height": 1.2,
+      "depth": 0.5
+    }
   },
   {
     "id": "r2-arca-wisnu",
@@ -198,7 +243,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 6.5,
-      "y": 1.0,
+      "y": 1,
       "z": -2.5
     },
     "rotasi_y": 0,
@@ -207,7 +252,12 @@
     "is_ikonik": false,
     "zoneId": "hindu-buddha",
     "display_tier": "regular",
-    "pedestal_height": 0.5
+    "pedestal_height": 0.5,
+    "real_world_size": {
+      "width": 0.5,
+      "height": 1,
+      "depth": 0.45
+    }
   },
   {
     "id": "r2-arca-brahma",
@@ -219,7 +269,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 10.5,
-      "y": 1.0,
+      "y": 0.95,
       "z": -1.5
     },
     "rotasi_y": 0,
@@ -228,7 +278,12 @@
     "is_ikonik": false,
     "zoneId": "hindu-buddha",
     "display_tier": "regular",
-    "pedestal_height": 0.5
+    "pedestal_height": 0.5,
+    "real_world_size": {
+      "width": 0.6,
+      "height": 0.9,
+      "depth": 0.6
+    }
   },
   {
     "id": "r2-arca-parwati",
@@ -240,8 +295,8 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 8.5,
-      "y": 1.0,
-      "z": -4.0
+      "y": 0.98,
+      "z": -4
     },
     "rotasi_y": 0,
     "url_thumbnail": "",
@@ -249,7 +304,12 @@
     "is_ikonik": false,
     "zoneId": "hindu-buddha",
     "display_tier": "regular",
-    "pedestal_height": 0.5
+    "pedestal_height": 0.5,
+    "real_world_size": {
+      "width": 0.55,
+      "height": 0.95,
+      "depth": 0.5
+    }
   },
   {
     "id": "r2-nandi",
@@ -261,7 +321,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 13.5,
-      "y": 1.0,
+      "y": 0.73,
       "z": 1.5
     },
     "rotasi_y": 3.14,
@@ -270,7 +330,12 @@
     "is_ikonik": false,
     "zoneId": "hindu-buddha",
     "display_tier": "regular",
-    "pedestal_height": 0.4
+    "pedestal_height": 0.4,
+    "real_world_size": {
+      "width": 0.9,
+      "height": 0.65,
+      "depth": 0.5
+    }
   },
   {
     "id": "r2-dwarapala-1",
@@ -282,8 +347,8 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 13.5,
-      "y": 1.1,
-      "z": -3.0
+      "y": 1.2,
+      "z": -3
     },
     "rotasi_y": 2.5,
     "url_thumbnail": "",
@@ -291,7 +356,12 @@
     "is_ikonik": false,
     "zoneId": "hindu-buddha",
     "display_tier": "regular",
-    "pedestal_height": 0.6
+    "pedestal_height": 0.3,
+    "real_world_size": {
+      "width": 0.7,
+      "height": 1.8,
+      "depth": 0.6
+    }
   },
   {
     "id": "r2-dwarapala-2",
@@ -303,7 +373,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 12.8,
-      "y": 1.1,
+      "y": 1.2,
       "z": -6.3
     },
     "rotasi_y": 1.76,
@@ -312,7 +382,12 @@
     "is_ikonik": false,
     "zoneId": "hindu-buddha",
     "display_tier": "regular",
-    "pedestal_height": 0.6
+    "pedestal_height": 0.3,
+    "real_world_size": {
+      "width": 0.7,
+      "height": 1.8,
+      "depth": 0.6
+    }
   },
   {
     "id": "r2-relief-bentang-alam",
@@ -324,7 +399,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 19.7,
-      "y": 1.6,
+      "y": 1.7,
       "z": 2.5
     },
     "rotasi_y": -1.5708,
@@ -333,7 +408,12 @@
     "is_ikonik": false,
     "zoneId": "hindu-buddha",
     "display_tier": "regular",
-    "display_mode": "niche"
+    "display_mode": "niche",
+    "real_world_size": {
+      "width": 1,
+      "height": 0.7,
+      "depth": 0.15
+    }
   },
   {
     "id": "r2-garudeya-emas",
@@ -345,7 +425,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 16.5,
-      "y": 1.5,
+      "y": 1.16,
       "z": -7
     },
     "rotasi_y": -0.98,
@@ -354,7 +434,12 @@
     "is_ikonik": true,
     "zoneId": "hindu-buddha",
     "display_tier": "signature",
-    "pedestal_height": 1.05
+    "pedestal_height": 1.05,
+    "real_world_size": {
+      "width": 0.13,
+      "height": 0.18,
+      "depth": 0.11
+    }
   },
   {
     "id": "r2-prasasti-loceret",
@@ -366,7 +451,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 19.7,
-      "y": 1.5,
+      "y": 1.7,
       "z": -1.5
     },
     "rotasi_y": -1.5708,
@@ -375,7 +460,12 @@
     "is_ikonik": false,
     "zoneId": "hindu-buddha",
     "display_tier": "regular",
-    "display_mode": "niche"
+    "display_mode": "niche",
+    "real_world_size": {
+      "width": 0.6,
+      "height": 0.9,
+      "depth": 0.15
+    }
   },
   {
     "id": "r2-prasasti-sangguran-info",
@@ -387,7 +477,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 12,
-      "y": 1.0,
+      "y": 0.95,
       "z": -9.6
     },
     "rotasi_y": 0,
@@ -396,7 +486,12 @@
     "is_ikonik": false,
     "zoneId": "hindu-buddha",
     "display_tier": "regular",
-    "pedestal_height": 0.5
+    "pedestal_height": 0.5,
+    "real_world_size": {
+      "width": 0.7,
+      "height": 0.9,
+      "depth": 0.05
+    }
   },
   {
     "id": "r3-telepon-antik",
@@ -408,7 +503,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -5.5,
-      "y": 1.05,
+      "y": 1.18,
       "z": -2.5
     },
     "rotasi_y": 0,
@@ -417,19 +512,24 @@
     "is_ikonik": false,
     "zoneId": "transisi-iptek",
     "display_tier": "regular",
-    "pedestal_height": 0.8
+    "pedestal_height": 0.8,
+    "real_world_size": {
+      "width": 0.5,
+      "height": 0.75,
+      "depth": 0.4
+    }
   },
   {
     "id": "r3-sepeda-tinggi",
     "nama": "Sepeda Tinggi / Sepeda Kayu (Michael Kesler)",
     "deskripsi": "Sepeda tinggi atau sepeda kayu ciptaan Michael Kesler, alat transportasi awal yang menjadi simbol modernitas di Hindia Belanda.",
-    "url_model_3d": "",
+    "url_model_3d": "/models/r3-sepeda-tinggi.glb",
     "placeholder_shape": "torus",
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -4.5,
-      "y": 1.05,
+      "y": 1.2,
       "z": -7.2
     },
     "rotasi_y": 0.3,
@@ -438,19 +538,24 @@
     "is_ikonik": false,
     "zoneId": "transisi-iptek",
     "display_tier": "featured",
-    "pedestal_height": 0.5
+    "pedestal_height": 0.5,
+    "real_world_size": {
+      "width": 1.6,
+      "height": 1.4,
+      "depth": 0.3
+    }
   },
   {
     "id": "r3-sepeda-motor-uap",
     "nama": "Sepeda Motor Uap",
     "deskripsi": "Sepeda motor uap dengan kecepatan hingga 30 km/jam, artefak transportasi awal yang unik dan menunjukkan perkembangan teknologi mesin di masa kolonial. Dipentaskan sebagai centerpiece zona Transisi-IPTEK, di titik terjauh dari pintu masuk sebagai terminating vista.",
-    "url_model_3d": "",
+    "url_model_3d": "/models/r3-sepeda-daimler.glb",
     "placeholder_shape": "cylinder",
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 0,
-      "y": 1.05,
+      "y": 1,
       "z": -8
     },
     "rotasi_y": 0,
@@ -459,7 +564,12 @@
     "is_ikonik": true,
     "zoneId": "transisi-iptek",
     "display_tier": "hero",
-    "pedestal_height": 0.45
+    "pedestal_height": 0.45,
+    "real_world_size": {
+      "width": 1.9,
+      "height": 1.1,
+      "depth": 0.6
+    }
   },
   {
     "id": "r3-jam-matahari",
@@ -471,7 +581,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 5,
-      "y": 1.45,
+      "y": 0.98,
       "z": -3
     },
     "rotasi_y": 0,
@@ -480,7 +590,12 @@
     "is_ikonik": false,
     "zoneId": "transisi-iptek",
     "display_tier": "regular",
-    "pedestal_height": 0.9
+    "pedestal_height": 0.9,
+    "real_world_size": {
+      "width": 0.4,
+      "height": 0.15,
+      "depth": 0.4
+    }
   },
   {
     "id": "r3-teleskop",
@@ -492,7 +607,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -1,
-      "y": 1.45,
+      "y": 1.23,
       "z": -0.5
     },
     "rotasi_y": 3.14,
@@ -501,7 +616,12 @@
     "is_ikonik": false,
     "zoneId": "transisi-iptek",
     "display_tier": "regular",
-    "pedestal_height": 0.9
+    "pedestal_height": 0.9,
+    "real_world_size": {
+      "width": 0.15,
+      "height": 0.65,
+      "depth": 0.15
+    }
   },
   {
     "id": "r3-model-plta",
@@ -522,7 +642,12 @@
     "is_ikonik": false,
     "zoneId": "transisi-iptek",
     "display_tier": "regular",
-    "pedestal_height": 0.35
+    "pedestal_height": 0.35,
+    "real_world_size": {
+      "width": 0.8,
+      "height": 0.5,
+      "depth": 0.5
+    }
   },
   {
     "id": "r3-senjata-api-kolonial",
@@ -543,6 +668,11 @@
     "is_ikonik": false,
     "zoneId": "transisi-iptek",
     "display_tier": "regular",
-    "display_mode": "vitrine"
+    "display_mode": "vitrine",
+    "real_world_size": {
+      "width": 0.8,
+      "height": 0.12,
+      "depth": 0.35
+    }
   }
 ]

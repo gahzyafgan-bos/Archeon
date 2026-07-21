@@ -1,5 +1,7 @@
+import { Suspense, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Environment } from "@react-three/drei";
+import { OrbitControls, Environment, useGLTF } from "@react-three/drei";
+import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { useAudioGuide } from "@/hooks/useAudioGuide";
 import type { Artifact } from "@/types/artifact";
@@ -128,6 +130,40 @@ export function InfoPanel() {
 }
 
 function MiniArtifact({ artifact }: { artifact: Artifact }) {
+  if (artifact.url_model_3d) {
+    return (
+      <Suspense fallback={<MiniPlaceholder artifact={artifact} />}>
+        <MiniRealModel url={artifact.url_model_3d} rotationY={artifact.model_rotation_y} />
+      </Suspense>
+    );
+  }
+  return <MiniPlaceholder artifact={artifact} />;
+}
+
+/** Real model preview normalized to fit this fixed-distance mini viewer,
+ * independent of the model's actual in-hall scale — it's centered and sized
+ * to the same visual footprint regardless of the source asset's real-world dimensions. */
+function MiniRealModel({ url, rotationY = 0 }: { url: string; rotationY?: number }) {
+  const { scene } = useGLTF(url);
+  const { model, offset, fitScale } = useMemo(() => {
+    const clone = scene.clone(true);
+    const box = new THREE.Box3().setFromObject(clone);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+    const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+    return { model: clone, offset: center, fitScale: 1.1 / maxDim };
+  }, [scene]);
+
+  return (
+    <group scale={fitScale} rotation={[0, rotationY, 0]}>
+      <primitive object={model} position={[-offset.x, -offset.y, -offset.z]} />
+    </group>
+  );
+}
+
+function MiniPlaceholder({ artifact }: { artifact: Artifact }) {
   const shape = artifact.placeholder_shape;
   return (
     <mesh castShadow>

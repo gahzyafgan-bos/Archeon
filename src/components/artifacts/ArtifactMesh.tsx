@@ -1,10 +1,12 @@
-import { useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import type { Artifact } from "@/types/artifact";
 import { DustParticles } from "./DustParticles";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
+import { objectFootprintRadius } from "@/utils/artifactSize";
 
 interface ArtifactMeshProps {
   artifact: Artifact;
@@ -44,12 +46,11 @@ function hashId(id: string): number {
 }
 
 /**
- * Renders one artifact in the scene. Today this is always a placeholder
- * primitive (per spec section 10: "gunakan placeholder model 3D primitif
- * dulu"); once real assets exist, swap the <PlaceholderGeometry> below for
- * a `useGLTF(artifact.url_model_3d)` call — the rest of this component
- * (highlight ring, click handling, pedestal/vitrine/niche staging) stays
- * the same.
+ * Renders one artifact in the scene. Artifacts with a real `.glb` (per spec
+ * section 10, `artifact.url_model_3d`) render via `RealArtifactModel`;
+ * everything else still falls back to `<PlaceholderGeometry>` so batches
+ * without an asset yet keep working. The rest of this component (highlight
+ * ring, click handling, pedestal/vitrine/niche staging) stays the same for both.
  *
  * Display staging (spec: "ragam pedestal & mode display", section 2b) is
  * driven by `display_tier` + `display_mode` rather than a single identical
@@ -59,6 +60,7 @@ function hashId(id: string): number {
  */
 export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const modelGroupRef = useRef<THREE.Group>(null);
   const graphicsPreset = useGraphicsPreset();
   const nearbyId = useMuseumStore((s) => s.nearbyArtifact?.id);
   const focusedId = useMuseumStore((s) => s.focusedArtifact?.id);
@@ -96,9 +98,27 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
   // museum plinth instead of the squat drum lower pieces use.
   const isEyeLevelColumn = tier === "regular" && pedestalH >= 1.0;
 
+  // Grow the pedestal's own footprint when the real object (per real_world_size,
+  // spec: "fix skala objek") is physically wider than the tier's default stand —
+  // a 1.9m motorcycle or a 1.8m guardian statue needs more than the ~0.5-0.95m
+  // radius sized for the old uniform placeholders. Never shrinks a pedestal below
+  // its tier default; artifacts without real_world_size are unaffected.
+  const footprintRadius = objectFootprintRadius(artifact);
+  const pedestalScale = (baseRadius: number) => (footprintRadius ? Math.max(1, footprintRadius / baseRadius) : 1);
+
+  // Preload the real model as soon as this artifact mounts (rooms mount all
+  // their artifacts up front), so there's no hitch the first time the
+  // player walks up and it needs to actually appear.
+  useEffect(() => {
+    if (artifact.url_model_3d) {
+      useGLTF.preload(artifact.url_model_3d);
+    }
+  }, [artifact.url_model_3d]);
+
   useFrame((_, delta) => {
-    if (!meshRef.current) return;
-    meshRef.current.rotation.y += delta * (isFocused ? 0 : 0.25);
+    const spin = delta * (isFocused ? 0 : 0.25);
+    if (meshRef.current) meshRef.current.rotation.y += spin;
+    if (modelGroupRef.current) modelGroupRef.current.rotation.y += spin;
   });
 
   return (
@@ -106,18 +126,28 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
       {/* Display stand: pedestal (floor), vitrine (low glass case) or niche
           (wall ledge + backing panel) — never a flat identical black cylinder. */}
       {displayMode === "niche" ? (
-        <group>
-          {/* Shelf ledge the piece rests on */}
-          <mesh position={[0, y - 0.3, 0.12]} castShadow receiveShadow>
-            <boxGeometry args={[0.8, 0.1, 0.4]} />
-            <meshStandardMaterial color={WOOD} roughness={0.8} />
-          </mesh>
-          {/* Backing panel — reads as a shallow wall recess behind the piece */}
-          <mesh position={[0, y + 0.1, -0.32]} receiveShadow>
-            <boxGeometry args={[1.1, 1.1, 0.06]} />
-            <meshStandardMaterial color={accentColor} emissive={accentColor} emissiveIntensity={0.12} roughness={0.75} />
-          </mesh>
-        </group>
+        (() => {
+          // Shelf/backing grow with the real panel's width/height (spec: pedestal
+          // proportional to the object) but never shrink below the old fixed size.
+          const size = artifact.real_world_size;
+          const shelfW = Math.max(0.8, (size?.width ?? 0) + 0.3);
+          const backingW = Math.max(1.1, (size?.width ?? 0) + 0.3);
+          const backingH = Math.max(1.1, (size?.height ?? 0) + 0.3);
+          return (
+            <group>
+              {/* Shelf ledge the piece rests on */}
+              <mesh position={[0, y - 0.3, 0.12]} castShadow receiveShadow>
+                <boxGeometry args={[shelfW, 0.1, 0.4]} />
+                <meshStandardMaterial color={WOOD} roughness={0.8} />
+              </mesh>
+              {/* Backing panel — reads as a shallow wall recess behind the piece */}
+              <mesh position={[0, y + 0.1, -0.32]} receiveShadow>
+                <boxGeometry args={[backingW, backingH, 0.06]} />
+                <meshStandardMaterial color={accentColor} emissive={accentColor} emissiveIntensity={0.12} roughness={0.75} />
+              </mesh>
+            </group>
+          );
+        })()
       ) : displayMode === "vitrine" ? (
         <group>
           <mesh position={[0, 0.15, 0]} receiveShadow castShadow>
@@ -142,55 +172,70 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
           </mesh>
         </group>
       ) : isHeroTier ? (
-        <group>
-          {/* Two-step plinth + wood shaft — hero/signature staging */}
-          <mesh position={[0, 0.11, 0]} castShadow receiveShadow>
-            <cylinderGeometry args={[0.9, 0.95, 0.22, 24]} />
-            <meshStandardMaterial color={STONE_FEATURED} roughness={0.85} />
-          </mesh>
-          <mesh position={[0, 0.33, 0]} castShadow receiveShadow>
-            <cylinderGeometry args={[0.68, 0.75, 0.22, 24]} />
-            <meshStandardMaterial color={STONE_FEATURED} roughness={0.82} />
-          </mesh>
-          <mesh position={[0, 0.44 + Math.max(0.1, pedestalH - 0.44) / 2, 0]} castShadow receiveShadow>
-            <cylinderGeometry args={[0.5, 0.55, Math.max(0.1, pedestalH - 0.44), 24]} />
-            <meshStandardMaterial color={WOOD} roughness={0.75} />
-          </mesh>
-          <mesh position={[0, pedestalH + 0.03, 0]} castShadow>
-            <cylinderGeometry args={[0.58, 0.58, 0.06, 24]} />
-            <meshStandardMaterial color={BRASS} roughness={0.4} metalness={0.6} />
-          </mesh>
-        </group>
+        (() => {
+          const s = pedestalScale(0.95);
+          return (
+            <group>
+              {/* Two-step plinth + wood shaft — hero/signature staging */}
+              <mesh position={[0, 0.11, 0]} castShadow receiveShadow>
+                <cylinderGeometry args={[0.9 * s, 0.95 * s, 0.22, 24]} />
+                <meshStandardMaterial color={STONE_FEATURED} roughness={0.85} />
+              </mesh>
+              <mesh position={[0, 0.33, 0]} castShadow receiveShadow>
+                <cylinderGeometry args={[0.68 * s, 0.75 * s, 0.22, 24]} />
+                <meshStandardMaterial color={STONE_FEATURED} roughness={0.82} />
+              </mesh>
+              <mesh position={[0, 0.44 + Math.max(0.1, pedestalH - 0.44) / 2, 0]} castShadow receiveShadow>
+                <cylinderGeometry args={[0.5 * s, 0.55 * s, Math.max(0.1, pedestalH - 0.44), 24]} />
+                <meshStandardMaterial color={WOOD} roughness={0.75} />
+              </mesh>
+              <mesh position={[0, pedestalH + 0.03, 0]} castShadow>
+                <cylinderGeometry args={[0.58 * s, 0.58 * s, 0.06, 24]} />
+                <meshStandardMaterial color={BRASS} roughness={0.4} metalness={0.6} />
+              </mesh>
+            </group>
+          );
+        })()
       ) : tier === "featured" ? (
-        <group>
-          <mesh position={[0, pedestalH / 2, 0]} castShadow receiveShadow>
-            <cylinderGeometry args={[0.58, 0.63, pedestalH, 20]} />
-            <meshStandardMaterial color={STONE_FEATURED} roughness={0.82} />
-          </mesh>
-          <mesh position={[0, pedestalH + 0.025, 0]} castShadow>
-            <cylinderGeometry args={[0.6, 0.6, 0.05, 20]} />
-            <meshStandardMaterial color={BRASS} roughness={0.45} metalness={0.5} />
-          </mesh>
-        </group>
+        (() => {
+          const s = pedestalScale(0.63);
+          return (
+            <group>
+              <mesh position={[0, pedestalH / 2, 0]} castShadow receiveShadow>
+                <cylinderGeometry args={[0.58 * s, 0.63 * s, pedestalH, 20]} />
+                <meshStandardMaterial color={STONE_FEATURED} roughness={0.82} />
+              </mesh>
+              <mesh position={[0, pedestalH + 0.025, 0]} castShadow>
+                <cylinderGeometry args={[0.6 * s, 0.6 * s, 0.05, 20]} />
+                <meshStandardMaterial color={BRASS} roughness={0.45} metalness={0.5} />
+              </mesh>
+            </group>
+          );
+        })()
       ) : isEyeLevelColumn ? (
-        <group>
-          <mesh position={[0, pedestalH / 2, 0]} castShadow receiveShadow>
-            <cylinderGeometry args={[0.28, 0.34, pedestalH, 16]} />
-            <meshStandardMaterial color={regularStoneColor} roughness={0.85} />
-          </mesh>
-          <mesh position={[0, pedestalH + 0.02, 0]} castShadow>
-            <cylinderGeometry args={[0.32, 0.32, 0.04, 16]} />
-            <meshStandardMaterial color={BRASS} roughness={0.45} metalness={0.5} />
-          </mesh>
-        </group>
+        (() => {
+          const s = pedestalScale(0.34);
+          return (
+            <group>
+              <mesh position={[0, pedestalH / 2, 0]} castShadow receiveShadow>
+                <cylinderGeometry args={[0.28 * s, 0.34 * s, pedestalH, 16]} />
+                <meshStandardMaterial color={regularStoneColor} roughness={0.85} />
+              </mesh>
+              <mesh position={[0, pedestalH + 0.02, 0]} castShadow>
+                <cylinderGeometry args={[0.32 * s, 0.32 * s, 0.04, 16]} />
+                <meshStandardMaterial color={BRASS} roughness={0.45} metalness={0.5} />
+              </mesh>
+            </group>
+          );
+        })()
       ) : useAltRegularProfile ? (
         <mesh position={[0, pedestalH / 2, 0]} receiveShadow castShadow>
-          <boxGeometry args={[0.95, pedestalH, 0.95]} />
+          <boxGeometry args={[0.95 * pedestalScale(0.475), pedestalH, 0.95 * pedestalScale(0.475)]} />
           <meshStandardMaterial color={regularStoneColor} roughness={0.9} />
         </mesh>
       ) : (
         <mesh position={[0, pedestalH / 2, 0]} receiveShadow castShadow>
-          <cylinderGeometry args={[0.5, 0.55, pedestalH, 16]} />
+          <cylinderGeometry args={[0.5 * pedestalScale(0.55), 0.55 * pedestalScale(0.55), pedestalH, 16]} />
           <meshStandardMaterial color={regularStoneColor} roughness={0.88} />
         </mesh>
       )}
@@ -264,37 +309,71 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
         </mesh>
       )}
 
-      {/* Artifact mesh */}
-      <mesh
-        ref={meshRef}
-        position={[0, y, 0]}
-        castShadow
-        onClick={(e: ThreeEvent<MouseEvent>) => {
-          e.stopPropagation();
-          if (!isFocused) focusArtifact(artifact);
-        }}
-      >
-        <PlaceholderGeometry shape={artifact.placeholder_shape} />
-        {isGarudeya ? (
-          <meshPhysicalMaterial
-            color="#e6c76e"
-            roughness={0.15}
-            metalness={0.9}
-            clearcoat={0.5}
-            clearcoatRoughness={0.1}
-            emissive={isNearby ? "#e6c76e" : "#000000"}
-            emissiveIntensity={isNearby ? 0.1 : 0}
-          />
-        ) : (
-          <meshStandardMaterial
-            color={isElevated ? accentColor : regularArtifactColor}
-            roughness={0.5}
-            metalness={isElevated ? 0.35 : 0.05}
-            emissive={isNearby ? accentColor : "#000000"}
-            emissiveIntensity={isNearby ? 0.1 : 0}
-          />
-        )}
-      </mesh>
+      {/* Artifact mesh: real model when the asset has arrived, placeholder otherwise */}
+      {artifact.url_model_3d ? (
+        <Suspense
+          fallback={
+            <mesh position={[0, y, 0]}>
+              <PlaceholderGeometry shape={artifact.placeholder_shape} size={artifact.real_world_size} />
+              <meshStandardMaterial
+                color={isElevated ? accentColor : regularArtifactColor}
+                roughness={0.5}
+                metalness={isElevated ? 0.35 : 0.05}
+                transparent
+                opacity={0.35}
+              />
+            </mesh>
+          }
+        >
+          <group
+            ref={modelGroupRef}
+            onClick={(e: ThreeEvent<MouseEvent>) => {
+              e.stopPropagation();
+              if (!isFocused) focusArtifact(artifact);
+            }}
+          >
+            <RealArtifactModel
+              url={artifact.url_model_3d}
+              pedestalHeight={pedestalH}
+              targetSize={artifact.real_world_size}
+              scale={artifact.model_scale}
+              yOffset={artifact.model_y_offset}
+              rotationY={artifact.model_rotation_y}
+            />
+          </group>
+        </Suspense>
+      ) : (
+        <mesh
+          ref={meshRef}
+          position={[0, y, 0]}
+          castShadow
+          onClick={(e: ThreeEvent<MouseEvent>) => {
+            e.stopPropagation();
+            if (!isFocused) focusArtifact(artifact);
+          }}
+        >
+          <PlaceholderGeometry shape={artifact.placeholder_shape} size={artifact.real_world_size} />
+          {isGarudeya ? (
+            <meshPhysicalMaterial
+              color="#e6c76e"
+              roughness={0.15}
+              metalness={0.9}
+              clearcoat={0.5}
+              clearcoatRoughness={0.1}
+              emissive={isNearby ? "#e6c76e" : "#000000"}
+              emissiveIntensity={isNearby ? 0.1 : 0}
+            />
+          ) : (
+            <meshStandardMaterial
+              color={isElevated ? accentColor : regularArtifactColor}
+              roughness={0.5}
+              metalness={isElevated ? 0.35 : 0.05}
+              emissive={isNearby ? accentColor : "#000000"}
+              emissiveIntensity={isNearby ? 0.1 : 0}
+            />
+          )}
+        </mesh>
+      )}
 
       {/* Iconic spotlights: shadow-casting, since there are only a handful per
           room. Hero tier gets the brightest/tightest pool of light of the
@@ -334,18 +413,114 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
   );
 }
 
-function PlaceholderGeometry({ shape }: { shape: Artifact["placeholder_shape"] }) {
+/** Loads a real Draco-compressed `.glb` (asset standard: 1 unit = 1 meter,
+ * pivot at the object's base) and places it directly on top of the
+ * pedestal/vitrine/niche shelf it's staged on, mirroring where a
+ * placeholder's base would sit.
+ *
+ * The model is auto-fit to `targetSize` (`real_world_size`) by measuring its
+ * own bounding box and uniformly scaling so its largest dimension matches the
+ * real object's largest dimension — this is what actually fixes "sepeda
+ * kelihatan kayak mainan" regardless of whatever scale the artist happened to
+ * author the source file at, rather than requiring a hand-tuned modelScale
+ * per asset. `scale`/`yOffset`/`rotationY` are per-artifact escape hatches on
+ * top of that auto-fit, for assets that still need fine-tuning. */
+function RealArtifactModel({
+  url,
+  pedestalHeight,
+  targetSize,
+  scale = 1,
+  yOffset = 0,
+  rotationY = 0,
+}: {
+  url: string;
+  pedestalHeight: number;
+  targetSize?: { width: number; height: number; depth: number };
+  scale?: number;
+  yOffset?: number;
+  rotationY?: number;
+}) {
+  const { scene } = useGLTF(url);
+  const { model, fitScale } = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((obj) => {
+      if ((obj as THREE.Mesh).isMesh) {
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+      }
+    });
+
+    let fit = 1;
+    if (targetSize) {
+      const box = new THREE.Box3().setFromObject(clone);
+      const modelSize = new THREE.Vector3();
+      box.getSize(modelSize);
+      const modelMax = Math.max(modelSize.x, modelSize.y, modelSize.z, 0.001);
+      const targetMax = Math.max(targetSize.width, targetSize.height, targetSize.depth);
+      fit = targetMax / modelMax;
+    }
+    return { model: clone, fitScale: fit };
+  }, [scene, targetSize]);
+
+  return (
+    <primitive
+      object={model}
+      position={[0, pedestalHeight + yOffset, 0]}
+      rotation={[0, rotationY, 0]}
+      scale={fitScale * scale}
+    />
+  );
+}
+
+/** Placeholder dimensions derive from `real_world_size` (spec: "fix skala objek
+ * & artefak" — one universal box/cylinder/cone size regardless of what the
+ * artifact actually is was the root cause of things like Garudeya Emas
+ * rendering bigger than the bicycles). Falls back to the old fixed sizes for
+ * any artifact that doesn't have real_world_size yet. */
+function PlaceholderGeometry({
+  shape,
+  size,
+}: {
+  shape: Artifact["placeholder_shape"];
+  size?: { width: number; height: number; depth: number };
+}) {
+  if (!size) {
+    switch (shape) {
+      case "sphere":
+        return <sphereGeometry args={[0.4, 24, 24]} />;
+      case "cylinder":
+        return <cylinderGeometry args={[0.15, 0.15, 1.1, 16]} />;
+      case "cone":
+        return <coneGeometry args={[0.42, 0.9, 20]} />;
+      case "torus":
+        return <torusGeometry args={[0.35, 0.14, 16, 32]} />;
+      case "box":
+      default:
+        return <boxGeometry args={[0.6, 0.4, 0.6]} />;
+    }
+  }
+
+  const { width, height, depth } = size;
   switch (shape) {
-    case "sphere":
-      return <sphereGeometry args={[0.4, 24, 24]} />;
-    case "cylinder":
-      return <cylinderGeometry args={[0.15, 0.15, 1.1, 16]} />;
-    case "cone":
-      return <coneGeometry args={[0.42, 0.9, 20]} />;
-    case "torus":
-      return <torusGeometry args={[0.35, 0.14, 16, 32]} />;
+    case "sphere": {
+      const radius = Math.max(width, height, depth) / 2;
+      return <sphereGeometry args={[radius, 24, 24]} />;
+    }
+    case "cylinder": {
+      const radius = Math.max(width, depth) / 2;
+      return <cylinderGeometry args={[radius, radius, height, 16]} />;
+    }
+    case "cone": {
+      const radius = Math.max(width, depth) / 2;
+      return <coneGeometry args={[radius, height, 20]} />;
+    }
+    case "torus": {
+      const radius = (Math.max(width, depth) / 2) * 0.75;
+      const tube = Math.max(height / 3, radius * 0.25);
+      return <torusGeometry args={[radius, tube, 16, 32]} />;
+    }
     case "box":
     default:
-      return <boxGeometry args={[0.6, 0.4, 0.6]} />;
+      return <boxGeometry args={[width, height, depth]} />;
   }
 }

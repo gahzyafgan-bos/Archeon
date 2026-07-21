@@ -1,5 +1,6 @@
 import type { RoomConfig } from "@/data/roomConfig";
 import type { Artifact } from "@/types/artifact";
+import { objectFootprintRadius } from "@/utils/artifactSize";
 
 export interface PlacedObject {
   id: string;
@@ -43,20 +44,28 @@ export const FOOTPRINT = {
 } as const;
 
 /** Mirrors ArtifactMesh's resolveTier() fallback so the validator picks the
- * same footprint radius the renderer actually staged the piece with. */
+ * same footprint radius the renderer actually staged the piece with —
+ * including ArtifactMesh's own `pedestalScale` growth for artifacts whose
+ * `real_world_size` is physically wider than the tier's default stand
+ * (spec: "fix skala objek", footprintRadius harus dihitung ulang dari
+ * realWorldSize). Never smaller than the tier default. */
 function footprintForArtifact(artifact: Artifact): number {
   const tier = artifact.display_tier ?? (artifact.is_ikonik ? "featured" : "regular");
-  if (artifact.display_mode === "niche") return FOOTPRINT.artifactNiche;
-  switch (tier) {
-    case "signature":
-      return FOOTPRINT.artifactSignature;
-    case "hero":
-      return FOOTPRINT.artifactHero;
-    case "featured":
-      return FOOTPRINT.artifactFeatured;
-    default:
-      return FOOTPRINT.artifactRegular;
-  }
+  const objectRadius = objectFootprintRadius(artifact) ?? 0;
+  if (artifact.display_mode === "niche") return Math.max(FOOTPRINT.artifactNiche, objectRadius);
+  const tierRadius = (() => {
+    switch (tier) {
+      case "signature":
+        return FOOTPRINT.artifactSignature;
+      case "hero":
+        return FOOTPRINT.artifactHero;
+      case "featured":
+        return FOOTPRINT.artifactFeatured;
+      default:
+        return FOOTPRINT.artifactRegular;
+    }
+  })();
+  return Math.max(tierRadius, objectRadius);
 }
 
 /**

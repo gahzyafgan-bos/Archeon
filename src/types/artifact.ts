@@ -55,4 +55,18 @@ export interface Artifact {
    * ledge with a backing panel (for reliefs/inscriptions/flat pieces) — for
    * "niche", `rotasi_y` must face the piece out of the wall it's mounted on. */
   display_mode?: "pedestal" | "vitrine" | "niche";
+  /** Uniform scale correction for the real `.glb` referenced by `url_model_3d`, for
+   * assets that don't land exactly on the 1 unit = 1 meter standard. Optional, default 1. */
+  model_scale?: number;
+  /** Vertical offset (meters) correction for the real `.glb`, for assets whose pivot
+   * isn't exactly at the object's base as required by the asset standard. Optional, default 0. */
+  model_y_offset?: number;
+  /** Extra Y-axis rotation (radians) applied to the real `.glb` only, on top of the
+   * artifact's own `rotasi_y`, to correct facing direction. Optional, default 0. */
+  model_rotation_y?: number;
+  /** Reference real-world dimensions (meters) of the actual object this artifact
+   * represents — the source of truth both the placeholder primitive and any real
+   * `.glb` model scale to (1 unit = 1 meter convention). Optional — artifacts
+   * without it fall back to the old fixed per-shape placeholder size. */
+  real_world_size?: { width: number; height: number; depth: number };
 }
