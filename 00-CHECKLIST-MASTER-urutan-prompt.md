@@ -42,3 +42,46 @@ dinding & lantai kecuci nyaris putih, warna kurang saturasi, tidak ada bayangan 
 `src/hooks/useDeviceDetection.ts`, `src/hooks/useGraphicsPreset.ts` (baru),
 `src/utils/graphicsPresets.ts` (baru), `src/store/useMuseumStore.ts`,
 `src/components/ui/SettingsPanel.tsx`.
+
+---
+
+## 2. Fix Item/Hiasan Numpuk & Tembus-tembusan — Aturan Jarak & Penempatan Objek
+
+**File sumber:** `prompt-fix-item-numpuk-spacing-penempatan.md` (didapat dari luar repo)
+
+**Masalah:** Di Galeri Hindu-Buddha (hall-1), sepasang arca Dwarapala dekoratif
+(gapura zona) ditempatkan hampir persis di baris depan grid artefak — menembus
+pedestal Arca Durga Mahisasuramardhini dan vitrine kaca Garudeya Emas. Bangku
+zona (HallBenches) juga duduk tepat di centerline zona, menembus artefak
+"Info Prasasti Sangguran" yang memang diletakkan dekat dinding belakang.
+
+**Yang dikerjakan:**
+
+- [x] **Fase 1 — Audit**: script audit sementara (bukan bagian repo) yang
+      meniru semua formula penempatan artefak + hiasan prosedural di kedua
+      hall, mengecek tiap pasangan objek (`dist >= footprintA + footprintB +
+      margin`). Ketemu 2 overlap parah (Dwarapala vs Durga/Garudeya, bangku
+      vs Info Prasasti Sangguran) dan beberapa overlap kecil (<0.3m, pilar/batu)
+      yang masih dalam toleransi.
+- [x] **Fase 2 — Artefak & plinth**: diaudit — tidak ada overlap antar-artefak
+      atau hiasan di atas plinth artefak, jadi tidak ada perubahan kode.
+- [x] **Fase 3 — Hiasan**: pasangan Dwarapala digeser ke tepi zona (offset
+      x 2.2→2.6, z-multiplier 0.6→0.85 dari radius zona) supaya jelas di luar
+      grid artefak depan. `HallBenches` digeser menyamping dari centerline
+      zona (`x + radius*0.45`) supaya tidak lagi searah dengan artefak yang
+      duduk dekat dinding belakang.
+- [x] **Fase 4 — Pencegahan**: `src/utils/placementValidator.ts` (baru) —
+      util dev-only yang mengecek semua pasangan objek (artefak + hiasan
+      prosedural) per hall sekali saat `RoomShell` mount (bukan tiap frame),
+      `console.warn` kalau footprint-nya overlap. Footprint & margin
+      didokumentasikan di file yang sama.
+- [x] **Fase 5 — Verifikasi**: `tsc -b` bersih; audit ulang setelah fix
+      mengonfirmasi kedua overlap parah hilang. Verifikasi visual in-game
+      (screenshot before/after) tidak selesai — automasi browser sesi ini
+      terkendala throttling render-loop pada tab background & mismatch
+      koordinat viewport antar-tab; disarankan verifikasi manual sekali di
+      browser sebelum dianggap final secara visual.
+
+**File yang berubah:** `src/components/rooms/RoomShell.tsx`,
+`src/components/architecture/HallEdgeDecor.tsx`,
+`src/utils/placementValidator.ts` (baru).
