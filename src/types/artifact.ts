@@ -34,6 +34,25 @@ export interface Artifact {
   ruangan: RoomId;
   /** Which themed zone within that hall it's displayed in — purely presentational. */
   zoneId: ZoneId;
-  /** Iconic pieces get a dramatic spotlight + pedestal; others are in a shared vitrine. */
+  /** Iconic pieces get a dramatic spotlight + pedestal; others are in a shared vitrine.
+   * Curatorial flag only — drives the "Koleksi Ikonik" badge in InfoPanel. Doesn't
+   * control physical staging; see `display_tier` for that. */
   is_ikonik: boolean;
+  /** Presentational staging tier (museum hero/hierarchy spec): "signature" is the
+   * one museum-wide showpiece (Garudeya Emas), "hero" is each zone's single staged
+   * centerpiece, "featured" is a secondary elevated piece (still `is_ikonik`, just
+   * not the chosen hero), "regular" is everything else. Optional — omitted means
+   * "regular" unless `is_ikonik` is true, in which case it falls back to "featured"
+   * so existing iconic pieces keep their elevated look unless explicitly retiered. */
+  display_tier?: "signature" | "hero" | "featured" | "regular";
+  /** Physical stand height in meters (world Y of the pedestal/vitrine/niche shelf
+   * top, i.e. where the artifact rests) — the main antidote to "semua di alas
+   * identik setinggi sama". Optional, falls back to a tier-based default. */
+  pedestal_height?: number;
+  /** How the piece is physically displayed. "pedestal" (default) stands on the
+   * floor; "vitrine" sits in a small glass case on a low table (for small
+   * clustered/educational collections); "niche" is wall-mounted on a shallow
+   * ledge with a backing panel (for reliefs/inscriptions/flat pieces) — for
+   * "niche", `rotasi_y` must face the piece out of the wall it's mounted on. */
+  display_mode?: "pedestal" | "vitrine" | "niche";
 }
