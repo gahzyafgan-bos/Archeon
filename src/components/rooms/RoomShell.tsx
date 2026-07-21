@@ -179,7 +179,10 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
           const zPos = minZ + 2.5 + i * 5;
           if (zPos > maxZ - 2) return null;
           return (
-            <mesh key={`beam-x-${i}`} position={[centerX, -0.2, zPos]} castShadow>
+            // Ceiling beam grid — castShadow off: a directional key light through
+            // a full grid of these casts a hard diagonal lattice across the whole
+            // floor (spec: "hilangkan bayangan atap/hiasan langit-langit").
+            <mesh key={`beam-x-${i}`} position={[centerX, -0.2, zPos]}>
               <boxGeometry args={[width - 2, 0.3, 0.3]} />
               <meshStandardMaterial color={WOOD_COLOR} roughness={0.85} />
             </mesh>
@@ -189,7 +192,7 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
           const xPos = minX + 2.5 + i * 5;
           if (xPos > maxX - 2) return null;
           return (
-            <mesh key={`beam-z-${i}`} position={[xPos, -0.2, centerZ]} castShadow>
+            <mesh key={`beam-z-${i}`} position={[xPos, -0.2, centerZ]}>
               <boxGeometry args={[0.3, 0.3, depth - 2]} />
               <meshStandardMaterial color={WOOD_COLOR} roughness={0.85} />
             </mesh>

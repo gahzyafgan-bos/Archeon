@@ -38,9 +38,10 @@ export function PottedPlant({
         <torusGeometry args={[0.22, 0.03, 8, 16]} />
         <meshStandardMaterial color={potColor} roughness={0.8} />
       </mesh>
-      {/* Foliage cluster */}
+      {/* Foliage cluster — no cast: small repeated leaf bits just add shadow
+          speckle, the pot body below already grounds the whole plant. */}
       {LEAF_OFFSETS.map(([x, y, z, r], i) => (
-        <mesh key={i} position={[x, y, z]} castShadow>
+        <mesh key={i} position={[x, y, z]}>
           <icosahedronGeometry args={[r, 0]} />
           <meshStandardMaterial color={leafColor} roughness={0.9} flatShading />
         </mesh>
