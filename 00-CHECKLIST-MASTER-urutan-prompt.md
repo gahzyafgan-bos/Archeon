@@ -115,3 +115,77 @@ key light.
 **File yang berubah:** `src/components/rooms/RoomShell.tsx`,
 `src/components/architecture/HangingLamp.tsx`,
 `src/components/architecture/PottedPlant.tsx`.
+
+---
+
+## 4. Rombak Tata Letak & Elemen Ruang ala Desainer Pameran Museum Profesional
+
+**File sumber:** `prompt-desain-museum-hero-hierarki-tata-letak.md` (didapat dari luar repo)
+
+**Masalah:** Tiang berdiri sendiri terlihat seperti noise di tengah ruang, dan
+penempatan artefak flat/membosankan — semua di alas hitam identik (cylinder
+`#2a2826`/`#3a3025`, ukuran sama, tinggi seragam `y+0.55`), disebar rata
+seperti grid 3x2/4x3 tanpa hero, tanpa fokus, tanpa cerita.
+
+### Fase 1 — Audit & rencana desain
+
+**Audit kolom:** satu-satunya pemakaian `<Pillar>` di kode saat ini adalah
+pasangan kolom "candi" di tiap ambang antar-zona (`RoomShell.tsx`, flanking
+jalur, offset tegak lurus 2.2m) plus kolonade instanced di sepanjang kedua
+dinding panjang (`HallEdgeDecor.tsx`, spacing 4.5m, inset 1.4m dari dinding).
+Tidak ditemukan tiang berdiri sendiri tanpa logika di tengah ruang terbuka —
+keduanya sudah kolonade tepi/gerbang zona yang sah. Fase 2 karena itu berfokus
+pada **reposisi kolom ambang** supaya sejalan dengan sumbu pandang hero baru
+(bukan pembongkaran, karena tidak ada yang perlu dibongkar), plus audit ulang
+setelah Fase 4 kalau-kalau reposisi artefak memunculkan kolom yang jadi
+menghalangi.
+
+**Hero per zona & signature piece:**
+- **Prasejarah** (aksen `#C56A3A`, center -12,-4): hero = **Fosil Tengkorak
+  Pithecanthropus Erectus** — dipindah ke pojok belakang-barat (dekat
+  dinding barat, jauh dari pintu masuk zona) sebagai *terminating vista* saat
+  pengunjung berjalan dari Selamat Datang, dengan backdrop panel dinding +
+  step pedestal + spotlight. Fosil Homo Erectus jadi pasangan "evolusi
+  manusia" di dekatnya (lebih kecil/rendah). Kapak perimbas + kapak genggam
+  jadi vignette "alat batu" tersendiri (pedestal rendah, mengelompok, bukan
+  segaris). Nekara Perunggu jadi *featured* (pedestal sedang, lampu sendiri).
+  Koleksi Batuan jadi vitrine kaca sederhana dekat pintu masuk zona.
+- **Hindu-Buddha** (aksen `#2E4A7D`, center 12,-4): hero/signature =
+  **Garudeya Emas** (sudah brankas kaca — dipertahankan, dipindah ke sudut
+  klimaks dekat dinding timur dengan backdrop + rope stanchion + kedua arca
+  Dwarapala asli (`r2-dwarapala-1/2`, bukan patung prosedural gerbang)
+  direposisi jadi penjaga yang mengapit langsung vitrine-nya). Arca Durga &
+  Ganesha jadi *featured* (tetap `is_ikonik`, staging sedikit di bawah hero).
+  Trimurti (Brahma/Wisnu/Siwa) + Nandi jadi klaster tematik (Nandi didekatkan
+  ke Siwa, sesuai deskripsi aslinya). Relief Bentang Alam & Prasasti Loceret
+  jadi panel/niche dinding (memang relief & prasasti, cocok untuk niche).
+- **Transisi-IPTEK** (hall-2, aksen `#1F7A6E`, center 0,-2): hero = **Sepeda
+  Motor Uap** — dipindah ke pusat-belakang (dekat dinding selatan yang solid,
+  tanpa pintu) sebagai terminating vista, dengan backdrop. Sepeda
+  Tinggi/Kayu jadi *featured* di sampingnya. Teleskop diletakkan di sumbu
+  pandang dekat pintu masuk zona (mengarahkan mata ke hero, seperti "melihat
+  lewat teropong menuju hero"). Sisanya (telepon antik, jam matahari, model
+  PLTA, senjata api kolonial) mengelompok asimetris di sekitarnya.
+
+**Ragam pedestal (Fase 3):** field presentasional baru & opsional di
+`Artifact` (`display_tier: "signature"|"hero"|"featured"|"regular"`,
+`pedestal_height`, `display_mode: "pedestal"|"vitrine"|"niche"`) — tidak
+mengganti/merusak `is_ikonik` (tetap dipakai InfoPanel utk badge "Koleksi
+Ikonik") atau kontrak data lain. Tinggi pedestal bervariasi 0.3/0.6/0.8/1.1m
++ versi step untuk hero, warna dari palet Batik Modern (kayu/batu/brass),
+bukan hitam pekat.
+
+**Rencana eksekusi:** Fase 2 (kolom) → Fase 3 (sistem pedestal/niche/vitrine)
+→ Fase 4 (re-layout koordinat artefak + hiasan prosedural terkait, divalidasi
+`placementValidator`) → Fase 5 (matikan spotlight per-artefak reguler biar
+kontras hero nyata + hemat performa, spotlight hero/signature diperkuat) →
+Fase 6 (verifikasi). Tidak ada perubahan yang menyentuh sistem anchor
+interaksi terpisah — `PlayerRig`/`InfoPanel` membaca `koordinat_ruangan`
+langsung dari data, jadi pemindahan posisi otomatis konsisten dengan titik
+interaksi tanpa perlu sinkronisasi manual.
+
+- [ ] Fase 2 — Kolom
+- [ ] Fase 3 — Sistem pedestal & display bervariasi
+- [ ] Fase 4 — Re-layout artefak per zona
+- [ ] Fase 5 — Focal lighting & wayfinding
+- [ ] Fase 6 — Verifikasi
