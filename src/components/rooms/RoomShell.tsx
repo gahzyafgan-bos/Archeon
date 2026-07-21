@@ -178,12 +178,14 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
   useMemo(() => {
     // Warm, light fog matching the Batik Modern base palette — closes off
     // the far end of the (now much bigger) hall cheaply instead of rendering
-    // full detail all the way to the walls.
-    scene.fog = new THREE.FogExp2("#E4D5B7", 0.018);
+    // full detail all the way to the walls. Rendah tints it a shade warmer —
+    // cheap stand-in for the saturation the (now-disabled) color-grading
+    // composer would otherwise add, so the hall doesn't read as gersang/pucat.
+    scene.fog = new THREE.FogExp2(graphicsPreset.postProcessingEnabled ? "#E4D5B7" : "#E8D0A0", 0.018);
     return () => {
       scene.fog = null;
     };
-  }, [scene]);
+  }, [scene, graphicsPreset.postProcessingEnabled]);
 
   // Dev-only placement sanity check — runs once whenever this hall (re)mounts
   // or its artifact list changes, never per frame. Warns in the console about
@@ -284,8 +286,11 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
           form/shadow, mimicking sun coming through the joglo roof. Kept low
           enough that highlights don't clip to white at exposure 0.95 (see
           MuseumExperience) but still leaves visible tonal range top-to-bottom. */}
-      <ambientLight intensity={0.4} color="#FFF6E6" />
-      <hemisphereLight args={["#FFF6E6", "#C9B48A", 0.42]} />
+      {/* Rendah nudges these up slightly — cheap compensation for the
+          disabled color-grading composer (BrightnessContrast/HueSaturation),
+          so the hall doesn't read flatter/paler than Sedang/Tinggi. */}
+      <ambientLight intensity={graphicsPreset.postProcessingEnabled ? 0.4 : 0.46} color="#FFF6E6" />
+      <hemisphereLight args={["#FFF6E6", "#C9B48A", graphicsPreset.postProcessingEnabled ? 0.42 : 0.48]} />
       {graphicsPreset.shadowsEnabled ? (
         <directionalLight
           position={[centerX + width * 0.18, wallHeight + 6, centerZ + depth * 0.22]}

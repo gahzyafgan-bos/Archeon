@@ -95,17 +95,19 @@ export function MuseumExperience() {
         // Otherwise follow the user's graphics-quality DPR cap.
         dpr={isVRMode ? [1, 1] : graphicsPreset.dpr}
         // R3F defaults to ACESFilmicToneMapping, which rolls off highlights
-        // naturally instead of clipping to white. Exposure kept at/below 1.0
-        // (rather than the earlier 1.25) so ivory walls don't wash out to
-        // flat white — the actual brightness now comes from a directional
-        // key light + rebalanced fill (see RoomShell) instead of exposure.
-        gl={{ toneMappingExposure: 0.95 }}
+        // naturally instead of clipping to white. Exposure follows the active
+        // preset — Rendah runs slightly hotter to compensate for its
+        // disabled color-grading composer (see graphicsPresets.ts); MSAA is
+        // off at Rendah too, alongside the composer, for the same reason.
+        gl={{ toneMappingExposure: graphicsPreset.toneMappingExposure, antialias: graphicsPreset.antialias }}
       >
         <Suspense fallback={null}>
           <Hall hall={room} artifacts={artifacts} />
           <PlayerRig room={room} artifacts={artifacts} onEnterDoor={handleEnterDoor} />
           {!isVRMode && <MiniMapTracker canvasEl={miniMapCanvasRef.current} room={renderedRoom} />}
-          {isVRMode ? <CardboardStereoView /> : <PostProcessing />}
+          {isVRMode
+            ? <CardboardStereoView />
+            : graphicsPreset.postProcessingEnabled && <PostProcessing />}
         </Suspense>
       </Canvas>
       {/* Hidden in VR mode: a single unmirrored corner overlay doesn't read correctly split across two eye viewports. */}
