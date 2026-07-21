@@ -85,3 +85,33 @@ zona (HallBenches) juga duduk tepat di centerline zona, menembus artefak
 **File yang berubah:** `src/components/rooms/RoomShell.tsx`,
 `src/components/architecture/HallEdgeDecor.tsx`,
 `src/utils/placementValidator.ts` (baru).
+
+---
+
+## 3. Fix Bayangan Belang dari Struktur/Hiasan Langit-langit
+
+**File sumber:** `prompt-fix-bayangan-atap-hiasan-langit.md` (didapat dari luar repo)
+
+**Masalah:** Garis-garis bayangan diagonal belang di lantai, di-cast oleh
+rangka balok atap joglo (ceiling beam grid di `RoomShell`) dari directional
+key light.
+
+**Yang dikerjakan (1 commit, low-risk — cuma flag `castShadow`):**
+
+- [x] Matikan `castShadow` pada grid balok atap (`beam-x`/`beam-z` di ceiling
+      group `RoomShell.tsx`) — sumber utama garis diagonal belang.
+- [x] Matikan `castShadow` pada canopy `HangingLamp` (fixture langit-langit,
+      posisinya nempel di grid balok yang sama).
+- [x] Matikan `castShadow` pada dedaunan `PottedPlant` (props kecil berulang
+      — sesuai prinsip performa yang sama dipakai di tempat lain; badan pot
+      tetap cast).
+- [x] Tidak diubah: bayangan artefak, tiang/kolonade, plinth, arca Dwarapala,
+      bangku, papan zona — semua sudah `castShadow` dari sebelumnya dan tetap
+      dipertahankan. Sistem shadow & tone/exposure tidak disentuh.
+- Verifikasi visual in-game belum sempat dilakukan (kendala automasi browser
+  di sesi sebelumnya) — `tsc -b` bersih, disarankan cek manual sekali di
+  browser (preset Sedang/Tinggi) untuk konfirmasi garis belang sudah hilang.
+
+**File yang berubah:** `src/components/rooms/RoomShell.tsx`,
+`src/components/architecture/HangingLamp.tsx`,
+`src/components/architecture/PottedPlant.tsx`.
