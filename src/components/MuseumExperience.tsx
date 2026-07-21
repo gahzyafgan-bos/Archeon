@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
-import { Stats } from "@react-three/drei";
+import { Stats, PerformanceMonitor, AdaptiveDpr, AdaptiveEvents } from "@react-three/drei";
 import { useMuseumStore, type RoomId } from "@/store/useMuseumStore";
 import { ROOM_CONFIGS, type Door } from "@/data/roomConfig";
 import { fetchArtifactsByRoom } from "@/data/artifactRepository";
@@ -102,14 +102,28 @@ export function MuseumExperience() {
         // off at Rendah too, alongside the composer, for the same reason.
         gl={{ toneMappingExposure: graphicsPreset.toneMappingExposure, antialias: graphicsPreset.antialias }}
       >
-        <Suspense fallback={null}>
-          <Hall hall={room} artifacts={artifacts} />
-          <PlayerRig room={room} artifacts={artifacts} onEnterDoor={handleEnterDoor} />
-          {!isVRMode && <MiniMapTracker canvasEl={miniMapCanvasRef.current} room={renderedRoom} />}
-          {isVRMode
-            ? <CardboardStereoView />
-            : graphicsPreset.postProcessingEnabled && <PostProcessing />}
-        </Suspense>
+        {/* Safety net on top of the manual preset: if FPS actually drops,
+            AdaptiveDpr steps the renderer's pixel ratio down within the
+            active preset's [min,max] bounds (and back up once stable)
+            instead of ever risking a sustained stutter. Skipped in VR —
+            CardboardStereoView already manages its own eye-texture
+            resolution and is already locked to the Rendah preset floor. */}
+        <PerformanceMonitor>
+          <Suspense fallback={null}>
+            <Hall hall={room} artifacts={artifacts} />
+            <PlayerRig room={room} artifacts={artifacts} onEnterDoor={handleEnterDoor} />
+            {!isVRMode && <MiniMapTracker canvasEl={miniMapCanvasRef.current} room={renderedRoom} />}
+            {isVRMode
+              ? <CardboardStereoView />
+              : graphicsPreset.postProcessingEnabled && <PostProcessing />}
+          </Suspense>
+          {!isVRMode && (
+            <>
+              <AdaptiveDpr pixelated />
+              <AdaptiveEvents />
+            </>
+          )}
+        </PerformanceMonitor>
         {/* Dev-only FPS readout to verify each graphics-quality preset
             actually changes render cost — tree-shaken out of production
             builds by Vite (import.meta.env.DEV is statically replaced). */}
