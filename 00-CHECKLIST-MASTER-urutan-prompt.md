@@ -184,8 +184,40 @@ interaksi terpisah — `PlayerRig`/`InfoPanel` membaca `koordinat_ruangan`
 langsung dari data, jadi pemindahan posisi otomatis konsisten dengan titik
 interaksi tanpa perlu sinkronisasi manual.
 
-- [ ] Fase 2 — Kolom
-- [ ] Fase 3 — Sistem pedestal & display bervariasi
-- [ ] Fase 4 — Re-layout artefak per zona
-- [ ] Fase 5 — Focal lighting & wayfinding
-- [ ] Fase 6 — Verifikasi
+- [x] **Fase 2 — Kolom**: tidak ada tiang berdiri-sendiri yang perlu dibongkar
+      (kolonade tepi & kolom ambang zona sudah sah); ditambah pasangan kolom
+      "candi" tipis (`ZoneConfig.heroFocus` baru) yang membingkai hero tiap
+      zona, dihitung generik dari sumbu center→hero.
+- [x] **Fase 3 — Sistem pedestal & display bervariasi**: pedestal cylinder
+      hitam identik (`ArtifactMesh.tsx`) diganti sistem bertingkat (reguler
+      batu abu hangat, featured batu+brass, hero/signature plinth 2-step+kayu)
+      + mode `vitrine` (etalase kaca) dan `niche` (ledge+panel dinding). Field
+      baru di `Artifact` (`display_tier`, `pedestal_height`, `display_mode`)
+      opsional, tidak mengubah `is_ikonik`/InfoPanel. `koordinat_ruangan.y`
+      sekarang tinggi dunia literal (bukan offset +0.55 dari pedestal tetap).
+- [x] **Fase 4 — Re-layout artefak per zona**: seluruh 26 artefak dipindah
+      dari grid flat ke clustering naratif asimetris dengan hero/signature di
+      terminating vista (Pithecanthropus di prasejarah, Garudeya Emas di
+      Hindu-Buddha, Sepeda Motor Uap di Transisi-IPTEK) + backdrop dinding
+      baru per hero (`nearestWallFor`, generik). Semua koordinat divalidasi
+      lewat re-implementasi rumus `placementValidator` (footprint
+      hero/featured/signature/niche baru) di luar repo sebelum ditulis ke
+      JSON — tidak ada overlap.
+- [x] **Fase 5 — Focal lighting & wayfinding**: spotlight hero dipertajam
+      (intensity 42 vs featured 25-35 vs reguler 7) untuk kontras
+      terang-gelap yang nyata; jalur wayfinding (`FloorPath`) sekarang
+      mengalir ke `heroFocus` tiap zona, bukan center kosong.
+- [x] **Fase 6 — Verifikasi**: `tsc -b` bersih, `vite build` sukses (lint
+      tidak bisa dijalankan — repo belum punya `eslint.config.js`, masalah
+      pre-existing di luar scope prompt ini). Verifikasi visual in-browser
+      **tidak** sempat dilakukan — ekstensi Chrome tidak tersambung di sesi
+      ini (`tabs_context_mcp` gagal). Disarankan cek manual sekali di browser
+      (`npm run dev`) untuk konfirmasi staging hero, backdrop, niche, dan
+      pencahayaan terlihat sesuai rencana sebelum dianggap final secara
+      visual — logika penempatan sudah tervalidasi lewat script, tapi belum
+      pernah dirender & dilihat langsung.
+
+**File yang berubah:** `src/types/artifact.ts`, `src/data/roomConfig.ts`,
+`src/data/artifacts.json`, `src/components/artifacts/ArtifactMesh.tsx`,
+`src/components/rooms/RoomShell.tsx`,
+`src/components/architecture/FloorPath.tsx`, `src/utils/placementValidator.ts`.
