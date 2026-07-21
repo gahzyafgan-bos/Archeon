@@ -5,7 +5,7 @@ const QUALITY_RANK: Record<GraphicsQuality, number> = { rendah: 0, sedang: 1, ti
 // Stereo VR render draws the whole scene twice per frame — cap the effective
 // tier while VR is active regardless of the user's normal pick, then restore
 // it the moment VR exits (see CardboardStereoView).
-const VR_MAX_QUALITY: GraphicsQuality = "sedang";
+const VR_MAX_QUALITY: GraphicsQuality = "rendah";
 
 /** Resolves the user's chosen graphics tier into concrete render parameters,
  * additionally clamped down while Mode VR is active. */

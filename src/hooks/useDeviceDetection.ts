@@ -26,14 +26,10 @@ export function useDeviceDetection() {
     setIsLowEndDevice(isLowEnd);
 
     // Graphics quality default (only applies while the user hasn't
-    // overridden it in SettingsPanel — see applyAutoGraphicsQuality):
-    // desktop -> Tinggi, mobile -> Sedang, weak/low-end mobile -> Rendah.
-    if (!isTouch) {
-      applyAutoGraphicsQuality("tinggi");
-    } else if (window.screen.width < 480 || navigator.hardwareConcurrency < 4) {
-      applyAutoGraphicsQuality("rendah");
-    } else {
-      applyAutoGraphicsQuality("sedang");
-    }
+    // overridden it in SettingsPanel — see applyAutoGraphicsQuality): always
+    // Rendah on first load, on every device, so the first impression is
+    // smooth rather than laggy. The user can still raise it manually in
+    // SettingsPanel; that choice persists (graphicsQualityCustomized).
+    applyAutoGraphicsQuality("rendah");
   }, [setIsTouchDevice, setIsLowEndDevice, applyAutoGraphicsQuality]);
 }

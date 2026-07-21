@@ -63,7 +63,7 @@ const defaultSettings: Settings = {
   vrIPD: 0.063,
   vrDistortionK1: 0.22,
   vrDistortionK2: 0.24,
-  graphicsQuality: "tinggi",
+  graphicsQuality: "rendah",
 };
 
 interface MuseumState {
