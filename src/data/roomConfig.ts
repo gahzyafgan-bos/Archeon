@@ -30,6 +30,13 @@ export interface ZoneConfig {
   /** Rough footprint radius — used for the zone's floor motif and for
    * nearest-zone lookups (active-zone highlight, ambience). */
   radius: number;
+  /** World position of this zone's hero artifact (see artifacts.json
+   * `display_tier: "hero"`/`"signature"`), if any — RoomShell uses this to
+   * plant a symmetric pair of framing pillars between the zone center and
+   * the hero, so the hero reads as deliberately "framed" rather than just
+   * another grid item (design spec section 1/2c: framed view + terminating
+   * vista). Zones with no artifacts (welcome) omit this. */
+  heroFocus?: { x: number; z: number };
 }
 
 export interface RoomConfig {
@@ -74,8 +81,24 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
     ],
     zones: [
       { id: "welcome", label: "Selamat Datang", center: { x: 0, z: 8 }, accent: "#B08D3C", pathOrder: 0, radius: 6 },
-      { id: "prasejarah", label: "Koleksi Prasejarah", center: { x: -12, z: -4 }, accent: "#C56A3A", pathOrder: 1, radius: 9 },
-      { id: "hindu-buddha", label: "Galeri Hindu-Buddha", center: { x: 12, z: -4 }, accent: "#2E4A7D", pathOrder: 2, radius: 9 },
+      {
+        id: "prasejarah",
+        label: "Koleksi Prasejarah",
+        center: { x: -12, z: -4 },
+        accent: "#C56A3A",
+        pathOrder: 1,
+        radius: 9,
+        heroFocus: { x: -17, z: -8.5 },
+      },
+      {
+        id: "hindu-buddha",
+        label: "Galeri Hindu-Buddha",
+        center: { x: 12, z: -4 },
+        accent: "#2E4A7D",
+        pathOrder: 2,
+        radius: 9,
+        heroFocus: { x: 17, z: -7.5 },
+      },
     ],
   },
   "hall-2": {
@@ -98,7 +121,15 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
       },
     ],
     zones: [
-      { id: "transisi-iptek", label: "Transisi ke IPTEK", center: { x: 0, z: -2 }, accent: "#1F7A6E", pathOrder: 3, radius: 10 },
+      {
+        id: "transisi-iptek",
+        label: "Transisi ke IPTEK",
+        center: { x: 0, z: -2 },
+        accent: "#1F7A6E",
+        pathOrder: 3,
+        radius: 10,
+        heroFocus: { x: 0, z: -8.5 },
+      },
     ],
   },
 };

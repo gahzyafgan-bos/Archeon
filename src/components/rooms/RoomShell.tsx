@@ -299,6 +299,33 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
           );
         })}
 
+      {/* Hero-framing pillar pairs — a slender, intimate pair planted between
+          each zone's center and its hero artifact (ZoneConfig.heroFocus), so
+          the hero reads as deliberately framed/staged rather than another
+          grid item (spec section 1 "berpasangan simetris membingkai hero" +
+          2c "framed reveal"). Shorter & thinner than the zone-threshold
+          pillars above — these are close-in staging, not a hall gateway. */}
+      {room.zones.map((zone) => {
+        if (!zone.heroFocus) return null;
+        const dx = zone.heroFocus.x - zone.center.x;
+        const dz = zone.heroFocus.z - zone.center.z;
+        const len = Math.hypot(dx, dz) || 1;
+        const ux = dx / len;
+        const uz = dz / len;
+        // Frame point sits 1.5m back from the hero toward the zone center —
+        // between the approaching visitor and the piece itself.
+        const frameX = zone.heroFocus.x - ux * 1.5;
+        const frameZ = zone.heroFocus.z - uz * 1.5;
+        const perpX = -uz * 1.7;
+        const perpZ = ux * 1.7;
+        return (
+          <group key={`hero-frame-${zone.id}`}>
+            <Pillar height={3} radius={0.24} style="candi" accentColor={zone.accent} position={[frameX + perpX, 0, frameZ + perpZ]} />
+            <Pillar height={3} radius={0.24} style="candi" accentColor={zone.accent} position={[frameX - perpX, 0, frameZ - perpZ]} />
+          </group>
+        );
+      })}
+
       {/* Zone signboards near each zone's threshold */}
       {room.zones.map((zone) => (
         <ZoneSignboard key={`sign-${zone.id}`} zone={zone} />

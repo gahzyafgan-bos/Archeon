@@ -98,6 +98,22 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
     objects.push({ id: `decor-threshold-${zone.id}-b`, x: midX - perpX, z: midZ - perpZ, radius: FOOTPRINT.pillar });
   }
 
+  // Hero-framing pillar pairs (RoomShell.tsx)
+  for (const zone of room.zones) {
+    if (!zone.heroFocus) continue;
+    const dx = zone.heroFocus.x - zone.center.x;
+    const dz = zone.heroFocus.z - zone.center.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const ux = dx / len;
+    const uz = dz / len;
+    const frameX = zone.heroFocus.x - ux * 1.5;
+    const frameZ = zone.heroFocus.z - uz * 1.5;
+    const perpX = -uz * 1.7;
+    const perpZ = ux * 1.7;
+    objects.push({ id: `decor-hero-frame-${zone.id}-a`, x: frameX + perpX, z: frameZ + perpZ, radius: FOOTPRINT.pillar });
+    objects.push({ id: `decor-hero-frame-${zone.id}-b`, x: frameX - perpX, z: frameZ - perpZ, radius: FOOTPRINT.pillar });
+  }
+
   // Zone signboard posts (ZoneSignboard.tsx)
   for (const zone of room.zones) {
     if (zone.id === "welcome") continue;
