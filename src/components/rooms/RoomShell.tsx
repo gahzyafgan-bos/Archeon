@@ -25,6 +25,10 @@ const WOOD_COLOR = "#7A5230";
 // and must stay in lockstep.
 const HERO_FRAME_FORWARD = 1.6;
 const HERO_FRAME_PERP = 1.8;
+// Above this distance from the nearest perimeter wall, a hero-framing pillar
+// pair no longer reads as "framing a wall-staged hero" — it reads as two
+// stray columns in open floor. See distanceToNearestWall's call site below.
+const HERO_FRAME_MAX_WALL_DIST = 5;
 
 interface RoomShellProps {
   room: RoomConfig;
@@ -120,6 +124,20 @@ function nearestWallFor(
   if (closest === dMaxX) return { axis: "x", coord: bounds.maxX - 0.15, faceSign: -1 };
   if (closest === dMinZ) return { axis: "z", coord: bounds.minZ + 0.15, faceSign: 1 };
   return { axis: "z", coord: bounds.maxZ - 0.15, faceSign: -1 };
+}
+
+/** Raw distance from a point to the nearest perimeter wall — used to decide
+ * whether a candidate "hero-framing" pillar pair actually reads as framing
+ * (close to the wall the hero itself is staged against) or as two stray
+ * columns floating in open floor (single-zone halls, where "between zone
+ * center and hero" can land further from any wall than the hero itself). */
+function distanceToNearestWall(point: { x: number; z: number }, bounds: RoomBounds): number {
+  return Math.min(
+    point.x - bounds.minX,
+    bounds.maxX - point.x,
+    point.z - bounds.minZ,
+    bounds.maxZ - point.z
+  );
 }
 
 /**
@@ -350,32 +368,21 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
         <Environment preset="apartment" environmentIntensity={graphicsPreset.environmentIntensity} />
       )}
 
-      {/* Soft threshold pillars between zones — reads as a gateway without blocking movement */}
-      {room.zones.length > 1 &&
-        room.zones.slice(1).map((zone, i) => {
-          const prev = room.zones[i];
-          const midX = (prev.center.x + zone.center.x) / 2;
-          const midZ = (prev.center.z + zone.center.z) / 2;
-          // Perpendicular offset so the two pillars flank the walking path rather than sitting on it.
-          const dx = zone.center.x - prev.center.x;
-          const dz = zone.center.z - prev.center.z;
-          const len = Math.hypot(dx, dz) || 1;
-          const perpX = (-dz / len) * 2.2;
-          const perpZ = (dx / len) * 2.2;
-          return (
-            <group key={`threshold-${zone.id}`}>
-              <Pillar height={3.8} radius={0.32} style="candi" accentColor={zone.accent} position={[midX + perpX, 0, midZ + perpZ]} />
-              <Pillar height={3.8} radius={0.32} style="candi" accentColor={prev.accent} position={[midX - perpX, 0, midZ - perpZ]} />
-            </group>
-          );
-        })}
-
       {/* Hero-framing pillar pairs — a slender, intimate pair planted between
           each zone's center and its hero artifact (ZoneConfig.heroFocus), so
           the hero reads as deliberately framed/staged rather than another
           grid item (spec section 1 "berpasangan simetris membingkai hero" +
-          2c "framed reveal"). Shorter & thinner than the zone-threshold
-          pillars above — these are close-in staging, not a hall gateway. */}
+          2c "framed reveal"). Only rendered when the resulting frame point
+          actually lands near the wall the hero itself is staged against
+          (<= HERO_FRAME_MAX_WALL_DIST) — otherwise "between zone center and
+          hero" can land further from any wall than the hero itself (this
+          happens in single-zone halls, where the center-to-hero line runs
+          straight down the middle of the room), which reads as two stray
+          columns rather than a frame. A former "threshold pillar" pair that
+          used to sit between adjacent zone centers has been removed outright
+          for the same reason — it never framed anything and sat 6-12m from
+          any wall, squarely in the open floor (see HangingBanner markers
+          added in its place instead). */}
       {room.zones.map((zone) => {
         if (!zone.heroFocus) return null;
         const dx = zone.heroFocus.x - zone.center.x;
@@ -387,6 +394,7 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
         // between the approaching visitor and the piece itself.
         const frameX = zone.heroFocus.x - ux * HERO_FRAME_FORWARD;
         const frameZ = zone.heroFocus.z - uz * HERO_FRAME_FORWARD;
+        if (distanceToNearestWall({ x: frameX, z: frameZ }, room.bounds) > HERO_FRAME_MAX_WALL_DIST) return null;
         const perpX = -uz * HERO_FRAME_PERP;
         const perpZ = ux * HERO_FRAME_PERP;
         return (

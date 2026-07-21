@@ -36,7 +36,7 @@ export const FOOTPRINT = {
   // Torso + outstretched arms (Dwarapala.tsx: gada at local x=+-0.75).
   dwarapala: 0.8,
   stoneCluster: 0.6,
-  pillar: 0.5, // colonnade / threshold candi / hero-framing candi pillars
+  pillar: 0.5, // colonnade / hero-framing candi pillars
   bench: 0.9,
   pottedPlant: 0.45,
   signboardPost: 0.15,
@@ -108,22 +108,11 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
   objects.push({ id: "decor-plant-2", x: maxX - 1.3, z: centerZ + depth * 0.28, radius: FOOTPRINT.pottedPlant });
   objects.push({ id: "decor-plant-3", x: minX + 1.3, z: centerZ + depth * 0.28, radius: FOOTPRINT.pottedPlant });
 
-  // Threshold pillars between adjacent zones (RoomShell.tsx)
-  for (let i = 1; i < room.zones.length; i++) {
-    const prev = room.zones[i - 1];
-    const zone = room.zones[i];
-    const midX = (prev.center.x + zone.center.x) / 2;
-    const midZ = (prev.center.z + zone.center.z) / 2;
-    const dx = zone.center.x - prev.center.x;
-    const dz = zone.center.z - prev.center.z;
-    const len = Math.hypot(dx, dz) || 1;
-    const perpX = (-dz / len) * 2.2;
-    const perpZ = (dx / len) * 2.2;
-    objects.push({ id: `decor-threshold-${zone.id}-a`, x: midX + perpX, z: midZ + perpZ, radius: FOOTPRINT.pillar });
-    objects.push({ id: `decor-threshold-${zone.id}-b`, x: midX - perpX, z: midZ - perpZ, radius: FOOTPRINT.pillar });
-  }
-
-  // Hero-framing pillar pairs (RoomShell.tsx)
+  // Hero-framing pillar pairs (RoomShell.tsx) — a former "threshold pillar"
+  // pair between adjacent zone centers used to be mirrored here too, but it
+  // was removed outright from RoomShell.tsx (never framed anything, sat
+  // 6-12m from any wall in open floor). Must match HERO_FRAME_FORWARD/
+  // HERO_FRAME_PERP/HERO_FRAME_MAX_WALL_DIST in RoomShell.tsx.
   for (const zone of room.zones) {
     if (!zone.heroFocus) continue;
     const dx = zone.heroFocus.x - zone.center.x;
@@ -131,9 +120,10 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
     const len = Math.hypot(dx, dz) || 1;
     const ux = dx / len;
     const uz = dz / len;
-    // Must match HERO_FRAME_FORWARD/HERO_FRAME_PERP in RoomShell.tsx.
     const frameX = zone.heroFocus.x - ux * 1.6;
     const frameZ = zone.heroFocus.z - uz * 1.6;
+    const wallDist = Math.min(frameX - minX, maxX - frameX, frameZ - minZ, maxZ - frameZ);
+    if (wallDist > 5) continue;
     const perpX = -uz * 1.8;
     const perpZ = ux * 1.8;
     objects.push({ id: `decor-hero-frame-${zone.id}-a`, x: frameX + perpX, z: frameZ + perpZ, radius: FOOTPRINT.pillar });
