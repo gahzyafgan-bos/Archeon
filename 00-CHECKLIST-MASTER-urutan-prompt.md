@@ -221,3 +221,68 @@ interaksi tanpa perlu sinkronisasi manual.
 `src/data/artifacts.json`, `src/components/artifacts/ArtifactMesh.tsx`,
 `src/components/rooms/RoomShell.tsx`,
 `src/components/architecture/FloorPath.tsx`, `src/utils/placementValidator.ts`.
+
+---
+
+## 5. Fix Performa Berat — Preset Rendah Benar-benar Ringan, Reaktif, Transisi Mulus, Auto-Adaptif
+
+**File sumber:** `prompt-fix-performa-berat-preset-rendah-transisi-grafik.md` (didapat dari luar repo)
+
+**Masalah:** App berat/nge-lag di deploy server, bahkan preset grafis **Rendah**
+masih patah-patah. Ganti preset terasa "tidak berfungsi" (beban render tidak
+benar-benar berubah), dan transisi ganti preset tidak mulus. Tampilan
+(palet, kehangatan, hero staging dari prompt #4) harus dipertahankan.
+
+**Riset awal:** sebagian besar infrastruktur (dpr/shadow reaktif di Canvas,
+ContactShadows `frames={1}`, Environment/accent-light gated per preset,
+instancing di `HallEdgeDecor`) ternyata **sudah benar** dari prompt #1.
+Akar masalah nyata: `PostProcessing.tsx` (EffectComposer: Bloom+HueSaturation+
+BrightnessContrast+Vignette) jalan di **semua** preset termasuk Rendah — full-
+screen postprocessing ini biang lag terbesar di GPU lemah/server.
+
+**Yang dikerjakan (6 fase, masing-masing 1 commit):**
+
+- [x] **Fase 1 — Rendah benar-benar ringan**: `postProcessingEnabled` &
+      `antialias` baru di `graphicsPresets.ts`, off di Rendah (composer
+      EffectComposer tidak di-mount sama sekali, bukan cuma effect-nya
+      dikosongkan). Kompensasi look murah: `toneMappingExposure` Rendah
+      dinaikkan sedikit (0.95→1.05), ambient/hemisphere intensity & warna
+      fog di `RoomShell.tsx` dihangatkan tipis saat composer mati — supaya
+      tetap terlihat hangat tanpa grading pass.
+- [x] **Fase 2 — Verifikasi apply reaktif**: drei `<Stats/>` ditambah di
+      `MuseumExperience.tsx`, gated `import.meta.env.DEV` (tree-shaken dari
+      build produksi) untuk membuktikan FPS beda nyata antar preset saat
+      `npm run dev`. DPR/shadow sudah reaktif by design (props R3F biasa).
+- [x] **Fase 3 — Transisi mulus**: Canvas sudah tidak pernah remount ganti
+      preset (dikonfirmasi, tidak diubah); toggle EffectComposer mount/unmount
+      Rendah↔Sedang/Tinggi — turun ke Rendah instan (unmount murah), naik
+      boleh sedikit hitch shader-compile pertama kali (diperbolehkan sesuai
+      spec). Tidak ada perubahan kode.
+- [x] **Fase 4 — Default Rendah + VR paksa Rendah**: default
+      `graphicsQuality` di store & auto-detect (`useDeviceDetection`)
+      diubah dari device-based (desktop→Tinggi) jadi selalu `"rendah"` di
+      kunjungan pertama; `VR_MAX_QUALITY` di `useGraphicsPreset` diubah dari
+      `"sedang"` jadi `"rendah"`. Persistensi manual (localStorage,
+      `graphicsQualityCustomized`) sudah ada, tidak diubah.
+- [x] **Fase 5 — Auto-adaptif**: drei `<PerformanceMonitor>` +
+      `<AdaptiveDpr>`/`<AdaptiveEvents>` (non-VR) ditambah di
+      `MuseumExperience.tsx` — pixel ratio otomatis turun/naik dalam batas
+      `dpr` preset aktif mengikuti FPS terukur, jaring pengaman di atas
+      preset manual.
+- [x] **Fase 6 — Nol alokasi per-frame**: `DustParticles.tsx` — 
+      `p.vel.clone().multiplyScalar(delta)` (alokasi `Vector3` baru per
+      partikel per frame, x80 partikel x tiap artefak hero/featured) diganti
+      update in-place tanpa alokasi.
+- [ ] **Fase 7 — Verifikasi visual in-browser**: `tsc -b` bersih & `vite
+      build` sukses di tiap fase (dijalankan sebelum tiap commit). Verifikasi
+      visual langsung di browser **tidak** sempat dilakukan — ekstensi
+      Chrome tidak tersambung di sesi ini (sama seperti kendala prompt #2 dan
+      #4 sebelumnya). Disarankan cek manual: `npm run dev`, bandingkan FPS
+      (Stats overlay pojok) antar 3 preset, konfirmasi tidak ada
+      freeze/flash saat ganti preset, preset Rendah tetap hangat, dan Mode
+      VR ter-clamp ke Rendah.
+
+**File yang berubah:** `src/utils/graphicsPresets.ts`,
+`src/components/MuseumExperience.tsx`, `src/components/rooms/RoomShell.tsx`,
+`src/store/useMuseumStore.ts`, `src/hooks/useDeviceDetection.ts`,
+`src/hooks/useGraphicsPreset.ts`, `src/components/artifacts/DustParticles.tsx`.
