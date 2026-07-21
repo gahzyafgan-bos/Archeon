@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
@@ -35,6 +35,14 @@ function defaultPedestalHeight(tier: ReturnType<typeof resolveTier>): number {
   }
 }
 
+/** Stable (non-random) hash so the same artifact always picks the same
+ * regular-tier pedestal variant across renders/reloads. */
+function hashId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
 /**
  * Renders one artifact in the scene. Today this is always a placeholder
  * primitive (per spec section 10: "gunakan placeholder model 3D primitif
@@ -67,6 +75,26 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
   const isElevated = tier !== "regular";
   const displayMode = artifact.display_mode ?? "pedestal";
   const pedestalH = artifact.pedestal_height ?? defaultPedestalHeight(tier);
+
+  // Regular tier is 69% of the collection and used to be one universal
+  // gray pedestal + one universal flat artifact color everywhere in the
+  // museum — the real driver of the "monoton" complaint, more than spacing.
+  // Tint both with the zone's own accent so each zone reads distinctly, and
+  // alternate the pedestal profile (deterministically, not randomly) so
+  // regular pieces aren't all the same silhouette either.
+  const regularStoneColor = useMemo(
+    () => new THREE.Color(STONE_REGULAR).lerp(new THREE.Color(accentColor), 0.15).getStyle(),
+    [accentColor]
+  );
+  const regularArtifactColor = useMemo(
+    () => new THREE.Color("#d7d3ca").lerp(new THREE.Color(accentColor), 0.15).getStyle(),
+    [accentColor]
+  );
+  const useAltRegularProfile = tier === "regular" && hashId(artifact.id) % 2 === 0;
+  // Small, valuable regular-tier pieces get lifted to eye level (spec 2c)
+  // via a taller pedestal_height in the data — render those as a slender
+  // museum plinth instead of the squat drum lower pieces use.
+  const isEyeLevelColumn = tier === "regular" && pedestalH >= 1.0;
 
   useFrame((_, delta) => {
     if (!meshRef.current) return;
@@ -144,10 +172,26 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
             <meshStandardMaterial color={BRASS} roughness={0.45} metalness={0.5} />
           </mesh>
         </group>
+      ) : isEyeLevelColumn ? (
+        <group>
+          <mesh position={[0, pedestalH / 2, 0]} castShadow receiveShadow>
+            <cylinderGeometry args={[0.28, 0.34, pedestalH, 16]} />
+            <meshStandardMaterial color={regularStoneColor} roughness={0.85} />
+          </mesh>
+          <mesh position={[0, pedestalH + 0.02, 0]} castShadow>
+            <cylinderGeometry args={[0.32, 0.32, 0.04, 16]} />
+            <meshStandardMaterial color={BRASS} roughness={0.45} metalness={0.5} />
+          </mesh>
+        </group>
+      ) : useAltRegularProfile ? (
+        <mesh position={[0, pedestalH / 2, 0]} receiveShadow castShadow>
+          <boxGeometry args={[0.95, pedestalH, 0.95]} />
+          <meshStandardMaterial color={regularStoneColor} roughness={0.9} />
+        </mesh>
       ) : (
         <mesh position={[0, pedestalH / 2, 0]} receiveShadow castShadow>
           <cylinderGeometry args={[0.5, 0.55, pedestalH, 16]} />
-          <meshStandardMaterial color={STONE_REGULAR} roughness={0.88} />
+          <meshStandardMaterial color={regularStoneColor} roughness={0.88} />
         </mesh>
       )}
 
@@ -243,7 +287,7 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
           />
         ) : (
           <meshStandardMaterial
-            color={isElevated ? accentColor : "#d7d3ca"}
+            color={isElevated ? accentColor : regularArtifactColor}
             roughness={0.5}
             metalness={isElevated ? 0.35 : 0.05}
             emissive={isNearby ? accentColor : "#000000"}
