@@ -362,10 +362,15 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
               </mesh>
             );
           });
-          // Guardian statues flanking the zone's entrance (path side, toward welcome)
+          // Guardian statues flanking the zone's entrance (path side, toward
+          // welcome). Pushed out to 2.6/0.85 (was 2.2/0.6) — at the old offset
+          // these sat almost on top of the front-row artifacts (Durga at
+          // zx+2.2 basically minus a hair, Garudeya likewise), clipping their
+          // pedestals/vitrine. This keeps them at the zone's outer edge, near
+          // the threshold, with a clear gap from the artifact grid.
           elements.push(
-            <Dwarapala key="dwarapala-left" position={[zx - 2.2, 0, zz + hinduBuddha.radius * 0.6]} rotation={0} />,
-            <Dwarapala key="dwarapala-right" position={[zx + 2.2, 0, zz + hinduBuddha.radius * 0.6]} rotation={Math.PI} />
+            <Dwarapala key="dwarapala-left" position={[zx - 2.6, 0, zz + hinduBuddha.radius * 0.85]} rotation={0} />,
+            <Dwarapala key="dwarapala-right" position={[zx + 2.6, 0, zz + hinduBuddha.radius * 0.85]} rotation={Math.PI} />
           );
         }
 

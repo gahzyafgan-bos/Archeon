@@ -79,7 +79,11 @@ export function HallBenches({ room }: { room: RoomConfig }) {
           // Back edge of the zone's own floor motif (away from the entrance
           // signboard, which sits on the +Z side) — clear of both the
           // colonnade (that lines the X walls) and neighboring zones.
-          x: z.center.x,
+          // Offset sideways off the zone's own centerline: some zones (e.g.
+          // hindu-buddha) have a deep-set artifact sitting right on that
+          // centerline near the back wall, which the old on-centerline bench
+          // position clipped straight through.
+          x: z.center.x + z.radius * 0.45,
           z: z.center.z - z.radius * 0.55 - 1.2,
           rotationY: 0,
         })),
