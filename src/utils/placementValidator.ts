@@ -19,20 +19,45 @@ export const PLACEMENT_MARGIN = 0.5;
 /** Footprint radii, calibrated against each object's real rendered geometry
  * (see the components listed) rather than generic size classes. */
 export const FOOTPRINT = {
-  // Pedestal top radius is 0.55-0.6 (ArtifactMesh.tsx); matches the
+  // Pedestal top radius is 0.5-0.55 (ArtifactMesh.tsx); matches the
   // collision radius PlayerRig already uses for artifacts.
   artifactRegular: 0.8,
-  // Iconic pieces carry extra dressing (Garudeya's glass vitrine is
-  // 1.4x1.4, Durga/Ganesha get a wider spotlight cone) — a bit more room.
-  artifactIconic: 1.0,
+  // Featured (secondary elevated) pieces get a taller pedestal + brass
+  // trim — a bit more room than plain regular.
+  artifactFeatured: 0.95,
+  // Zone hero: two-step plinth, wider footprint than featured.
+  artifactHero: 1.1,
+  // Museum-wide signature piece (Garudeya): plinth + glass vitrine —
+  // needs the most negative space of anything in the scene.
+  artifactSignature: 1.3,
+  // Wall-mounted niche pieces (reliefs/inscriptions) are flush against the
+  // wall on a shallow ledge — much smaller footprint than a floor pedestal.
+  artifactNiche: 0.3,
   // Torso + outstretched arms (Dwarapala.tsx: gada at local x=+-0.75).
   dwarapala: 0.8,
   stoneCluster: 0.6,
-  pillar: 0.5, // colonnade / threshold candi pillars
+  pillar: 0.5, // colonnade / threshold candi / hero-framing candi pillars
   bench: 0.9,
   pottedPlant: 0.45,
   signboardPost: 0.15,
 } as const;
+
+/** Mirrors ArtifactMesh's resolveTier() fallback so the validator picks the
+ * same footprint radius the renderer actually staged the piece with. */
+function footprintForArtifact(artifact: Artifact): number {
+  const tier = artifact.display_tier ?? (artifact.is_ikonik ? "featured" : "regular");
+  if (artifact.display_mode === "niche") return FOOTPRINT.artifactNiche;
+  switch (tier) {
+    case "signature":
+      return FOOTPRINT.artifactSignature;
+    case "hero":
+      return FOOTPRINT.artifactHero;
+    case "featured":
+      return FOOTPRINT.artifactFeatured;
+    default:
+      return FOOTPRINT.artifactRegular;
+  }
+}
 
 /**
  * Dev-only: warns (never throws) about every pair of placed objects whose
@@ -74,7 +99,7 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
       id: artifact.id,
       x: artifact.koordinat_ruangan.x,
       z: artifact.koordinat_ruangan.z,
-      radius: artifact.is_ikonik ? FOOTPRINT.artifactIconic : FOOTPRINT.artifactRegular,
+      radius: footprintForArtifact(artifact),
     });
   }
 
@@ -106,10 +131,11 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
     const len = Math.hypot(dx, dz) || 1;
     const ux = dx / len;
     const uz = dz / len;
-    const frameX = zone.heroFocus.x - ux * 1.5;
-    const frameZ = zone.heroFocus.z - uz * 1.5;
-    const perpX = -uz * 1.7;
-    const perpZ = ux * 1.7;
+    // Must match HERO_FRAME_FORWARD/HERO_FRAME_PERP in RoomShell.tsx.
+    const frameX = zone.heroFocus.x - ux * 1.6;
+    const frameZ = zone.heroFocus.z - uz * 1.6;
+    const perpX = -uz * 1.8;
+    const perpZ = ux * 1.8;
     objects.push({ id: `decor-hero-frame-${zone.id}-a`, x: frameX + perpX, z: frameZ + perpZ, radius: FOOTPRINT.pillar });
     objects.push({ id: `decor-hero-frame-${zone.id}-b`, x: frameX - perpX, z: frameZ - perpZ, radius: FOOTPRINT.pillar });
   }
@@ -146,14 +172,16 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
     });
   }
 
-  // Zone-specific set dressing (RoomShell.tsx)
+  // Zone-specific set dressing (RoomShell.tsx) — prasejarah's flavor-rock
+  // clusters are hand-placed (not formula-derived from zone center) to clear
+  // the hero/featured pieces staged around the Pithecanthropus terminating
+  // vista; keep this in sync with the `stoneClusters` array in RoomShell.tsx.
   const prasejarah = room.zones.find((z) => z.id === "prasejarah");
   if (prasejarah) {
-    const { x: zx, z: zz } = prasejarah.center;
     [
-      [zx - 5, zz - 3],
-      [zx + 5, zz - 3],
-      [zx - 5, zz + 3],
+      [-15, -2.5],
+      [-16.5, -3.5],
+      [-17.8, -1.5],
     ].forEach(([x, z], i) => objects.push({ id: `decor-stone-cluster-${i}`, x, z, radius: FOOTPRINT.stoneCluster }));
   }
 

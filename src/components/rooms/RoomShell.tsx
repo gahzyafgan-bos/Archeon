@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Environment } from "@react-three/drei";
 import * as THREE from "three";
-import type { RoomConfig, Door, ZoneConfig } from "@/data/roomConfig";
+import type { RoomConfig, RoomBounds, Door, ZoneConfig } from "@/data/roomConfig";
 import { ARCHWAY_WIDTH, ARCHWAY_HEIGHT } from "@/data/roomConfig";
 import type { Artifact, ZoneId } from "@/types/artifact";
 import { ArtifactMesh } from "@/components/artifacts/ArtifactMesh";
@@ -20,6 +20,11 @@ import { buildPlacedObjects, validatePlacement } from "@/utils/placementValidato
 
 const WALL_THICKNESS = 0.3;
 const WOOD_COLOR = "#7A5230";
+// Hero-framing pillar geometry (see the heroFocus block below) — kept as
+// named constants because placementValidator.ts mirrors this exact formula
+// and must stay in lockstep.
+const HERO_FRAME_FORWARD = 1.6;
+const HERO_FRAME_PERP = 1.8;
 
 interface RoomShellProps {
   room: RoomConfig;
@@ -94,6 +99,67 @@ function ZWall({
       <mesh position={[gapDoor.position.x, ARCHWAY_HEIGHT + 0.25, z]} castShadow>
         <boxGeometry args={[ARCHWAY_WIDTH + 0.8, 0.5, 0.5]} />
         <meshStandardMaterial color={WOOD_COLOR} roughness={0.7} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Which of the 4 perimeter walls a point sits closest to — used to plant
+ * each zone's hero backdrop panel against whichever wall it's actually near,
+ * without hardcoding "west wall" vs "east wall" per zone. */
+function nearestWallFor(
+  point: { x: number; z: number },
+  bounds: RoomBounds
+): { axis: "x" | "z"; coord: number; faceSign: 1 | -1 } {
+  const dMinX = point.x - bounds.minX;
+  const dMaxX = bounds.maxX - point.x;
+  const dMinZ = point.z - bounds.minZ;
+  const dMaxZ = bounds.maxZ - point.z;
+  const closest = Math.min(dMinX, dMaxX, dMinZ, dMaxZ);
+  if (closest === dMinX) return { axis: "x", coord: bounds.minX + 0.15, faceSign: 1 };
+  if (closest === dMaxX) return { axis: "x", coord: bounds.maxX - 0.15, faceSign: -1 };
+  if (closest === dMinZ) return { axis: "z", coord: bounds.minZ + 0.15, faceSign: 1 };
+  return { axis: "z", coord: bounds.maxZ - 0.15, faceSign: -1 };
+}
+
+/**
+ * Wood-framed batik backdrop planted directly behind a zone's hero artifact
+ * (spec section 2b "latar/backdrop kontras" + section 1 "terminating vista"
+ * closed off by something, not a bare wall). Sized to read at a glance, not
+ * to fill the whole wall — this is staging for one piece, not a mural.
+ */
+function HeroBackdrop({
+  wallAxis,
+  wallCoord,
+  faceSign,
+  along,
+  accent,
+}: {
+  wallAxis: "x" | "z";
+  wallCoord: number;
+  faceSign: 1 | -1;
+  along: number;
+  accent: string;
+}) {
+  const texture = useMemo(() => createBatikPattern("kawung", "#EDE0C4", accent, 128), [accent]);
+  const width = 3;
+  const height = 4.2;
+  const centerY = 0.4 + height / 2;
+  const framePos: [number, number, number] = wallAxis === "x" ? [wallCoord, centerY, along] : [along, centerY, wallCoord];
+  const facePos: [number, number, number] =
+    wallAxis === "x" ? [wallCoord + faceSign * 0.07, centerY, along] : [along, centerY, wallCoord + faceSign * 0.07];
+  const frameArgs: [number, number, number] = wallAxis === "x" ? [0.14, height, width] : [width, height, 0.14];
+  const faceArgs: [number, number, number] =
+    wallAxis === "x" ? [0.02, height - 0.4, width - 0.4] : [width - 0.4, height - 0.4, 0.02];
+  return (
+    <group>
+      <mesh position={framePos} receiveShadow>
+        <boxGeometry args={frameArgs} />
+        <meshStandardMaterial color={WOOD_COLOR} roughness={0.8} />
+      </mesh>
+      <mesh position={facePos}>
+        <boxGeometry args={faceArgs} />
+        <meshStandardMaterial map={texture} emissive={accent} emissiveIntensity={0.1} roughness={0.55} />
       </mesh>
     </group>
   );
@@ -314,15 +380,33 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
         const uz = dz / len;
         // Frame point sits 1.5m back from the hero toward the zone center —
         // between the approaching visitor and the piece itself.
-        const frameX = zone.heroFocus.x - ux * 1.5;
-        const frameZ = zone.heroFocus.z - uz * 1.5;
-        const perpX = -uz * 1.7;
-        const perpZ = ux * 1.7;
+        const frameX = zone.heroFocus.x - ux * HERO_FRAME_FORWARD;
+        const frameZ = zone.heroFocus.z - uz * HERO_FRAME_FORWARD;
+        const perpX = -uz * HERO_FRAME_PERP;
+        const perpZ = ux * HERO_FRAME_PERP;
         return (
           <group key={`hero-frame-${zone.id}`}>
             <Pillar height={3} radius={0.24} style="candi" accentColor={zone.accent} position={[frameX + perpX, 0, frameZ + perpZ]} />
             <Pillar height={3} radius={0.24} style="candi" accentColor={zone.accent} position={[frameX - perpX, 0, frameZ - perpZ]} />
           </group>
+        );
+      })}
+
+      {/* Hero backdrop panels — one per zone hero, planted against whichever
+          perimeter wall the hero actually sits nearest to. */}
+      {room.zones.map((zone) => {
+        if (!zone.heroFocus) return null;
+        const wall = nearestWallFor(zone.heroFocus, room.bounds);
+        const along = wall.axis === "x" ? zone.heroFocus.z : zone.heroFocus.x;
+        return (
+          <HeroBackdrop
+            key={`hero-backdrop-${zone.id}`}
+            wallAxis={wall.axis}
+            wallCoord={wall.coord}
+            faceSign={wall.faceSign}
+            along={along}
+            accent={zone.accent}
+          />
         );
       })}
 
@@ -352,10 +436,14 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
         const prasejarah = room.zones.find((z) => z.id === "prasejarah");
         if (prasejarah) {
           const { x: zx, z: zz } = prasejarah.center;
+          // Hand-placed (not center-relative) — cleared to sit around the
+          // Pithecanthropus hero/terminating-vista cluster near the west
+          // wall (see placementValidator.ts, kept in sync) rather than the
+          // old formula-derived spots that now clip the new artifact layout.
           const stoneClusters = [
-            { x: zx - 5, z: zz - 3 },
-            { x: zx + 5, z: zz - 3 },
-            { x: zx - 5, z: zz + 3 },
+            { x: -15, z: -2.5 },
+            { x: -16.5, z: -3.5 },
+            { x: -17.8, z: -1.5 },
           ];
           stoneClusters.forEach((pos, i) => {
             elements.push(

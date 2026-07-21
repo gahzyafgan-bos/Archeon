@@ -8,15 +8,17 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": -15.4,
-      "y": 1,
-      "z": -2.3
+      "x": -16,
+      "y": 1.45,
+      "z": -8.5
     },
-    "rotasi_y": 0,
+    "rotasi_y": 0.73,
     "url_thumbnail": "",
     "ruangan": "hall-1",
-    "is_ikonik": false,
-    "zoneId": "prasejarah"
+    "is_ikonik": true,
+    "zoneId": "prasejarah",
+    "display_tier": "hero",
+    "pedestal_height": 1.0
   },
   {
     "id": "r1-fosil-homo-erectus",
@@ -28,14 +30,16 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -12,
-      "y": 1,
-      "z": -2.3
+      "y": 1.3,
+      "z": -10.3
     },
-    "rotasi_y": 0,
+    "rotasi_y": -1.15,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "prasejarah"
+    "zoneId": "prasejarah",
+    "display_tier": "featured",
+    "pedestal_height": 0.8
   },
   {
     "id": "r1-kapak-perimbas",
@@ -46,15 +50,17 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": -8.6,
-      "y": 1,
-      "z": -2.3
+      "x": -11.3,
+      "y": 0.55,
+      "z": -6.3
     },
-    "rotasi_y": 0,
+    "rotasi_y": 0.3,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "prasejarah"
+    "zoneId": "prasejarah",
+    "display_tier": "regular",
+    "pedestal_height": 0.3
   },
   {
     "id": "r1-kapak-genggam",
@@ -65,15 +71,17 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": -15.4,
-      "y": 1,
-      "z": -5.7
+      "x": -9.0,
+      "y": 0.55,
+      "z": -7.6
     },
-    "rotasi_y": 0,
+    "rotasi_y": -0.4,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "prasejarah"
+    "zoneId": "prasejarah",
+    "display_tier": "regular",
+    "pedestal_height": 0.3
   },
   {
     "id": "r1-nekara-perunggu",
@@ -84,15 +92,17 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": -12,
-      "y": 1,
-      "z": -5.7
+      "x": -7.6,
+      "y": 1.2,
+      "z": -3.0
     },
-    "rotasi_y": 0,
+    "rotasi_y": 0.5,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "prasejarah"
+    "zoneId": "prasejarah",
+    "display_tier": "featured",
+    "pedestal_height": 0.6
   },
   {
     "id": "r1-koleksi-batuan",
@@ -103,15 +113,17 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": -8.6,
-      "y": 1,
-      "z": -5.7
+      "x": -9.8,
+      "y": 0.58,
+      "z": -1.4
     },
     "rotasi_y": 3.14,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "prasejarah"
+    "zoneId": "prasejarah",
+    "display_tier": "regular",
+    "display_mode": "vitrine"
   },
   {
     "id": "r2-arca-ganesha",
@@ -122,15 +134,17 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 6.9,
-      "y": 1.2,
-      "z": 1.1
+      "x": 7.0,
+      "y": 1.25,
+      "z": 1.5
     },
     "rotasi_y": 0,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": true,
-    "zoneId": "hindu-buddha"
+    "zoneId": "hindu-buddha",
+    "display_tier": "featured",
+    "pedestal_height": 0.75
   },
   {
     "id": "r2-arca-durga-mahisasuramardhini",
@@ -142,14 +156,16 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 10.3,
-      "y": 1.2,
-      "z": 1.1
+      "y": 1.3,
+      "z": 1.2
     },
     "rotasi_y": 0.4,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": true,
-    "zoneId": "hindu-buddha"
+    "zoneId": "hindu-buddha",
+    "display_tier": "featured",
+    "pedestal_height": 0.8
   },
   {
     "id": "r2-arca-siwa-mahadewa",
@@ -160,15 +176,17 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 17.1,
-      "y": 1.2,
-      "z": 1.1
+      "x": 16.8,
+      "y": 1.0,
+      "z": -1.0
     },
     "rotasi_y": 0,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "hindu-buddha"
+    "zoneId": "hindu-buddha",
+    "display_tier": "regular",
+    "pedestal_height": 0.5
   },
   {
     "id": "r2-arca-wisnu",
@@ -179,15 +197,17 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 6.9,
-      "y": 1.2,
-      "z": -2.3
+      "x": 6.5,
+      "y": 1.0,
+      "z": -2.5
     },
     "rotasi_y": 0,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "hindu-buddha"
+    "zoneId": "hindu-buddha",
+    "display_tier": "regular",
+    "pedestal_height": 0.5
   },
   {
     "id": "r2-arca-brahma",
@@ -198,15 +218,17 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 10.3,
-      "y": 1.2,
-      "z": -2.3
+      "x": 10.5,
+      "y": 1.0,
+      "z": -1.5
     },
     "rotasi_y": 0,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "hindu-buddha"
+    "zoneId": "hindu-buddha",
+    "display_tier": "regular",
+    "pedestal_height": 0.5
   },
   {
     "id": "r2-arca-parwati",
@@ -217,15 +239,17 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 13.7,
-      "y": 1.2,
-      "z": -2.3
+      "x": 8.5,
+      "y": 1.0,
+      "z": -4.0
     },
     "rotasi_y": 0,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "hindu-buddha"
+    "zoneId": "hindu-buddha",
+    "display_tier": "regular",
+    "pedestal_height": 0.5
   },
   {
     "id": "r2-nandi",
@@ -236,53 +260,59 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 17.1,
-      "y": 1,
-      "z": -2.3
+      "x": 16.8,
+      "y": 1.0,
+      "z": 1.5
     },
     "rotasi_y": 3.14,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "hindu-buddha"
+    "zoneId": "hindu-buddha",
+    "display_tier": "regular",
+    "pedestal_height": 0.4
   },
   {
     "id": "r2-dwarapala-1",
     "nama": "Arca Dwarapala (Kiri)",
-    "deskripsi": "Salah satu sepasang arca penjaga raksasa (dwarapala) yang biasanya ditempatkan di ambang pintu candi atau bangunan suci. Menunjukkan pengaruh budaya Hindu-Buddha dalam arsitektur.",
+    "deskripsi": "Salah satu sepasang arca penjaga raksasa (dwarapala) yang biasanya ditempatkan di ambang pintu candi atau bangunan suci. Menunjukkan pengaruh budaya Hindu-Buddha dalam arsitektur. Diletakkan di jalur menuju Garudeya Emas, seakan ikut menjaga koleksi paling berharga di zona ini.",
     "url_model_3d": "",
     "placeholder_shape": "cone",
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 6.9,
-      "y": 1.2,
-      "z": -5.7
+      "x": 13.5,
+      "y": 1.1,
+      "z": -3.0
     },
-    "rotasi_y": 3.14,
+    "rotasi_y": 2.5,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "hindu-buddha"
+    "zoneId": "hindu-buddha",
+    "display_tier": "regular",
+    "pedestal_height": 0.6
   },
   {
     "id": "r2-dwarapala-2",
     "nama": "Arca Dwarapala (Kanan)",
-    "deskripsi": "Salah satu sepasang arca penjaga raksasa (dwarapala) yang biasanya ditempatkan di ambang pintu candi atau bangunan suci. Pasangan dari arca dwarapala sebelah kiri.",
+    "deskripsi": "Salah satu sepasang arca penjaga raksasa (dwarapala) yang biasanya ditempatkan di ambang pintu candi atau bangunan suci. Pasangan dari arca dwarapala sebelah kiri, sama-sama mengawal jalur menuju Garudeya Emas.",
     "url_model_3d": "",
     "placeholder_shape": "cone",
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 10.3,
-      "y": 1.2,
-      "z": -5.7
+      "x": 12.8,
+      "y": 1.1,
+      "z": -6.3
     },
-    "rotasi_y": 3.14,
+    "rotasi_y": 1.76,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "hindu-buddha"
+    "zoneId": "hindu-buddha",
+    "display_tier": "regular",
+    "pedestal_height": 0.6
   },
   {
     "id": "r2-relief-bentang-alam",
@@ -293,34 +323,38 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 13.7,
-      "y": 1,
-      "z": -5.7
+      "x": 19.7,
+      "y": 1.6,
+      "z": 2.5
     },
-    "rotasi_y": 3.14,
+    "rotasi_y": -1.5708,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "hindu-buddha"
+    "zoneId": "hindu-buddha",
+    "display_tier": "regular",
+    "display_mode": "niche"
   },
   {
     "id": "r2-garudeya-emas",
     "nama": "Garudeya Emas 22 Karat",
-    "deskripsi": "Garudeya emas 22 karat yang ditemukan di Desa Plaosan (1989), satu-satunya artefak emas 22 karat di Indonesia. Aslinya dipajang dalam brankas kaca berjeruji untuk keamanan.",
+    "deskripsi": "Garudeya emas 22 karat yang ditemukan di Desa Plaosan (1989), satu-satunya artefak emas 22 karat di Indonesia. Aslinya dipajang dalam brankas kaca berjeruji untuk keamanan. Signature piece Museum Mpu Tantular — dipentaskan di titik klimaks zona, dikawal arca Dwarapala asli di kedua sisi jalur menuju vitrinenya.",
     "url_model_3d": "",
     "placeholder_shape": "torus",
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 13.7,
-      "y": 1.2,
-      "z": 1.1
+      "x": 16.5,
+      "y": 1.5,
+      "z": -7
     },
-    "rotasi_y": 2.8,
+    "rotasi_y": -0.98,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": true,
-    "zoneId": "hindu-buddha"
+    "zoneId": "hindu-buddha",
+    "display_tier": "signature",
+    "pedestal_height": 1.05
   },
   {
     "id": "r2-prasasti-loceret",
@@ -331,15 +365,17 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 17.1,
-      "y": 1,
-      "z": -5.7
+      "x": 19.7,
+      "y": 1.5,
+      "z": -1.5
     },
-    "rotasi_y": 0,
+    "rotasi_y": -1.5708,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "hindu-buddha"
+    "zoneId": "hindu-buddha",
+    "display_tier": "regular",
+    "display_mode": "niche"
   },
   {
     "id": "r2-prasasti-sangguran-info",
@@ -351,14 +387,16 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 12,
-      "y": 1,
-      "z": -9.1
+      "y": 1.0,
+      "z": -9.6
     },
     "rotasi_y": 0,
     "url_thumbnail": "",
     "ruangan": "hall-1",
     "is_ikonik": false,
-    "zoneId": "hindu-buddha"
+    "zoneId": "hindu-buddha",
+    "display_tier": "regular",
+    "pedestal_height": 0.5
   },
   {
     "id": "r3-telepon-antik",
@@ -369,15 +407,17 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": -3.4,
-      "y": 1,
-      "z": 1.4
+      "x": -5.5,
+      "y": 1.05,
+      "z": -2.5
     },
     "rotasi_y": 0,
     "url_thumbnail": "",
     "ruangan": "hall-2",
     "is_ikonik": false,
-    "zoneId": "transisi-iptek"
+    "zoneId": "transisi-iptek",
+    "display_tier": "regular",
+    "pedestal_height": 0.8
   },
   {
     "id": "r3-sepeda-tinggi",
@@ -388,34 +428,38 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 0,
-      "y": 1,
-      "z": 1.4
+      "x": -4.5,
+      "y": 1.05,
+      "z": -7.2
     },
-    "rotasi_y": 0,
+    "rotasi_y": 0.3,
     "url_thumbnail": "",
     "ruangan": "hall-2",
     "is_ikonik": false,
-    "zoneId": "transisi-iptek"
+    "zoneId": "transisi-iptek",
+    "display_tier": "featured",
+    "pedestal_height": 0.5
   },
   {
     "id": "r3-sepeda-motor-uap",
     "nama": "Sepeda Motor Uap",
-    "deskripsi": "Sepeda motor uap dengan kecepatan hingga 30 km/jam, artefak transportasi awal yang unik dan menunjukkan perkembangan teknologi mesin di masa kolonial.",
+    "deskripsi": "Sepeda motor uap dengan kecepatan hingga 30 km/jam, artefak transportasi awal yang unik dan menunjukkan perkembangan teknologi mesin di masa kolonial. Dipentaskan sebagai centerpiece zona Transisi-IPTEK, di titik terjauh dari pintu masuk sebagai terminating vista.",
     "url_model_3d": "",
     "placeholder_shape": "cylinder",
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 3.4,
-      "y": 1,
-      "z": 1.4
+      "x": 0,
+      "y": 1.05,
+      "z": -8
     },
     "rotasi_y": 0,
     "url_thumbnail": "",
     "ruangan": "hall-2",
-    "is_ikonik": false,
-    "zoneId": "transisi-iptek"
+    "is_ikonik": true,
+    "zoneId": "transisi-iptek",
+    "display_tier": "hero",
+    "pedestal_height": 0.45
   },
   {
     "id": "r3-jam-matahari",
@@ -426,34 +470,38 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": -3.4,
-      "y": 1,
-      "z": -2
+      "x": 5,
+      "y": 1.2,
+      "z": -3
     },
     "rotasi_y": 0,
     "url_thumbnail": "",
     "ruangan": "hall-2",
     "is_ikonik": false,
-    "zoneId": "transisi-iptek"
+    "zoneId": "transisi-iptek",
+    "display_tier": "regular",
+    "pedestal_height": 0.6
   },
   {
     "id": "r3-teleskop",
     "nama": "Teleskop",
-    "deskripsi": "Teleskop kuno yang digunakan untuk pengamatan astronomi, menunjukkan perkembangan ilmu pengetahuan pada masa transisi ke era IPTEK.",
+    "deskripsi": "Teleskop kuno yang digunakan untuk pengamatan astronomi, menunjukkan perkembangan ilmu pengetahuan pada masa transisi ke era IPTEK. Diletakkan di sumbu pandang dekat pintu masuk zona, mengarahkan mata pengunjung menuju Sepeda Motor Uap di ujung ruangan.",
     "url_model_3d": "",
     "placeholder_shape": "cylinder",
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 0,
-      "y": 1,
-      "z": -2
+      "x": -1,
+      "y": 1.3,
+      "z": -0.5
     },
     "rotasi_y": 3.14,
     "url_thumbnail": "",
     "ruangan": "hall-2",
     "is_ikonik": false,
-    "zoneId": "transisi-iptek"
+    "zoneId": "transisi-iptek",
+    "display_tier": "regular",
+    "pedestal_height": 0.7
   },
   {
     "id": "r3-model-plta",
@@ -464,15 +512,17 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 3.4,
-      "y": 1,
-      "z": -2
+      "x": 4.5,
+      "y": 0.6,
+      "z": -6
     },
     "rotasi_y": 3.14,
     "url_thumbnail": "",
     "ruangan": "hall-2",
     "is_ikonik": false,
-    "zoneId": "transisi-iptek"
+    "zoneId": "transisi-iptek",
+    "display_tier": "regular",
+    "pedestal_height": 0.35
   },
   {
     "id": "r3-senjata-api-kolonial",
@@ -483,14 +533,16 @@
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
-      "x": 0,
-      "y": 1,
-      "z": -5.4
+      "x": 6.5,
+      "y": 0.58,
+      "z": -1
     },
     "rotasi_y": 3.14,
     "url_thumbnail": "",
     "ruangan": "hall-2",
     "is_ikonik": false,
-    "zoneId": "transisi-iptek"
+    "zoneId": "transisi-iptek",
+    "display_tier": "regular",
+    "display_mode": "vitrine"
   }
 ]
