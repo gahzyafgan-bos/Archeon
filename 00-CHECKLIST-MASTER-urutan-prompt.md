@@ -286,3 +286,71 @@ screen postprocessing ini biang lag terbesar di GPU lemah/server.
 `src/components/MuseumExperience.tsx`, `src/components/rooms/RoomShell.tsx`,
 `src/store/useMuseumStore.ts`, `src/hooks/useDeviceDetection.ts`,
 `src/hooks/useGraphicsPreset.ts`, `src/components/artifacts/DustParticles.tsx`.
+
+---
+
+## 6. Bongkar Kolom Tengah & Rombak Tata Artefak (v2, tegas & terukur)
+
+**File sumber:** `prompt-rombak-tegas-kolom-tengah-tata-artefak.md` (didapat dari luar repo)
+
+**Masalah:** Klaim bahwa prompt #4 (redesain tata letak) tidak menghasilkan
+perubahan terlihat — kolom masih ada di tengah, artefak masih monoton.
+Diminta eksekusi literal & terukur, bukan prinsip abstrak lagi.
+
+**Audit geometris** (dihitung dari koordinat aktual di `roomConfig.ts`/
+`artifacts.json`, bukan dari komentar kode) mengonfirmasi klaim ini secara
+faktual: 6 dari 30 instance pilar berjarak >5m dari dinding terdekat (2
+pasang "threshold pillar" Hall-1 yang tidak mengapit hero sama sekali, dan
+1 pasang "hero-framing pillar" Hall-2 yang justru lebih jauh dari dinding
+dibanding hero yang dibingkainya). Terpisah dari itu, 69% artefak (18/26,
+semua tier `regular`) memakai warna pedestal & material artefak yang
+identik persis di semua zona — akar "monoton" yang lebih dalam dari
+sekadar tata letak. Trimurti (Brahma/Wisnu/Siwa) di zona Hindu-Buddha juga
+ternyata terpecah — Siwa terisolasi ~10m dari Brahma/Wisnu.
+
+**Yang dikerjakan (5 fase kode + 1 fase verifikasi, masing-masing 1 commit):**
+
+- [x] **Fase 1 — Bongkar 6 kolom mid-floor**: blok "threshold pillar"
+      Hall-1 dihapus total (4 pilar); pengecekan jarak-ke-dinding baru
+      (`distanceToNearestWall` + `HERO_FRAME_MAX_WALL_DIST=5`, data-driven
+      bukan hardcode per-zona) men-skip pasangan hero-framing Hall-2 (2
+      pilar) yang gagal berfungsi sebagai framing. 4 pilar hero-framing
+      Hall-1 (3.5-4.4m dari dinding, benar-benar mengapit hero pojok) & 20
+      pilar kolonade tepi dipertahankan. **Hasil: 30 → 24 pilar**,
+      diverifikasi ulang lewat perhitungan independen pasca-perubahan.
+      `placementValidator.ts` di-mirror sesuai.
+- [x] **Fase 2 — Pengganti elemen**: `HangingBanner` (sudah ada di repo,
+      belum dipakai) dipasang menggantung dari langit-langit di titik-titik
+      yang barusan kehilangan pilarnya (threshold Hall-1 + hero-approach
+      Hall-2 yang di-skip) — ritme vertikal pengganti tiang, tanpa
+      menghalangi lantai/sightline.
+- [x] **Fase 3 — Variasi tier `regular`**: warna pedestal & material
+      artefak `regular` di-tint dengan `accentColor` zona (~15% mix, dulu
+      satu abu-abu universal di seluruh museum); tier `regular` bergantian
+      antara profil drum vs kotak rendah (hash deterministik dari
+      `artifact.id`). Eye-level rule: 4 artefak kecil bernilai
+      (kapak-perimbas, kapak-genggam, teleskop, jam-matahari) diangkat ke
+      ~1.45m, kapak pakai varian "kolom ramping" baru.
+- [x] **Fase 4 — Re-layout klaster Hindu-Buddha**: Siwa & Nandi (dulu
+      terisolasi di 16.8,-1/16.8,1.5) dipindah ke dekat Brahma/Wisnu
+      (13.0,-0.8/13.5,1.5) — klaster Trimurti+Nandi yang benar-benar
+      berdekatan, divalidasi lewat re-implementasi rumus
+      `placementValidator` di luar repo sebelum ditulis ke JSON. Zona
+      Prasejarah & Transisi-IPTEK tidak diubah — sudah cukup terklaster.
+- [x] **Fase 5 — Framing & spotlight**: tidak ada perubahan kode — sistem
+      spotlight fokus (hero 42, featured 25-35, regular 7) dari prompt #4
+      sudah kontras sesuai spec, cukup untuk menggantikan peran reveal
+      pilar yang dihapus di Fase 1.
+- [ ] **Fase 6 — Verifikasi**: `tsc -b` bersih & `vite build` sukses di
+      tiap fase. Angka pilar 30→24 diverifikasi ulang lewat perhitungan
+      independen (bukan cuma dipercaya dari kode). Koordinat Siwa/Nandi
+      divalidasi lewat script jarak/footprint sebelum commit — tidak ada
+      overlap. Verifikasi visual in-browser **tidak** sempat dilakukan —
+      ekstensi Chrome tidak tersambung di sesi ini (kendala berulang, sama
+      seperti prompt #2, #4, #5). Disarankan cek manual: `npm run dev`,
+      titik pandang pintu masuk tiap zona (konfirmasi sumbu lapang + hero
+      langsung terlihat), dan tier `regular` tidak lagi seragam warnanya.
+
+**File yang berubah:** `src/components/rooms/RoomShell.tsx`,
+`src/utils/placementValidator.ts`, `src/components/artifacts/ArtifactMesh.tsx`,
+`src/data/artifacts.json`.
