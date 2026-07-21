@@ -1,4 +1,4 @@
-import { ReactNode, useMemo, useRef } from "react";
+import { ReactNode, useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Environment } from "@react-three/drei";
 import * as THREE from "three";
@@ -16,6 +16,7 @@ import { ZoneFloorMotif } from "@/components/architecture/ZoneFloorMotif";
 import { ZoneSignboard } from "@/components/architecture/ZoneSignboard";
 import { createBatikPattern } from "@/utils/batikPatterns";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
+import { buildPlacedObjects, validatePlacement } from "@/utils/placementValidator";
 
 const WALL_THICKNESS = 0.3;
 const WOOD_COLOR = "#7A5230";
@@ -117,6 +118,16 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
       scene.fog = null;
     };
   }, [scene]);
+
+  // Dev-only placement sanity check — runs once whenever this hall (re)mounts
+  // or its artifact list changes, never per frame. Warns in the console about
+  // any two objects (artifacts + procedural decor) whose footprints overlap,
+  // so a numpuk/tembus regression like the Dwarapala-vs-Durga one shows up
+  // immediately instead of needing a manual screenshot audit.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    validatePlacement(room.name, buildPlacedObjects(room, artifacts));
+  }, [room, artifacts]);
 
   const zoneAccentById = useMemo(() => {
     const map: Partial<Record<ZoneId, string>> = {};
