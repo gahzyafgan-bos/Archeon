@@ -64,8 +64,10 @@ export function DustParticles({
 
     particles.forEach((p, i) => {
       p.phase += delta;
-      p.pos.add(p.vel.clone().multiplyScalar(delta));
-      
+      p.pos.x += p.vel.x * delta;
+      p.pos.y += p.vel.y * delta;
+      p.pos.z += p.vel.z * delta;
+
       // Add slight wobble
       p.pos.x += Math.sin(p.phase + i) * 0.002;
       p.pos.z += Math.cos(p.phase * 0.7 + i) * 0.002;
