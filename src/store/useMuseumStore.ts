@@ -244,6 +244,14 @@ export const useMuseumStore = create<MuseumState>()(
         settings: state.settings,
         graphicsQualityCustomized: state.graphicsQualityCustomized,
       }),
+      merge: (persistedState: any, currentState) => ({
+        ...currentState,
+        ...persistedState,
+        settings: {
+          ...currentState.settings,
+          ...(persistedState?.settings || {}),
+        },
+      }),
     }
   )
 );
