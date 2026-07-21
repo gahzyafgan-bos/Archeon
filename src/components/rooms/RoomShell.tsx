@@ -9,6 +9,7 @@ import { ArtifactMesh } from "@/components/artifacts/ArtifactMesh";
 import { Dwarapala } from "@/components/artifacts/Dwarapala";
 import { Pillar } from "@/components/architecture/Pillar";
 import { HangingLamp } from "@/components/architecture/HangingLamp";
+import { HangingBanner } from "@/components/architecture/HangingBanner";
 import { PottedPlant } from "@/components/architecture/PottedPlant";
 import { HallColonnade, HallBenches } from "@/components/architecture/HallEdgeDecor";
 import { FloorPath } from "@/components/architecture/FloorPath";
@@ -427,6 +428,51 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
       {room.zones.map((zone) => (
         <ZoneSignboard key={`sign-${zone.id}`} zone={zone} />
       ))}
+
+      {/* Hanging banners mark zone-to-zone thresholds and any hero-approach
+          point the framing pillars above skipped (HERO_FRAME_MAX_WALL_DIST)
+          — vertical rhythm overhead, at the same spots the removed pillars
+          used to stand, without reintroducing a floor-level obstruction. */}
+      {room.zones.length > 1 &&
+        room.zones.slice(1).map((zone, i) => {
+          const prev = room.zones[i];
+          const midX = (prev.center.x + zone.center.x) / 2;
+          const midZ = (prev.center.z + zone.center.z) / 2;
+          return (
+            <HangingBanner
+              key={`threshold-banner-${zone.id}`}
+              width={1.8}
+              height={2.4}
+              style="kawung"
+              color1="#EDE0C4"
+              color2={zone.accent}
+              position={[midX, wallHeight - 1.8, midZ]}
+            />
+          );
+        })}
+      {room.zones.map((zone) => {
+        if (!zone.heroFocus) return null;
+        // Must match the hero-frame pillar formula above.
+        const dx = zone.heroFocus.x - zone.center.x;
+        const dz = zone.heroFocus.z - zone.center.z;
+        const len = Math.hypot(dx, dz) || 1;
+        const ux = dx / len;
+        const uz = dz / len;
+        const frameX = zone.heroFocus.x - ux * HERO_FRAME_FORWARD;
+        const frameZ = zone.heroFocus.z - uz * HERO_FRAME_FORWARD;
+        if (distanceToNearestWall({ x: frameX, z: frameZ }, room.bounds) <= HERO_FRAME_MAX_WALL_DIST) return null;
+        return (
+          <HangingBanner
+            key={`hero-approach-banner-${zone.id}`}
+            width={1.8}
+            height={2.4}
+            style="parang"
+            color1="#EDE0C4"
+            color2={zone.accent}
+            position={[frameX, wallHeight - 1.8, frameZ]}
+          />
+        );
+      })}
 
       {/* Bulk edge decor — instanced, so the count doesn't cost extra draw calls */}
       <HallColonnade room={room} />
