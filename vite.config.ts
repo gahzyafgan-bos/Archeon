@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import basicSsl from "@vitejs/plugin-basic-ssl";
+// import basicSsl from "@vitejs/plugin-basic-ssl";
 import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
@@ -11,7 +11,7 @@ export default defineConfig({
   // On the phone you'll get a one-time "connection not private" warning for the
   // self-signed cert; tap Advanced → Proceed once and the sensor becomes
   // available. Production hosting is HTTPS already, so this only affects dev.
-  plugins: [react(), basicSsl()],
+  plugins: [react()],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
@@ -20,7 +20,7 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    allowedHosts: true, // ✅ Pakai true, bukan 'all'
+    allowedHosts: ["afgan.edufund.biz.id", "localhost"]
   },
   assetsInclude: ["**/*.glb", "**/*.gltf"],
 });
