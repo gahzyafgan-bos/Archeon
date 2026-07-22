@@ -681,15 +681,23 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
             [minX + 0.15, 1], // left wall, face points +X into the room
             [maxX - 0.15, -1], // right wall, face points -X into the room
           ];
+          // Height ties to wallHeight (was a flat 6.2/6) — the old fixed
+          // numbers assumed a 7m ceiling and poked through Hall 2's own
+          // right-sized 6m ceiling. Length is capped against the hall's
+          // own (now smaller) depth so it can't overshoot toward the
+          // archway or the opposite wall.
+          const panelH = Math.max(2, wallHeight - 0.8);
+          const panelCenterY = panelH / 2 + 0.2;
+          const panelLen = Math.min(depth * 0.42, depth - 3);
           panelSides.forEach(([panelX, faceDir], i) => {
             elements.push(
               <group key={`wall-panel-${i}`} position={[panelX, 0, transisi.center.z]}>
-                <mesh position={[0, 3, 0]} receiveShadow>
-                  <boxGeometry args={[0.12, 6.2, depth * 0.42]} />
+                <mesh position={[0, panelCenterY, 0]} receiveShadow>
+                  <boxGeometry args={[0.12, panelH, panelLen]} />
                   <meshStandardMaterial color={WOOD_COLOR} roughness={0.8} />
                 </mesh>
-                <mesh position={[faceDir * 0.07, 3, 0]}>
-                  <boxGeometry args={[0.02, 6, depth * 0.4]} />
+                <mesh position={[faceDir * 0.07, panelCenterY, 0]}>
+                  <boxGeometry args={[0.02, panelH - 0.2, panelLen - 0.4]} />
                   <meshStandardMaterial map={panelTexture} emissive={transisi.accent} emissiveIntensity={0.05} roughness={0.55} />
                 </mesh>
               </group>

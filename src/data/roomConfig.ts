@@ -95,9 +95,10 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
         radius: 3.2,
         targetRoom: "hall-2",
         // Must land clearly outside Hall 2's own return-door trigger (below,
-        // radius 3.2 around z=11.5) or the player bounces straight back the
-        // instant its cooldown clears — z=6 keeps ~5.5 units of margin.
-        targetSpawn: { x: 0, z: 6, facingY: 0 },
+        // now radius 3.2 around z=7.5 after Hall 2's right-size) or the
+        // player bounces straight back the instant its cooldown clears —
+        // z=3.5 keeps a comfortable margin.
+        targetSpawn: { x: 0, z: 3.5, facingY: 0 },
         label: "Aula Transisi & IPTEK",
       },
     ],
@@ -131,21 +132,27 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
   "hall-2": {
     id: "hall-2",
     name: "Aula Transisi & IPTEK",
-    bounds: { minX: -16, maxX: 16, minZ: -12, maxZ: 12 },
-    spawn: { x: 0, z: 6, facingY: 0 },
+    // Right-sized from 32x24 down to 22x16 (~0.69x/0.67x) — Hall 2 only
+    // ever holds one zone, so it can be packed more aggressively than
+    // Hall 1's multi-zone layout (spec section 2a). Ceiling kept tall
+    // relative to the smaller footprint for the same "rapat di lantai,
+    // tinggi di atas" reason as Hall 1.
+    bounds: { minX: -11, maxX: 11, minZ: -8, maxZ: 8 },
+    ceilingHeight: 6,
+    spawn: { x: 0, z: 3.5, facingY: 0 },
     wallColor: "#F2E9D8",
     floorColor: "#E4D5B7",
     accentColor: "#1F7A6E",
     doors: [
       {
-        position: { x: 0, z: 11.5 },
+        position: { x: 0, z: 7.5 },
         radius: 3.2,
         targetRoom: "hall-1",
         // Same margin fix as Hall 1's door above — must clear Hall 1's own
-        // archway trigger (now radius 3.2 around z=-8.5 after the Hall 1
-        // right-size; z=-4.5 keeps >3.2 units of margin and lands the
-        // arriving player in Hall 1's own center aisle, right by
-        // centerFocus, instead of retracing the old scaled-down gap alone).
+        // archway trigger (radius 3.2 around z=-8.5) or the player bounces
+        // straight back the instant its cooldown clears; z=-4.5 keeps
+        // >3.2 units of margin and lands the arriving player in Hall 1's
+        // own center aisle, right by centerFocus.
         targetSpawn: { x: 0, z: -4.5, facingY: Math.PI },
         label: "Kembali ke Aula Nusantara Kuno",
       },
@@ -154,11 +161,11 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
       {
         id: "transisi-iptek",
         label: "Transisi ke IPTEK",
-        center: { x: 0, z: -2 },
+        center: { x: 0, z: -1 },
         accent: "#1F7A6E",
         pathOrder: 3,
-        radius: 10,
-        heroFocus: { x: 0, z: -8 },
+        radius: 7,
+        heroFocus: { x: 0, z: -5.33 },
       },
     ],
   },
