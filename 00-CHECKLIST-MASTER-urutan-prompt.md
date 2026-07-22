@@ -462,3 +462,86 @@ bergantung):**
 `src/components/MuseumExperience.tsx`,
 `src/components/artifacts/ArtifactMesh.tsx`, `src/utils/graphicsPresets.ts`,
 `src/utils/placementValidator.ts`.
+
+---
+
+## 8. Fix Gerbang Antar-Hall Tertutup Hiasan + Right-size Hall 2
+
+**File sumber:** `prompt-fix-gerbang-tertutup-hiasan-rightsize-hall2.md` (didapat dari luar repo)
+
+**Masalah:** (1) area arch Hall 1 -> Hall 2 terbaca sebagai tembok buntu,
+bukan jalan tembus. (2) Hall 2 (`Transisi ke IPTEK`, 32x24m, 1 zona)
+terasa kosong & berat.
+
+**Audit (Fase 1):** `CenterInstallation` yang ditambahkan prompt #7 untuk
+mengisi titik tengah Hall 1 ternyata menempatkan wall-crest 3.6m lebar
+persis di dinding & sumbu-x yang sama dengan arch Hall 1->Hall 2
+(keduanya `x=0`, dinding `minZ`) — panel itu menutup penuh bukaan yang
+seharusnya jadi jalan tembus, persis gejala di screenshot ("panel batik +
+2 kolom membentang pas di bukaan arch"). Regresi dari sesi sebelumnya,
+bukan bug lama. Tidak ada arch lain yang tertutup — backdrop hero
+prasejarah/hindu-buddha Hall 1 ada di dinding berbeda; Hall 2 belum punya
+dekor dekat archnya sendiri.
+
+**Yang dikerjakan (3 commit, masing-masing 1+ fase):**
+
+- [x] **Fase 2 — Fix gerbang**: `CenterInstallation` wall-crest dihapus
+      total (medalion lantai + 2 pilar + spotlight dipertahankan) — tugas
+      "vista" di sumbu tengah sekarang dipegang arch itu sendiri, bukan
+      bersaing dengan panel dinding yang butuh ruang yang sama. `ArchwayGlimpse`
+      baru (generik per-`Door`, bukan hardcode Hall 1/2): peek floor sempit
+      di baliknya ditinta warna+aksen hall tujuan (satu-satunya cara
+      "mengintip" tanpa memuat kedua hall sekaligus, karena hall
+      di-lazy-load per spec performa sebelumnya), spill light warna aksen
+      tujuan, label kecil di atas ambang ("Menuju Transisi ke IPTEK").
+      `FloorPath` dapat satu node tambahan menembus dinding ke zona peek,
+      supaya garis wayfinding kelihatan menyeberang bukaan, bukan cuma
+      berhenti di ambang.
+- [x] **Fase 3 — Right-size Hall 2**: `bounds` 32x24 -> **22x16**
+      (~0.69x/0.67x — target eksplisit di spec, bukan satu faktor skala
+      bulat seperti Hall 1), `ceilingHeight` 7 -> 6. Hall 2 cuma 1 zona
+      jadi boleh dipadatkan lebih agresif daripada Hall 1 (tidak perlu
+      jaga identitas antar-zona). Spawn & kedua arah trigger pintu
+      (posisi + `targetSpawn` timbal-balik) dihitung ulang presisi
+      mengikuti dinding baru — termasuk `targetSpawn` pintu Hall 1 yang
+      harus digeser (z 6 -> 3.5) supaya tetap di luar radius trigger
+      pintu-balik Hall 2 yang sekarang lebih dekat (z 11.5 -> 7.5).
+      MiniMap & collision otomatis ikut (generik dari `room.bounds`).
+- [x] **Fase 4 — Re-layout Hall 2**: ketujuh artefak zona transisi-iptek
+      (termasuk sepeda tinggi & sepeda motor uap dari prompt skala dunia
+      nyata — ukurannya **tidak** diubah, cuma posisi) direposisi lewat
+      repulsion-relaxation di luar repo (mirror rumus
+      `placementValidator.ts`), divalidasi 0 overlap lewat harness esbuild
+      yang menjalankan `placementValidator.ts` **asli** terhadap data
+      final. Ditemukan & diperbaiki sekalian: panel dinding "signage" zona
+      (`RoomShell`) pakai tinggi tetap 6.2m (asumsi ceiling 7m lama) —
+      kepotong ceiling baru 6m; diganti relatif ke `wallHeight` + panjang
+      di-cap ke `depth` hall supaya tidak overshoot di hall manapun ke
+      depannya juga. Hero/terminating vista (Sepeda Motor Uap) tetap di
+      ujung sumbu pandang; kolonade/bangku/pot mengikuti bounds baru
+      otomatis (formula generik dari prompt sebelumnya, tidak ada
+      geometry sisa dari posisi lama karena tidak ada koordinat hardcode
+      di luar `artifacts.json`/`roomConfig.ts`).
+- [ ] **Fase 5-6 — Verifikasi**: `tsc -b` & `vite build` bersih di tiap
+      commit. Placement divalidasi via harness `esbuild` di luar repo yang
+      menjalankan `placementValidator.ts` **asli** terhadap
+      `roomConfig.ts`/`artifacts.json` sungguhan — 0 warning di kedua hall
+      (termasuk 1 pelanggaran kecil, sepeda-tinggi vs pilar pembingkai
+      hero, short 0.03m karena footprint asli artefak lebih lebar dari
+      dugaan awal script relaksasi — ditemukan & diperbaiki lewat
+      verifikasi ulang, bukan lolos begitu saja). Tidak ditemukan
+      geometry sisa/duplikat (`grep` untuk angka bounds lama). Verifikasi
+      visual in-browser **tidak** sempat dilakukan — ekstensi Chrome
+      tidak tersambung di sesi ini (kendala berulang, sama seperti prompt
+      #2, #4, #5, #6, #7). FPS before/after dan screenshot arch dari
+      berbagai sudut yang diminta spec bagian 5 juga tidak bisa diambil
+      karena kendala yang sama. Disarankan cek manual: `npm run dev`,
+      lihat arch dari titik hero staging Hall 1 (jauh) dan dari dekat,
+      pastikan tembus pandang & ada sinyal peek/spill-light/signage;
+      masuk Hall 2, pastikan terasa padat-tidak-lengang & hero langsung
+      terlihat; bandingkan FPS Hall 2 sebelum/sesudah di HP asli.
+
+**File yang berubah:** `src/data/roomConfig.ts`, `src/data/artifacts.json`,
+`src/components/rooms/RoomShell.tsx`,
+`src/components/architecture/CenterInstallation.tsx`,
+`src/components/architecture/FloorPath.tsx`.
