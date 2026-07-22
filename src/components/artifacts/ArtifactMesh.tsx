@@ -296,8 +296,9 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
         </group>
       )}
 
-      {/* Dust particles for hero/signature/featured pieces */}
-      {isElevated && (
+      {/* Dust particles for hero/signature/featured pieces — off at Rendah,
+          additive-blended overdraw is real GPU cost on mobile (spec 4b.3). */}
+      {isElevated && graphicsPreset.dustParticlesEnabled && (
         <DustParticles position={[0, y + 1.4, 0]} radius={1.2} height={5} />
       )}
 
@@ -396,8 +397,14 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
       {/* Every regular (non-elevated) artifact gets its own smaller, shadowless
           fill spotlight — kept deliberately dimmer than the elevated tiers above
           so the hero/featured pieces actually read as brighter focal points
-          (spec section 6: focal lighting contrast), not just differently staged. */}
-      {!isElevated && (
+          (spec section 6: focal lighting contrast), not just differently staged.
+          Gated off at Rendah (spec 4b.4: "batasi jumlah real light di
+          mobile") — with 15-19 artifacts mounted per hall at once this was
+          15-19 extra always-on lights every material in the scene gets
+          shaded against, by far the biggest real-light cost in the app.
+          The isNearby emissive tint above still gives regular pieces a cue
+          when approached, just not a dedicated dynamic light. */}
+      {!isElevated && graphicsPreset.perArtifactFillLights && (
         <spotLight
           position={[0, y + 3, 0.3]}
           angle={0.32}

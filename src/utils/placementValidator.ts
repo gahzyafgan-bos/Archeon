@@ -202,17 +202,17 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
   const prasejarah = room.zones.find((z) => z.id === "prasejarah");
   if (prasejarah) {
     [
-      [-11.08, -1.76],
-      [-12.5, -2.71],
-      [-12.71, -0.17],
+      [-11.05, -1.74],
+      [-12.5, -2.74],
+      [-12.68, -0.12],
     ].forEach(([x, z], i) => objects.push({ id: `decor-stone-cluster-${i}`, x, z, radius: FOOTPRINT.stoneCluster }));
   }
 
   const hinduBuddha = room.zones.find((z) => z.id === "hindu-buddha");
   if (hinduBuddha) {
     const { x: zx, z: zz } = hinduBuddha.center;
-    objects.push({ id: "decor-dwarapala-left", x: zx - 2.6, z: zz + hinduBuddha.radius * 0.85, radius: FOOTPRINT.dwarapala });
-    objects.push({ id: "decor-dwarapala-right", x: zx + 2.6, z: zz + hinduBuddha.radius * 0.85, radius: FOOTPRINT.dwarapala });
+    objects.push({ id: "decor-dwarapala-left", x: zx - 2.6, z: zz + hinduBuddha.radius * 0.9, radius: FOOTPRINT.dwarapala });
+    objects.push({ id: "decor-dwarapala-right", x: zx + 2.6, z: zz + hinduBuddha.radius * 0.9, radius: FOOTPRINT.dwarapala });
   }
 
   // Center installation (RoomShell.tsx CenterInstallation) — flanking pillars.

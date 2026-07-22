@@ -21,6 +21,24 @@ export interface GraphicsPreset {
   /** Passed to <Canvas gl>. Rendah runs a touch hotter to compensate for
    * the saturation/contrast the (now-disabled) grading trio used to add. */
   toneMappingExposure: number;
+  /** Every non-elevated (regular-tier) artifact used to carry its own
+   * always-on fill spotLight regardless of preset — with ~15-19 artifacts
+   * mounted per hall at once, that's 15-19 extra real lights every
+   * fragment in the scene gets shaded against on top of ambient/hemisphere/
+   * directional/accent, which forward-rendering pays for on every pixel of
+   * every material (spec 4b.4: "batasi jumlah real light di mobile").
+   * False on Rendah — those pieces fall back to their existing emissive
+   * tint (isNearby highlight) instead, which is effectively free. */
+  perArtifactFillLights: boolean;
+  /** DustParticles (additive-blended point sprites around hero/featured/
+   * signature pieces) cost real overdraw on mobile GPUs (spec 4b.3:
+   * "kurangi efek overdraw... partikel debu... di mobile dikurangi
+   * drastis") — off entirely at Rendah rather than just fewer particles. */
+  dustParticlesEnabled: boolean;
+  /** <Canvas camera far>. Both halls are well under 35m across — a shorter
+   * far plane on mobile gives frustum culling a tighter volume to reject
+   * against (spec 4b.5: fog/draw distance dipendekkan). */
+  cameraFar: number;
 }
 
 // Grading (tone mapping, saturation/contrast, contact shadow) stays on for
@@ -40,6 +58,9 @@ export const GRAPHICS_PRESETS: Record<GraphicsQuality, GraphicsPreset> = {
     postProcessingEnabled: false,
     antialias: false,
     toneMappingExposure: 1.05,
+    perArtifactFillLights: false,
+    dustParticlesEnabled: false,
+    cameraFar: 40,
   },
   sedang: {
     dpr: [1, 1.5],
@@ -53,6 +74,9 @@ export const GRAPHICS_PRESETS: Record<GraphicsQuality, GraphicsPreset> = {
     postProcessingEnabled: true,
     antialias: true,
     toneMappingExposure: 0.95,
+    perArtifactFillLights: true,
+    dustParticlesEnabled: true,
+    cameraFar: 80,
   },
   tinggi: {
     dpr: [1, 2],
@@ -66,6 +90,9 @@ export const GRAPHICS_PRESETS: Record<GraphicsQuality, GraphicsPreset> = {
     postProcessingEnabled: true,
     antialias: true,
     toneMappingExposure: 0.95,
+    perArtifactFillLights: true,
+    dustParticlesEnabled: true,
+    cameraFar: 200,
   },
 };
 

@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, Environment } from "@react-three/drei";
+import { ContactShadows, Environment, Instances, Instance } from "@react-three/drei";
 import * as THREE from "three";
 import type { RoomConfig, RoomBounds, Door, ZoneConfig } from "@/data/roomConfig";
 import { ARCHWAY_WIDTH, ARCHWAY_HEIGHT } from "@/data/roomConfig";
@@ -283,35 +283,37 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
       ))}
       <FloorPath room={room} />
 
-      {/* Ceiling: joglo beam grid, consistent style across both halls */}
+      {/* Ceiling: joglo beam grid, consistent style across both halls.
+          Instanced (2 draw calls total instead of one mesh per beam) —
+          every beam-x shares one box geometry/material, every beam-z
+          shares another, only position differs (spec 4b.2: "merge geometry
+          statik... elemen arsitektur"). */}
       <group position={[0, wallHeight, 0]}>
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[centerX, 0, centerZ]}>
           <planeGeometry args={[width, depth]} />
           <meshStandardMaterial color="#5a4a38" roughness={0.92} />
         </mesh>
-        {Array.from({ length: Math.ceil(depth / 5) }).map((_, i) => {
-          const zPos = minZ + 2.5 + i * 5;
-          if (zPos > maxZ - 2) return null;
-          return (
-            // Ceiling beam grid — castShadow off: a directional key light through
-            // a full grid of these casts a hard diagonal lattice across the whole
-            // floor (spec: "hilangkan bayangan atap/hiasan langit-langit").
-            <mesh key={`beam-x-${i}`} position={[centerX, -0.2, zPos]}>
-              <boxGeometry args={[width - 2, 0.3, 0.3]} />
-              <meshStandardMaterial color={WOOD_COLOR} roughness={0.85} />
-            </mesh>
-          );
-        })}
-        {Array.from({ length: Math.ceil(width / 5) }).map((_, i) => {
-          const xPos = minX + 2.5 + i * 5;
-          if (xPos > maxX - 2) return null;
-          return (
-            <mesh key={`beam-z-${i}`} position={[xPos, -0.2, centerZ]}>
-              <boxGeometry args={[0.3, 0.3, depth - 2]} />
-              <meshStandardMaterial color={WOOD_COLOR} roughness={0.85} />
-            </mesh>
-          );
-        })}
+        {/* castShadow off: a directional key light through a full grid of
+            these casts a hard diagonal lattice across the whole floor
+            (spec: "hilangkan bayangan atap/hiasan langit-langit"). */}
+        <Instances limit={Math.ceil(depth / 5) + 1} frustumCulled={false} frames={1}>
+          <boxGeometry args={[width - 2, 0.3, 0.3]} />
+          <meshStandardMaterial color={WOOD_COLOR} roughness={0.85} />
+          {Array.from({ length: Math.ceil(depth / 5) }).map((_, i) => {
+            const zPos = minZ + 2.5 + i * 5;
+            if (zPos > maxZ - 2) return null;
+            return <Instance key={`beam-x-${i}`} position={[centerX, -0.2, zPos]} />;
+          })}
+        </Instances>
+        <Instances limit={Math.ceil(width / 5) + 1} frustumCulled={false} frames={1}>
+          <boxGeometry args={[0.3, 0.3, depth - 2]} />
+          <meshStandardMaterial color={WOOD_COLOR} roughness={0.85} />
+          {Array.from({ length: Math.ceil(width / 5) }).map((_, i) => {
+            const xPos = minX + 2.5 + i * 5;
+            if (xPos > maxX - 2) return null;
+            return <Instance key={`beam-z-${i}`} position={[xPos, -0.2, centerZ]} />;
+          })}
+        </Instances>
       </group>
 
       {/* Perimeter walls — collision-relevant sides only; no internal walls between zones */}
@@ -553,9 +555,9 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
           // wall (see placementValidator.ts, kept in sync) rather than the
           // old formula-derived spots that now clip the new artifact layout.
           const stoneClusters = [
-            { x: -11.08, z: -1.76 },
-            { x: -12.5, z: -2.71 },
-            { x: -12.71, z: -0.17 },
+            { x: -11.05, z: -1.74 },
+            { x: -12.5, z: -2.74 },
+            { x: -12.68, z: -0.12 },
           ];
           stoneClusters.forEach((pos, i) => {
             elements.push(
@@ -604,14 +606,13 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
             );
           });
           // Guardian statues flanking the zone's entrance (path side, toward
-          // welcome). Pushed out to 2.6/0.85 (was 2.2/0.6) — at the old offset
-          // these sat almost on top of the front-row artifacts (Durga at
-          // zx+2.2 basically minus a hair, Garudeya likewise), clipping their
-          // pedestals/vitrine. This keeps them at the zone's outer edge, near
-          // the threshold, with a clear gap from the artifact grid.
+          // welcome). Offset 2.6/0.9 (radius multiplier bumped from 0.85
+          // after the Hall 1 right-size pulled Ganesha/Durga close enough
+          // to clip these) — keeps them at the zone's outer edge, near the
+          // threshold, with a clear gap from the artifact grid.
           elements.push(
-            <Dwarapala key="dwarapala-left" position={[zx - 2.6, 0, zz + hinduBuddha.radius * 0.85]} rotation={0} />,
-            <Dwarapala key="dwarapala-right" position={[zx + 2.6, 0, zz + hinduBuddha.radius * 0.85]} rotation={Math.PI} />
+            <Dwarapala key="dwarapala-left" position={[zx - 2.6, 0, zz + hinduBuddha.radius * 0.9]} rotation={0} />,
+            <Dwarapala key="dwarapala-right" position={[zx + 2.6, 0, zz + hinduBuddha.radius * 0.9]} rotation={Math.PI} />
           );
         }
 

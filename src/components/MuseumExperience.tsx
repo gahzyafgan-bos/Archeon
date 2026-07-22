@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
-import { Stats, PerformanceMonitor, AdaptiveDpr, AdaptiveEvents } from "@react-three/drei";
+import { Stats, PerformanceMonitor, AdaptiveDpr, AdaptiveEvents, Preload, useProgress } from "@react-three/drei";
 import { useMuseumStore, type RoomId } from "@/store/useMuseumStore";
 import { ROOM_CONFIGS, type Door } from "@/data/roomConfig";
 import { fetchArtifactsByRoom } from "@/data/artifactRepository";
@@ -35,30 +35,43 @@ export function MuseumExperience() {
 
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [renderedRoom, setRenderedRoom] = useState<RoomId>(activeRoom);
+  const [dataReady, setDataReady] = useState(false);
 
   useDeviceDetection();
   useAmbience(renderedRoom);
 
-  // Initial load: fetch lobby artifacts, drive the loading-screen progress bar.
-  useEffect(() => {
-    let progress = 0;
-    const tick = setInterval(() => {
-      progress = Math.min(100, progress + Math.random() * 18 + 8);
-      setLoadProgress(progress);
-      if (progress >= 100) clearInterval(tick);
-    }, 140);
+  // Real loading progress (spec 4a.3: "loading screen dengan progress
+  // nyata") — drei's useProgress tracks THREE.DefaultLoadingManager, i.e.
+  // the actual GLTF/texture loads Hall 1's artifacts kick off, not a fake
+  // timer. Works outside the Canvas too (plain zustand subscription), so it
+  // can drive the DOM LoadingScreen directly.
+  const { progress: glProgress, active: glActive } = useProgress();
 
+  // Initial load: fetch lobby artifacts (gates isLoading together with the
+  // real asset progress above) so the scene never shows before both the
+  // artifact list AND its critical assets are ready.
+  useEffect(() => {
     fetchArtifactsByRoom("hall-1").then((data) => {
       setArtifacts(data);
-      setTimeout(() => {
-        setLoadProgress(100);
-        finishLoading();
-      }, 900);
+      setDataReady(true);
     });
-
-    return () => clearInterval(tick);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    // Weight the data fetch itself into the bar (it's most of the first
+    // couple hundred ms, before there's anything for useProgress to track
+    // yet) so the bar doesn't sit at 0% while the JSON round-trip happens.
+    setLoadProgress(dataReady ? Math.max(glProgress, 60) : glProgress * 0.6);
+  }, [glProgress, dataReady, setLoadProgress]);
+
+  useEffect(() => {
+    if (!dataReady || glActive) return;
+    const t = setTimeout(() => {
+      setLoadProgress(100);
+      finishLoading();
+    }, 200);
+    return () => clearTimeout(t);
+  }, [dataReady, glActive, finishLoading, setLoadProgress]);
 
   // Brief crossfade whenever the active hall changes — the archway is an
   // open walk-through now, so this only needs to be long enough to hide the
@@ -90,7 +103,12 @@ export function MuseumExperience() {
     <>
       <Canvas
         shadows={graphicsPreset.shadowsEnabled}
-        camera={{ fov: 68, near: 0.1, far: 200 }}
+        // far was a fixed 200 — much deeper than either hall (max ~35m
+        // across); a preset-driven, shorter far plane on mobile (spec 4b.5
+        // "fog/draw distance dipendekkan") gives three.js's own frustum
+        // culling a tighter volume to reject geometry against, on top of
+        // fog's purely visual falloff.
+        camera={{ fov: 68, near: 0.1, far: graphicsPreset.cameraFar }}
         // Stereo mode renders the scene twice per frame — halve the pixel
         // ratio while it's active so mid-range phones keep a usable frame rate.
         // Otherwise follow the user's graphics-quality DPR cap.
@@ -128,6 +146,11 @@ export function MuseumExperience() {
             actually changes render cost — tree-shaken out of production
             builds by Vite (import.meta.env.DEV is statically replaced). */}
         {import.meta.env.DEV && <Stats />}
+        {/* Precompiles every material/shader currently in the scene once
+            loading settles (spec 4a.2) — without this, the first frame
+            after the loading screen drops can still hitch while the GPU
+            compiles shaders on demand as each object is first drawn. */}
+        <Preload all />
       </Canvas>
       {/* Hidden in VR mode: a single unmirrored corner overlay doesn't read correctly split across two eye viewports. */}
       {!isVRMode && <MiniMapFrame canvasRef={miniMapCanvasRef} />}
