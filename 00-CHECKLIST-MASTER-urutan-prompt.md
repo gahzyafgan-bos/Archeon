@@ -354,3 +354,111 @@ ternyata terpecah — Siwa terisolasi ~10m dari Brahma/Wisnu.
 **File yang berubah:** `src/components/rooms/RoomShell.tsx`,
 `src/utils/placementValidator.ts`, `src/components/artifacts/ArtifactMesh.tsx`,
 `src/data/artifacts.json`.
+
+---
+
+## 7. Right-size Hall 1 + Isi Titik Tengah Kosong + Optimasi Berat di HP & Render Awal Lambat
+
+**File sumber:** `prompt-rightsize-hall1-isi-tengah-optimasi-mobile.md` (didapat dari luar repo)
+
+**Masalah (3 sekaligus, saling terkait):** Hall 1 (40x24m, 3 zona tersebar
+ke tepi) terasa berat di HP, render awal lambat (semua aset dimuat
+sekaligus + kompilasi shader menumpuk di frame pertama), dan titik tengah
+kosong (sumbu pandang dari spawn berakhir di lantai/tembok kosong karena
+kedua hero zona berada di pojok, bukan di sumbu tengah).
+
+**Yang dikerjakan (2 commit gabungan fase, karena koordinatnya saling
+bergantung):**
+
+- [x] **Fase 1 — Right-size Hall 1**: `bounds` 40x24 -> **30x18** (skala
+      0.75 seragam), `ceilingHeight` baru (field opsional di `RoomConfig`,
+      hall-1 = 6.5m) supaya langit-langit tetap tinggi walau lantai
+      mengecil (rapat di lantai, tinggi di atas). Spawn & kedua pintu
+      archway (posisi + `targetSpawn` timbal-balik ke hall-2) dihitung
+      ulang presisi, bukan sekadar diskalakan, supaya tetap tepat di
+      batas jangkauan pemain dan aman dari trigger pintu satunya.
+      MiniMap & collision (`PlayerRig`) otomatis ikut karena keduanya
+      sudah generik dari `room.bounds` — tidak ada perubahan kode di sana.
+- [x] **Seluruh 19 artefak hall-1 + dekor prosedural direposisi**: bukan
+      skala linear buta (footprint & margin objek tidak ikut mengecil,
+      jadi jarak antar-objek yang tadinya pas-pasan bisa tembus) —
+      dihitung lewat **repulsion-relaxation** di luar repo (mirror rumus
+      `placementValidator.ts`/`RoomShell.tsx`/`HallEdgeDecor.tsx`) sampai
+      0 overlap, lalu ditulis ke `artifacts.json`/`roomConfig.ts`. Kolonade
+      & bangku dapat exclusion/arah generik baru (skip pilar dekat
+      hero-focus/niche/pot; bangku menjauh dari sisi hero suatu zona,
+      bukan selalu +x) — bug laten yang baru kelihatan setelah hall
+      mengecil, dibuat robust lewat kode bukan ditambal per-titik.
+      Setelah commit pertama, harness `esbuild` di luar repo menjalankan
+      **`placementValidator.ts` versi asli** (bukan mirror) terhadap data
+      final — ketemu 10 pasang tepat-di-batas ("short by 0.00m", lolos
+      dari toleransi pembulatan validasi manual) dan diperbaiki di commit
+      susulan lewat relaxation dengan safety-buffer 0.06m + gerbang
+      Dwarapala prosedural (z-multiplier 0.85->0.90). Hasil akhir: **0
+      warning** di kedua hall lewat harness yang sama.
+- [x] **Fase 2 — Identitas zona**: cahaya aksen per-zona sekarang bertinta
+      `zone.accent` masing-masing (dulu satu oranye generik untuk seluruh
+      hall) — lantai motif per zona, threshold banner, dan signage sudah
+      ada dari prompt sebelumnya, dipertahankan. Beda ketinggian lantai
+      (opsional di spec) **tidak dikerjakan** — `PlayerRig` tidak punya
+      logika elevasi vertikal (kamera selalu di `EYE_HEIGHT` tetap), jadi
+      butuh perubahan gerak pemain yang lebih besar; identitas zona sudah
+      dipenuhi lewat 4 cue lain (motif lantai, gerbang, cahaya, signage).
+- [x] **Fase 3 — Isi titik tengah**: `CenterInstallation.tsx` baru (medalion
+      lantai + crest dinding + sepasang pilar + spotlight) di
+      `room.centerFocus` (field baru di `RoomConfig`, hall-1 saja) — tidak
+      menyentuh `artifacts.json`, murni set dressing arsitektural supaya
+      sumbu pandang dari spawn selalu berakhir di sesuatu, bukan tembok
+      kosong. `FloorPath` dialurkan lewat titik ini.
+- [x] **Fase 4 — Render awal**: `<Preload all />` (drei, precompile shader
+      setelah scene mount), progress bar loading screen diganti dari timer
+      acak ke `useProgress` (drei, tracking `THREE.DefaultLoadingManager`
+      nyata) digabung status fetch artefak, `camera.far` preset-driven
+      (200 tetap -> 40 Rendah/80 Sedang) karena kedua hall < 35m sehingga
+      far pendek mempersempit volume frustum-culling di HP. Lazy-load
+      Hall 2 & audio-lazy **sudah terpenuhi dari sebelumnya** (tiap hall
+      fetch/mount artefaknya sendiri saat aktif; `Howl` ambience/guide
+      dibangun di effect terpisah, tidak memblokir render) — tidak ada
+      perubahan.
+- [x] **Fase 5 — Berat di HP**: temuan utama — **setiap artefak regular**
+      (15-19 per hall) membawa `spotLight` isian sendiri yang selalu nyala
+      apa pun preset grafis; forward-rendering three.js menghitung tiap
+      fragment terhadap semua light aktif, jadi ini beban real-light
+      terbesar yang belum tersentuh prompt performa manapun sebelumnya.
+      `perArtifactFillLights` (preset baru) mematikannya di Rendah —
+      piece regular tetap dapat cue lewat tint emissive `isNearby` yang
+      sudah ada (nyaris gratis). `dustParticlesEnabled` mematikan
+      `DustParticles` (overdraw additive-blend) di Rendah. Ceiling beam
+      grid (`RoomShell`) diinstance (2 draw call, dulu satu mesh per
+      balok). Tekstur/KTX2/atlas **tidak relevan** — semua "tekstur" di
+      app ini `CanvasTexture` prosedural kecil (128px), bukan file aset;
+      model `.glb` sudah kecil (12-40KB). Render-scale 0.7-0.8 terpisah
+      dari DPR **tidak dikerjakan** — R3F tidak punya jalur bawaan untuk
+      itu tanpa restrukturisasi Canvas yang lebih invasif; DPR sudah
+      di-cap 1.0 di Rendah (lever utama). Build produksi/gzip-brotli:
+      `npm run build` sudah mode produksi by default, kompresi hosting di
+      luar kendali kode repo.
+- [x] **Fase 6 — Auto-adaptif**: **sudah ada dari prompt performa
+      sebelumnya** (`PerformanceMonitor` + `AdaptiveDpr` + `AdaptiveEvents`
+      di `MuseumExperience.tsx`) — tidak ada perubahan.
+- [ ] **Fase 7 — Verifikasi**: `tsc -b` & `vite build` bersih di tiap
+      commit. Placement divalidasi via harness `esbuild` di luar repo yang
+      menjalankan `placementValidator.ts` **asli** (bukan mirror) terhadap
+      `roomConfig.ts`/`artifacts.json` sungguhan — 0 warning di kedua hall
+      (lihat detail di atas). Verifikasi visual in-browser **tidak**
+      sempat dilakukan — ekstensi Chrome tidak tersambung di sesi ini
+      (kendala berulang, sama seperti prompt #2, #4, #5, #6). FPS
+      before/after dan screenshot titik-masuk yang diminta spec bagian 8
+      juga tidak bisa diambil karena kendala yang sama. Disarankan cek
+      manual: `npm run dev`, titik masuk Hall 1 (buktikan tengah tidak
+      kosong + hero terlihat + zona tetap beda), bandingkan FPS HP asli
+      preset Rendah sebelum/sesudah, dan transisi ke Hall 2 tetap mulus.
+
+**File yang berubah:** `src/data/roomConfig.ts`, `src/data/artifacts.json`,
+`src/components/rooms/RoomShell.tsx`,
+`src/components/architecture/CenterInstallation.tsx` (baru),
+`src/components/architecture/HallEdgeDecor.tsx`,
+`src/components/architecture/FloorPath.tsx`,
+`src/components/MuseumExperience.tsx`,
+`src/components/artifacts/ArtifactMesh.tsx`, `src/utils/graphicsPresets.ts`,
+`src/utils/placementValidator.ts`.
