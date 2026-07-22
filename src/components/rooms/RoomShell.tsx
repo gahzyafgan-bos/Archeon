@@ -1,9 +1,9 @@
 import { ReactNode, useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, Environment, Instances, Instance } from "@react-three/drei";
+import { ContactShadows, Environment, Instances, Instance, Html } from "@react-three/drei";
 import * as THREE from "three";
 import type { RoomConfig, RoomBounds, Door, ZoneConfig } from "@/data/roomConfig";
-import { ARCHWAY_WIDTH, ARCHWAY_HEIGHT } from "@/data/roomConfig";
+import { ARCHWAY_WIDTH, ARCHWAY_HEIGHT, ROOM_CONFIGS } from "@/data/roomConfig";
 import type { Artifact, ZoneId } from "@/types/artifact";
 import { ArtifactMesh } from "@/components/artifacts/ArtifactMesh";
 import { Dwarapala } from "@/components/artifacts/Dwarapala";
@@ -182,6 +182,59 @@ function HeroBackdrop({
         <boxGeometry args={faceArgs} />
         <meshStandardMaterial map={texture} emissive={accent} emissiveIntensity={0.1} roughness={0.55} />
       </mesh>
+    </group>
+  );
+}
+
+/**
+ * Reinforces an archway as a passage rather than a dead-end wall (spec:
+ * "gerbang tertutup hiasan" fix — bingkai gerbangnya, jangan tutup
+ * gerbangnya). Only one hall is ever mounted at a time (spec: lazy-load),
+ * so the target hall's actual geometry can't literally be visible beyond
+ * the opening — these are cheap stand-ins for that glimpse instead: a
+ * peek floor strip and spill light tinted with the destination's own
+ * palette (so it reads as "a different space", not just more of this
+ * hall), plus a small destination label above the lintel.
+ */
+function ArchwayGlimpse({ door, wallZ, outwardSign }: { door: Door; wallZ: number; outwardSign: 1 | -1 }) {
+  const target = ROOM_CONFIGS[door.targetRoom];
+  const targetLabel = target.zones[0]?.label ?? target.name;
+  const peekDepth = 2.4;
+  const peekZ = wallZ + outwardSign * (peekDepth / 2 + 0.05);
+
+  return (
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[door.position.x, 0.01, peekZ]} receiveShadow>
+        <planeGeometry args={[ARCHWAY_WIDTH - 0.6, peekDepth]} />
+        <meshStandardMaterial
+          color={target.floorColor}
+          emissive={target.accentColor}
+          emissiveIntensity={0.25}
+          roughness={0.6}
+        />
+      </mesh>
+      <pointLight
+        position={[door.position.x, 2.4, wallZ + outwardSign * 1.6]}
+        intensity={7}
+        distance={9}
+        decay={2}
+        color={target.accentColor}
+      />
+      <Html position={[door.position.x, ARCHWAY_HEIGHT + 0.55, wallZ]} center distanceFactor={10} occlude={false}>
+        <div
+          className="rounded-full px-3 py-1 text-center whitespace-nowrap pointer-events-none"
+          style={{
+            background: "rgba(30, 24, 16, 0.68)",
+            border: `1px solid ${target.accentColor}`,
+            color: "#F2E9D8",
+            fontSize: "11px",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+          }}
+        >
+          Menuju {targetLabel} →
+        </div>
+      </Html>
     </group>
   );
 }
@@ -474,7 +527,6 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
       {room.centerFocus && (
         <CenterInstallation
           center={room.centerFocus}
-          bounds={room.bounds}
           accentColor={room.accentColor}
           shadowsEnabled={graphicsPreset.shadowsEnabled}
           shadowMapSize={graphicsPreset.shadowMapSize}
@@ -649,10 +701,14 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [room.zones, minX, maxX, centerX, depth, wallHeight])}
 
-      {/* Archway threshold markers (visual only, no collider — see PlayerRig for the actual trigger) */}
-      {room.doors.map((door) => (
-        <group key={door.label} position={[door.position.x, 0, door.position.z]} />
-      ))}
+      {/* Archway glimpse — peek floor + spill light + destination label, so
+          the opening reads as a passage from a distance and every angle,
+          not a backdrop (spec: gerbang harus terbaca sebagai jalan tembus). */}
+      {room.doors.map((door) => {
+        const wallZ = Math.abs(door.position.z - minZ) < 2 ? minZ : maxZ;
+        const outwardSign: 1 | -1 = wallZ === minZ ? -1 : 1;
+        return <ArchwayGlimpse key={door.label} door={door} wallZ={wallZ} outwardSign={outwardSign} />;
+      })}
 
       {/* Artifacts */}
       {artifacts.map((artifact) => (

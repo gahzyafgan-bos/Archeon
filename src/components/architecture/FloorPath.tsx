@@ -34,11 +34,19 @@ function getPathNodes(room: RoomConfig): PathNode[] {
   }
 
   // Continue the line to the outgoing archway, if this hall has one, so the
-  // path visibly hands off rather than dead-ending at the last zone.
+  // path visibly hands off rather than dead-ending at the last zone —
+  // and one step further, past the wall into the peek zone (matches
+  // RoomShell's ArchwayGlimpse), so it visibly crosses the opening instead
+  // of just touching its threshold (spec: "lantai wayfinding menembus arch").
   const outDoor = room.doors[0];
   if (outDoor) {
     const last = zones[zones.length - 1];
-    nodes.push({ x: outDoor.position.x, z: outDoor.position.z, accent: last?.accent ?? room.accentColor });
+    const accent = last?.accent ?? room.accentColor;
+    nodes.push({ x: outDoor.position.x, z: outDoor.position.z, accent });
+    const { minZ, maxZ } = room.bounds;
+    const wallZ = Math.abs(outDoor.position.z - minZ) < 2 ? minZ : maxZ;
+    const outwardSign = wallZ === minZ ? -1 : 1;
+    nodes.push({ x: outDoor.position.x, z: wallZ + outwardSign * 1.6, accent });
   }
 
   return nodes;

@@ -57,9 +57,12 @@ export interface RoomConfig {
   zones: ZoneConfig[];
   /** Non-artifact centerpiece for the hall's otherwise-empty geometric
    * middle (spec: "isi titik tengah yang kosong") — a floor medallion +
-   * wall crest RoomShell stages independently of any zone's hero, so the
-   * open circulation spine between side zones still has a destination.
-   * Doesn't touch artifacts.json; purely architectural set dressing. */
+   * pillars RoomShell stages independently of any zone's hero, so the open
+   * circulation spine between side zones still has a destination. Doesn't
+   * touch artifacts.json; purely architectural set dressing. Floor-only,
+   * deliberately no wall-mounted piece — see CenterInstallation's doc
+   * comment for why (it used to double as the Hall 1 -> Hall 2 archway's
+   * backdrop, blocking the doorway). */
   centerFocus?: { x: number; z: number };
 }
 
