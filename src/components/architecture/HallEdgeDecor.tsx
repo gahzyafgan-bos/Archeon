@@ -7,23 +7,38 @@ const PILLAR_HEIGHT = 5.4;
 const PILLAR_SPACING = 4.5;
 const PILLAR_INSET = 1.4;
 
+/** Hero/signature focus points and wall-flush niche artifacts read as
+ * clutter if a colonnade pillar lands right on top of them — this was
+ * latent even before the Hall 1 right-size (the old 40x24 hall just
+ * happened to have enough slack that no pillar landed close enough to
+ * notice). A pillar slot is skipped whenever it's inside `dist` of any
+ * exclusion point. */
+export interface ColonnadeExclusion {
+  x: number;
+  z: number;
+  dist: number;
+}
+
 /**
  * Colonnade running along both long walls of a hall — the main "isi sudut
  * biar megah" element (spec section 6/7). One InstancedMesh per part (shaft,
  * capital) regardless of how many pillars there are, so a dozen-plus pillars
  * cost the same 2 draw calls as a handful would.
  */
-export function HallColonnade({ room }: { room: RoomConfig }) {
+export function HallColonnade({ room, exclude = [] }: { room: RoomConfig; exclude?: ColonnadeExclusion[] }) {
   const { minX, maxX, minZ, maxZ } = room.bounds;
 
   const positions = useMemo(() => {
     const pts: Array<[number, number]> = [];
     for (let z = minZ + 3; z <= maxZ - 3; z += PILLAR_SPACING) {
-      pts.push([minX + PILLAR_INSET, z]);
-      pts.push([maxX - PILLAR_INSET, z]);
+      const lx = minX + PILLAR_INSET;
+      const rx = maxX - PILLAR_INSET;
+      if (!exclude.some((e) => Math.hypot(e.x - lx, e.z - z) < e.dist)) pts.push([lx, z]);
+      if (!exclude.some((e) => Math.hypot(e.x - rx, e.z - z) < e.dist)) pts.push([rx, z]);
     }
     return pts;
-  }, [minX, maxX, minZ, maxZ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minX, maxX, minZ, maxZ, exclude]);
 
   return (
     <group>
@@ -75,18 +90,24 @@ export function HallBenches({ room }: { room: RoomConfig }) {
     () =>
       room.zones
         .filter((z) => z.id !== "welcome")
-        .map((z) => ({
-          // Back edge of the zone's own floor motif (away from the entrance
-          // signboard, which sits on the +Z side) — clear of both the
-          // colonnade (that lines the X walls) and neighboring zones.
+        .map((z) => {
           // Offset sideways off the zone's own centerline: some zones (e.g.
           // hindu-buddha) have a deep-set artifact sitting right on that
-          // centerline near the back wall, which the old on-centerline bench
-          // position clipped straight through.
-          x: z.center.x + z.radius * 0.45,
-          z: z.center.z - z.radius * 0.55 - 1.2,
-          rotationY: 0,
-        })),
+          // centerline near the back wall, which an on-centerline bench
+          // position would clip straight through. Direction points away
+          // from the zone's own hero/signature side — a zone whose hero
+          // sits on the +x corner would otherwise put the bench right back
+          // in the hero's staging cluster.
+          const offsetDir = z.heroFocus ? -Math.sign(z.heroFocus.x - z.center.x) || 1 : 1;
+          return {
+            // Back edge of the zone's own floor motif (away from the entrance
+            // signboard, which sits on the +Z side) — clear of both the
+            // colonnade (that lines the X walls) and neighboring zones.
+            x: z.center.x + offsetDir * z.radius * 0.45,
+            z: z.center.z - z.radius * 0.55 - 1.2,
+            rotationY: 0,
+          };
+        }),
     [room.zones]
   );
 

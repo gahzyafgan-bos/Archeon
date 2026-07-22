@@ -112,16 +112,21 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
     });
   }
 
-  // Potted plants (RoomShell.tsx, 3 hall-wide fixed positions)
-  objects.push({ id: "decor-plant-1", x: minX + 1.3, z: centerZ - depth * 0.28, radius: FOOTPRINT.pottedPlant });
-  objects.push({ id: "decor-plant-2", x: maxX - 1.3, z: centerZ + depth * 0.28, radius: FOOTPRINT.pottedPlant });
-  objects.push({ id: "decor-plant-3", x: minX + 1.3, z: centerZ + depth * 0.28, radius: FOOTPRINT.pottedPlant });
+  // Potted plants (RoomShell.tsx, 3 hall-wide fixed positions). Inset 1.6
+  // (was 1.3) — clears the colonnade's own 1.4 wall inset with margin.
+  const plantPts = [
+    { id: "decor-plant-1", x: minX + 1.6, z: centerZ - depth * 0.28 },
+    { id: "decor-plant-2", x: maxX - 1.6, z: centerZ + depth * 0.28 },
+    { id: "decor-plant-3", x: minX + 1.6, z: centerZ + depth * 0.28 },
+  ];
+  for (const p of plantPts) objects.push({ id: p.id, x: p.x, z: p.z, radius: FOOTPRINT.pottedPlant });
 
   // Hero-framing pillar pairs (RoomShell.tsx) — a former "threshold pillar"
   // pair between adjacent zone centers used to be mirrored here too, but it
   // was removed outright from RoomShell.tsx (never framed anything, sat
   // 6-12m from any wall in open floor). Must match HERO_FRAME_FORWARD/
   // HERO_FRAME_PERP/HERO_FRAME_MAX_WALL_DIST in RoomShell.tsx.
+  const heroFramePoints: Array<{ x: number; z: number }> = [];
   for (const zone of room.zones) {
     if (!zone.heroFocus) continue;
     const dx = zone.heroFocus.x - zone.center.x;
@@ -133,6 +138,7 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
     const frameZ = zone.heroFocus.z - uz * 1.6;
     const wallDist = Math.min(frameX - minX, maxX - frameX, frameZ - minZ, maxZ - frameZ);
     if (wallDist > 5) continue;
+    heroFramePoints.push({ x: zone.heroFocus.x, z: zone.heroFocus.z });
     const perpX = -uz * 1.8;
     const perpZ = ux * 1.8;
     objects.push({ id: `decor-hero-frame-${zone.id}-a`, x: frameX + perpX, z: frameZ + perpZ, radius: FOOTPRINT.pillar });
@@ -150,22 +156,40 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
     });
   }
 
-  // HallColonnade pillars (HallEdgeDecor.tsx)
+  // HallColonnade pillars (HallEdgeDecor.tsx) — skips any slot too close to
+  // a zone's hero/signature focus, a wall-flush niche piece, or a potted
+  // plant corner (mirrors RoomShell's colonnadeExclusions).
+  const nicheExclusions = artifacts
+    .filter((a) => a.display_mode === "niche")
+    .map((a) => ({ x: a.koordinat_ruangan.x, z: a.koordinat_ruangan.z, dist: footprintForArtifact(a) + 1.0 }));
+  const colonnadeExclusions = [
+    ...heroFramePoints.map((h) => ({ x: h.x, z: h.z, dist: 2.3 })),
+    ...nicheExclusions,
+    ...plantPts.map((p) => ({ x: p.x, z: p.z, dist: 1.45 })),
+  ];
   const PILLAR_SPACING = 4.5;
   const PILLAR_INSET = 1.4;
   let ci = 0;
   for (let z = minZ + 3; z <= maxZ - 3; z += PILLAR_SPACING) {
-    objects.push({ id: `decor-colonnade-l-${ci}`, x: minX + PILLAR_INSET, z, radius: FOOTPRINT.pillar });
-    objects.push({ id: `decor-colonnade-r-${ci}`, x: maxX - PILLAR_INSET, z, radius: FOOTPRINT.pillar });
+    const lx = minX + PILLAR_INSET;
+    const rx = maxX - PILLAR_INSET;
+    if (!colonnadeExclusions.some((e) => Math.hypot(e.x - lx, e.z - z) < e.dist)) {
+      objects.push({ id: `decor-colonnade-l-${ci}`, x: lx, z, radius: FOOTPRINT.pillar });
+    }
+    if (!colonnadeExclusions.some((e) => Math.hypot(e.x - rx, e.z - z) < e.dist)) {
+      objects.push({ id: `decor-colonnade-r-${ci}`, x: rx, z, radius: FOOTPRINT.pillar });
+    }
     ci++;
   }
 
-  // Benches (HallEdgeDecor.tsx)
+  // Benches (HallEdgeDecor.tsx) — offset away from the zone's own
+  // hero/signature side, not always +x (mirrors HallBenches' offsetDir).
   for (const zone of room.zones) {
     if (zone.id === "welcome") continue;
+    const offsetDir = zone.heroFocus ? -Math.sign(zone.heroFocus.x - zone.center.x) || 1 : 1;
     objects.push({
       id: `decor-bench-${zone.id}`,
-      x: zone.center.x + zone.radius * 0.45,
+      x: zone.center.x + offsetDir * zone.radius * 0.45,
       z: zone.center.z - zone.radius * 0.55 - 1.2,
       radius: FOOTPRINT.bench,
     });
@@ -178,9 +202,9 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
   const prasejarah = room.zones.find((z) => z.id === "prasejarah");
   if (prasejarah) {
     [
-      [-15, -2.5],
-      [-16.5, -3.5],
-      [-17.8, -1.5],
+      [-11.08, -1.76],
+      [-12.5, -2.71],
+      [-12.71, -0.17],
     ].forEach(([x, z], i) => objects.push({ id: `decor-stone-cluster-${i}`, x, z, radius: FOOTPRINT.stoneCluster }));
   }
 
@@ -189,6 +213,12 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
     const { x: zx, z: zz } = hinduBuddha.center;
     objects.push({ id: "decor-dwarapala-left", x: zx - 2.6, z: zz + hinduBuddha.radius * 0.85, radius: FOOTPRINT.dwarapala });
     objects.push({ id: "decor-dwarapala-right", x: zx + 2.6, z: zz + hinduBuddha.radius * 0.85, radius: FOOTPRINT.dwarapala });
+  }
+
+  // Center installation (RoomShell.tsx CenterInstallation) — flanking pillars.
+  if (room.centerFocus) {
+    objects.push({ id: "decor-center-pillar-a", x: room.centerFocus.x - 1.8, z: room.centerFocus.z, radius: FOOTPRINT.pillar });
+    objects.push({ id: "decor-center-pillar-b", x: room.centerFocus.x + 1.8, z: room.centerFocus.z, radius: FOOTPRINT.pillar });
   }
 
   return objects;

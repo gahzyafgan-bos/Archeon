@@ -25,6 +25,14 @@ function getPathNodes(room: RoomConfig): PathNode[] {
     nodes.unshift({ x: room.spawn.x, z: room.spawn.z, accent: zones[0]?.accent ?? room.accentColor });
   }
 
+  // Route through the hall's center installation (if any) right after the
+  // first node — the wayfinding line should visibly cross the middle of
+  // the room on its way to the side zones, not skip straight past it
+  // (spec 3.3: "alurkan sirkulasi melewati tengah").
+  if (room.centerFocus) {
+    nodes.splice(1, 0, { x: room.centerFocus.x, z: room.centerFocus.z, accent: room.accentColor });
+  }
+
   // Continue the line to the outgoing archway, if this hall has one, so the
   // path visibly hands off rather than dead-ending at the last zone.
   const outDoor = room.doors[0];

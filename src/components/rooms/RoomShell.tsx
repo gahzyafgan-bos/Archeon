@@ -11,13 +11,15 @@ import { Pillar } from "@/components/architecture/Pillar";
 import { HangingLamp } from "@/components/architecture/HangingLamp";
 import { HangingBanner } from "@/components/architecture/HangingBanner";
 import { PottedPlant } from "@/components/architecture/PottedPlant";
-import { HallColonnade, HallBenches } from "@/components/architecture/HallEdgeDecor";
+import { HallColonnade, HallBenches, type ColonnadeExclusion } from "@/components/architecture/HallEdgeDecor";
+import { CenterInstallation } from "@/components/architecture/CenterInstallation";
 import { FloorPath } from "@/components/architecture/FloorPath";
 import { ZoneFloorMotif } from "@/components/architecture/ZoneFloorMotif";
 import { ZoneSignboard } from "@/components/architecture/ZoneSignboard";
 import { createBatikPattern } from "@/utils/batikPatterns";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
-import { buildPlacedObjects, validatePlacement } from "@/utils/placementValidator";
+import { buildPlacedObjects, validatePlacement, FOOTPRINT } from "@/utils/placementValidator";
+import { objectFootprintRadius } from "@/utils/artifactSize";
 
 const WALL_THICKNESS = 0.3;
 const WOOD_COLOR = "#7A5230";
@@ -190,7 +192,7 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
   const depth = maxZ - minZ;
   const centerX = (minX + maxX) / 2;
   const centerZ = (minZ + maxZ) / 2;
-  const wallHeight = 7;
+  const wallHeight = room.ceilingHeight ?? 7;
   const { scene } = useThree();
   const graphicsPreset = useGraphicsPreset();
 
@@ -224,6 +226,31 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
 
   const gapDoorMinZ = findGapDoor(room.doors, minZ);
   const gapDoorMaxZ = findGapDoor(room.doors, maxZ);
+
+  // Colonnade pillar slots to skip — a pillar landing on top of a hero's
+  // framing/backdrop or a wall-flush niche piece reads as clutter, not
+  // architecture (see HallColonnade's own doc comment). Mirrors the potted
+  // plant positions below too, so those don't get clipped by an adjacent
+  // pillar either.
+  const colonnadeExclusions = useMemo<ColonnadeExclusion[]>(() => {
+    const points: ColonnadeExclusion[] = [];
+    for (const zone of room.zones) {
+      if (zone.heroFocus) points.push({ x: zone.heroFocus.x, z: zone.heroFocus.z, dist: 2.3 });
+    }
+    for (const artifact of artifacts) {
+      if (artifact.display_mode === "niche") {
+        const r = objectFootprintRadius(artifact) ?? FOOTPRINT.artifactNiche;
+        points.push({ x: artifact.koordinat_ruangan.x, z: artifact.koordinat_ruangan.z, dist: r + 1.0 });
+      }
+    }
+    const plantPts: Array<{ x: number; z: number }> = [
+      { x: minX + 1.6, z: centerZ - depth * 0.28 },
+      { x: maxX - 1.6, z: centerZ + depth * 0.28 },
+      { x: minX + 1.6, z: centerZ + depth * 0.28 },
+    ];
+    for (const p of plantPts) points.push({ x: p.x, z: p.z, dist: 1.45 });
+    return points;
+  }, [room.zones, artifacts, minX, maxX, centerZ, depth]);
 
   // Floor border batik motif — one per hall for a bit of variety, tinted with
   // the hall's own accent rather than any single zone's.
@@ -332,15 +359,24 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
           color="#FFDFA6"
         />
       )}
-      {/* Accent fill lights — count follows graphics quality (spec 4b "jumlah
-          spotLight aksen"); kept to a handful per hall either way (spec 7). */}
-      {[
-        { x: centerX - width * 0.25, z: centerZ },
-        { x: centerX + width * 0.25, z: centerZ },
-      ]
+      {/* Accent fill lights — one per collection zone, tinted with that
+          zone's own accent (spec 2b "warna cahaya per zona": prasejarah
+          warmer/terracotta, hindu-buddha indigo) instead of a single fixed
+          hall-wide amber, so the light itself reads as a zone-identity cue
+          on top of the floor motif/signage. Count still follows graphics
+          quality (spec 4b "jumlah spotLight aksen"). */}
+      {room.zones
+        .filter((z) => z.id !== "welcome")
         .slice(0, graphicsPreset.accentLightCount)
-        .map((p, i) => (
-          <pointLight key={i} position={[p.x, 4.5, p.z]} intensity={8} distance={14} decay={2} color="#E8A020" />
+        .map((zone) => (
+          <pointLight
+            key={zone.id}
+            position={[zone.center.x, 4.5, zone.center.z]}
+            intensity={8}
+            distance={14}
+            decay={2}
+            color={zone.accent}
+          />
         ))}
 
       {/* Contact shadows: the cheap, always-on way to "ground" every object —
@@ -429,6 +465,20 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
         <ZoneSignboard key={`sign-${zone.id}`} zone={zone} />
       ))}
 
+      {/* Center installation — fills the hall's otherwise-empty geometric
+          middle with a real destination on the direct sightline from spawn
+          (spec section 3: "isi titik tengah yang kosong"), independent of
+          any zone's own hero. */}
+      {room.centerFocus && (
+        <CenterInstallation
+          center={room.centerFocus}
+          bounds={room.bounds}
+          accentColor={room.accentColor}
+          shadowsEnabled={graphicsPreset.shadowsEnabled}
+          shadowMapSize={graphicsPreset.shadowMapSize}
+        />
+      )}
+
       {/* Hanging banners mark zone-to-zone thresholds and any hero-approach
           point the framing pillars above skipped (HERO_FRAME_MAX_WALL_DIST)
           — vertical rhythm overhead, at the same spots the removed pillars
@@ -475,7 +525,7 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
       })}
 
       {/* Bulk edge decor — instanced, so the count doesn't cost extra draw calls */}
-      <HallColonnade room={room} />
+      <HallColonnade room={room} exclude={colonnadeExclusions} />
       <HallBenches room={room} />
 
       {/* Hanging lamps — decorative "reason" for the warm base light, 3 spread along the hall centerline */}
@@ -483,10 +533,13 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
         <HangingLamp key={`lamp-${i}`} position={[centerX, wallHeight - 0.5, z]} accentColor={room.accentColor} />
       ))}
 
-      {/* Potted plants clear of the central walking path, near the side walls */}
-      <PottedPlant position={[minX + 1.3, 0, centerZ - depth * 0.28]} />
-      <PottedPlant position={[maxX - 1.3, 0, centerZ + depth * 0.28]} />
-      <PottedPlant position={[minX + 1.3, 0, centerZ + depth * 0.28]} />
+      {/* Potted plants clear of the central walking path, near the side walls.
+          Inset 1.6 (was 1.3) so they clear the colonnade's own 1.4 wall
+          inset with margin — right-sizing Hall 1 (30x18) pulled these close
+          enough together to clip at the old inset. */}
+      <PottedPlant position={[minX + 1.6, 0, centerZ - depth * 0.28]} />
+      <PottedPlant position={[maxX - 1.6, 0, centerZ + depth * 0.28]} />
+      <PottedPlant position={[minX + 1.6, 0, centerZ + depth * 0.28]} />
 
       {/* Zone-specific set dressing (kept from the earlier per-room decor, now zone-anchored) */}
       {useMemo(() => {
@@ -500,9 +553,9 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
           // wall (see placementValidator.ts, kept in sync) rather than the
           // old formula-derived spots that now clip the new artifact layout.
           const stoneClusters = [
-            { x: -15, z: -2.5 },
-            { x: -16.5, z: -3.5 },
-            { x: -17.8, z: -1.5 },
+            { x: -11.08, z: -1.76 },
+            { x: -12.5, z: -2.71 },
+            { x: -12.71, z: -0.17 },
           ];
           stoneClusters.forEach((pos, i) => {
             elements.push(
@@ -539,8 +592,8 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
         if (hinduBuddha) {
           const { x: zx, z: zz } = hinduBuddha.center;
           const shaftPositions = [
-            { x: zx - 3, z: zz - 2 },
-            { x: zx + 3, z: zz - 2 },
+            { x: zx - 2.25, z: zz - 1.5 },
+            { x: zx + 2.25, z: zz - 1.5 },
           ];
           shaftPositions.forEach((pos, i) => {
             elements.push(
