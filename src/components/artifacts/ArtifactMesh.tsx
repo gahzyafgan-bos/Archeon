@@ -116,7 +116,16 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
   // radius sized for the old uniform placeholders. Never shrinks a pedestal below
   // its tier default; artifacts without real_world_size are unaffected.
   const footprintRadius = objectFootprintRadius(artifact);
-  const pedestalScale = (baseRadius: number) => (footprintRadius ? Math.max(1, footprintRadius / baseRadius) : 1);
+  // Size the pedestal to the object's real footprint (~30% overhang margin,
+  // per the "alas ~20-30% lebih lebar dari footprint objek" rule) instead of a
+  // fixed tier minimum. The old `Math.max(1, …)` could only grow the stand, so
+  // a slender 0.4m-wide arca sat marooned on a ~1.2m-wide drum sized for the
+  // generic placeholder — the "figurine mini di alas besar" look. Now it also
+  // shrinks toward the object, floored at 55% of the tier default so a stand
+  // never becomes unstably tiny. Artifacts without real_world_size are
+  // unaffected (keep the tier default).
+  const pedestalScale = (baseRadius: number) =>
+    footprintRadius ? Math.max(0.55, (footprintRadius * 1.3) / baseRadius) : 1;
 
   useFrame((_, delta) => {
     const spin = delta * (isFocused ? 0 : 0.25);
