@@ -3,7 +3,7 @@ import { Canvas } from "@react-three/fiber";
 import { Stats, PerformanceMonitor, AdaptiveDpr, AdaptiveEvents, Preload, useProgress } from "@react-three/drei";
 import { useMuseumStore, type RoomId } from "@/store/useMuseumStore";
 import { ROOM_CONFIGS, type Door } from "@/data/roomConfig";
-import { fetchArtifactsByRoom } from "@/data/artifactRepository";
+import { fetchArtifactsByRoom, hasRealModel } from "@/data/artifactRepository";
 import type { Artifact } from "@/types/artifact";
 import { PlayerRig } from "./PlayerRig";
 import { Hall } from "./rooms/Hall";
@@ -13,6 +13,29 @@ import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
 import { MiniMapFrame, MiniMapTracker } from "./ui/MiniMap";
 import { PostProcessing } from "./PostProcessing";
 import { CardboardStereoView } from "./vr/CardboardStereoView";
+
+/**
+ * Keeps only the artifacts that actually have a real 3D model to show, so
+ * placeholders for pieces still awaiting a `.glb` are never mounted (no empty
+ * pedestal, no `E` anchor) — see hasRealModel. The full dataset stays intact
+ * in artifacts.json; this is purely a render-time filter. Dev-only: logs which
+ * ids are still waiting on a model so pending asset work stays trackable
+ * (console only, never surfaced to end users).
+ */
+function renderableArtifacts(data: Artifact[]): Artifact[] {
+  const shown = data.filter(hasRealModel);
+  if (import.meta.env.DEV) {
+    const waiting = data.filter((a) => !hasRealModel(a));
+    if (waiting.length) {
+      // eslint-disable-next-line no-console
+      console.info(
+        `[artefak] ${waiting.length} artefak disembunyikan (menunggu model 3D):`,
+        waiting.map((a) => a.id)
+      );
+    }
+  }
+  return shown;
+}
 
 /**
  * Renders exactly one room's geometry/artifacts at a time — the spec's
@@ -52,7 +75,7 @@ export function MuseumExperience() {
   // artifact list AND its critical assets are ready.
   useEffect(() => {
     fetchArtifactsByRoom("hall-1").then((data) => {
-      setArtifacts(data);
+      setArtifacts(renderableArtifacts(data));
       setDataReady(true);
     });
   }, []);
@@ -81,7 +104,7 @@ export function MuseumExperience() {
     setTransitioning(true);
     const fadeOut = setTimeout(async () => {
       const data = await fetchArtifactsByRoom(activeRoom);
-      setArtifacts(data);
+      setArtifacts(renderableArtifacts(data));
       setRenderedRoom(activeRoom);
       setTimeout(() => setTransitioning(false), 30);
     }, 130);

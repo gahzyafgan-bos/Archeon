@@ -3,6 +3,7 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
+import { hasRealModel } from "@/data/artifactRepository";
 import type { Artifact } from "@/types/artifact";
 import { DustParticles } from "./DustParticles";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
@@ -70,7 +71,18 @@ const DRACO_DECODER_PATH = "/draco/";
  * `koordinat_ruangan` is authored as the artifact's literal world-space
  * center height (eye-level rule), not an offset from a fixed pedestal.
  */
-export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
+export function ArtifactMesh(props: ArtifactMeshProps) {
+  // Belt-and-suspenders: artifacts still awaiting a real `.glb` are already
+  // filtered out upstream (MuseumExperience.renderableArtifacts) so they never
+  // reach here — but guard anyway so no future call site can accidentally
+  // mount an empty pedestal / phantom `E` anchor for a modelless piece. The
+  // check is outside the hook-calling body (a plain wrapper) so the early
+  // return doesn't violate the Rules of Hooks.
+  if (!hasRealModel(props.artifact)) return null;
+  return <ArtifactMeshWithModel {...props} />;
+}
+
+function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const modelGroupRef = useRef<THREE.Group>(null);
   const graphicsPreset = useGraphicsPreset();
