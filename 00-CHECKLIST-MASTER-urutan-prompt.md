@@ -545,3 +545,43 @@ dekor dekat archnya sendiri.
 `src/components/rooms/RoomShell.tsx`,
 `src/components/architecture/CenterInstallation.tsx`,
 `src/components/architecture/FloorPath.tsx`.
+
+---
+
+## 8. Fix UI Nabrak — Label Zona ("Transisi ke IPTEK") Tembus di Atas Panel Pengaturan
+
+**File sumber:** `prompt-fix-ui-nabrak-panel-pengaturan_1.md` (didapat dari luar repo)
+
+**Masalah:** Saat panel Pengaturan dibuka, label nama zona in-scene ("TRANSISI KE
+IPTEK", dll) tetap tampil dan tembus di atas modal — menimpa tepat area dropdown
+"Kualitas Grafis". Akar penyebab: label-label ini bukan DOM biasa, tapi drei
+`<Html>` yang di-anchor ke posisi 3D (`ZoneSignboard`, greeting selamat datang di
+`Hall.tsx`, label ambang pintu `ArchwayGlimpse` di `RoomShell.tsx`) — drei
+memberi elemen ini default `zIndexRange` sangat tinggi (16.777.271) supaya
+tampil di atas `<canvas>`, tapi itu juga bikin mereka lolos dari stacking
+context modal manapun (termasuk `SettingsPanel` yang `z-50`) walau modalnya
+render belakangan di DOM. Pola "sembunyikan HUD saat modal terbuka" yang sudah
+benar di kontrol WASD/joystick (`HUD.tsx`, gated `!focusedArtifact` dkk) belum
+diterapkan ke tiga label 3D ini karena mereka hidup di dalam `<Canvas>`, bukan
+di layer DOM HUD yang sama.
+
+**Yang dikerjakan (1 fase, 1 commit):**
+
+- [x] **Fase 1 — Sembunyikan + jaring pengaman z-index**: hook baru
+      `useIsOverlayActive` (`src/hooks/useIsOverlayActive.ts`) merangkum
+      state yang sudah ada di store (`isSettingsOpen`, `isInfoPanelOpen`,
+      `isLoading`, `!hasCompletedOnboarding`) — bukan flag baru, cuma
+      selector turunan supaya tidak duplikat logika di 3 file. Dipakai di
+      `ZoneSignboard.tsx`, `Hall.tsx` (greeting selamat datang), dan
+      `RoomShell.tsx` (`ArchwayGlimpse`) untuk tidak me-render `<Html>`
+      sama sekali selagi overlay aktif — otomatis muncul lagi tanpa
+      flicker begitu state kembali `false` karena murni conditional
+      render, tidak ada delay/timer. Sebagai jaring pengaman kedua (spec
+      Fase 3, akar penyebab z-index), ketiga `<Html>` itu juga diberi
+      `zIndexRange={[1, 0]}` eksplisit — dipatok jauh di bawah UI chrome
+      app (`z-20` ke atas) supaya kalaupun ada label 3D baru ke depannya
+      lupa di-hide, dia tidak bisa lagi menembus modal manapun.
+
+**File yang berubah:** `src/hooks/useIsOverlayActive.ts` (baru),
+`src/components/architecture/ZoneSignboard.tsx`, `src/components/rooms/Hall.tsx`,
+`src/components/rooms/RoomShell.tsx`.

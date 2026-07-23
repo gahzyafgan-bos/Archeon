@@ -20,6 +20,7 @@ import { createBatikPattern } from "@/utils/batikPatterns";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
 import { buildPlacedObjects, validatePlacement, FOOTPRINT } from "@/utils/placementValidator";
 import { objectFootprintRadius } from "@/utils/artifactSize";
+import { useIsOverlayActive } from "@/hooks/useIsOverlayActive";
 
 const WALL_THICKNESS = 0.3;
 const WOOD_COLOR = "#7A5230";
@@ -197,6 +198,7 @@ function HeroBackdrop({
  * hall), plus a small destination label above the lintel.
  */
 function ArchwayGlimpse({ door, wallZ, outwardSign }: { door: Door; wallZ: number; outwardSign: 1 | -1 }) {
+  const isOverlayActive = useIsOverlayActive();
   const target = ROOM_CONFIGS[door.targetRoom];
   const targetLabel = target.zones[0]?.label ?? target.name;
   const peekDepth = 2.4;
@@ -220,21 +222,29 @@ function ArchwayGlimpse({ door, wallZ, outwardSign }: { door: Door; wallZ: numbe
         decay={2}
         color={target.accentColor}
       />
-      <Html position={[door.position.x, ARCHWAY_HEIGHT + 0.55, wallZ]} center distanceFactor={10} occlude={false}>
-        <div
-          className="rounded-full px-3 py-1 text-center whitespace-nowrap pointer-events-none"
-          style={{
-            background: "rgba(30, 24, 16, 0.68)",
-            border: `1px solid ${target.accentColor}`,
-            color: "#F2E9D8",
-            fontSize: "11px",
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-          }}
+      {!isOverlayActive && (
+        <Html
+          position={[door.position.x, ARCHWAY_HEIGHT + 0.55, wallZ]}
+          center
+          distanceFactor={10}
+          occlude={false}
+          zIndexRange={[1, 0]}
         >
-          Menuju {targetLabel} →
-        </div>
-      </Html>
+          <div
+            className="rounded-full px-3 py-1 text-center whitespace-nowrap pointer-events-none"
+            style={{
+              background: "rgba(30, 24, 16, 0.68)",
+              border: `1px solid ${target.accentColor}`,
+              color: "#F2E9D8",
+              fontSize: "11px",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+          >
+            Menuju {targetLabel} →
+          </div>
+        </Html>
+      )}
     </group>
   );
 }

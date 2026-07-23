@@ -4,6 +4,7 @@ import { Html } from "@react-three/drei";
 import { RoomShell } from "./RoomShell";
 import type { RoomConfig } from "@/data/roomConfig";
 import type { Artifact } from "@/types/artifact";
+import { useIsOverlayActive } from "@/hooks/useIsOverlayActive";
 
 const WELCOME_TRIGGER_RADIUS = 5;
 
@@ -18,6 +19,7 @@ export function Hall({ hall, artifacts }: { hall: RoomConfig; artifacts: Artifac
   const welcomeZone = hall.zones.find((z) => z.id === "welcome");
   const { camera } = useThree();
   const [showWelcome, setShowWelcome] = useState(false);
+  const isOverlayActive = useIsOverlayActive();
 
   useFrame(() => {
     if (!welcomeZone) return;
@@ -56,8 +58,8 @@ export function Hall({ hall, artifacts }: { hall: RoomConfig; artifacts: Artifac
           </group>
           <spotLight position={[0, 4.5, -0.5]} angle={0.5} penumbra={0.6} intensity={30} color="#E8A020" />
 
-          {showWelcome && (
-            <Html position={[0, 2.6, 1.5]} center distanceFactor={8}>
+          {showWelcome && !isOverlayActive && (
+            <Html position={[0, 2.6, 1.5]} center distanceFactor={8} zIndexRange={[1, 0]}>
               <div className="glass-panel rounded-lg px-5 py-3 text-center animate-fade-in whitespace-nowrap pointer-events-none">
                 <p className="font-display text-museum-bone text-lg tracking-wide">
                   Selamat Datang di Museum Mpu Tantular Virtual
