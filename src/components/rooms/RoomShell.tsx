@@ -10,7 +10,6 @@ import { Dwarapala } from "@/components/artifacts/Dwarapala";
 import { Pillar } from "@/components/architecture/Pillar";
 import { HangingLamp } from "@/components/architecture/HangingLamp";
 import { HangingBanner } from "@/components/architecture/HangingBanner";
-import { PottedPlant } from "@/components/architecture/PottedPlant";
 import { HallColonnade, HallBenches, type ColonnadeExclusion } from "@/components/architecture/HallEdgeDecor";
 import { CenterInstallation } from "@/components/architecture/CenterInstallation";
 import { FloorPath } from "@/components/architecture/FloorPath";
@@ -293,8 +292,7 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
   // Colonnade pillar slots to skip — a pillar landing on top of a hero's
   // framing/backdrop or a wall-flush niche piece reads as clutter, not
   // architecture (see HallColonnade's own doc comment). Mirrors the potted
-  // plant positions below too, so those don't get clipped by an adjacent
-  // pillar either.
+  // architecture, not clutter.
   const colonnadeExclusions = useMemo<ColonnadeExclusion[]>(() => {
     const points: ColonnadeExclusion[] = [];
     for (const zone of room.zones) {
@@ -306,14 +304,8 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
         points.push({ x: artifact.koordinat_ruangan.x, z: artifact.koordinat_ruangan.z, dist: r + 1.0 });
       }
     }
-    const plantPts: Array<{ x: number; z: number }> = [
-      { x: minX + 1.6, z: centerZ - depth * 0.28 },
-      { x: maxX - 1.6, z: centerZ + depth * 0.28 },
-      { x: minX + 1.6, z: centerZ + depth * 0.28 },
-    ];
-    for (const p of plantPts) points.push({ x: p.x, z: p.z, dist: 1.45 });
     return points;
-  }, [room.zones, artifacts, minX, maxX, centerZ, depth]);
+  }, [room.zones, artifacts]);
 
   // Floor border batik motif — one per hall for a bit of variety, tinted with
   // the hall's own accent rather than any single zone's.
@@ -597,34 +589,12 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
         <HangingLamp key={`lamp-${i}`} position={[centerX, wallHeight - 0.5, z]} accentColor={room.accentColor} />
       ))}
 
-      {/* Potted plants clear of the central walking path, near the side walls.
-          Inset 1.6 (was 1.3) so they clear the colonnade's own 1.4 wall
-          inset with margin — right-sizing Hall 1 (30x18) pulled these close
-          enough together to clip at the old inset. */}
-      <PottedPlant position={[minX + 1.6, 0, centerZ - depth * 0.28]} />
-      <PottedPlant position={[maxX - 1.6, 0, centerZ + depth * 0.28]} />
-      <PottedPlant position={[minX + 1.6, 0, centerZ + depth * 0.28]} />
-
-      {/* Curatorial gap-fillers (spec fase 4: "isi kekosongan dengan elemen
-          dekoratif ringan, BUKAN placeholder artefak"). Light greenery planted
-          in the interior areas a zone was left with after its modelless
-          placeholders were hidden — so the now-sparser zones read as deliberate
-          negative space rather than bare floor. Hand-placed per zone (cleared
-          of every artifact + procedural decor footprint — mirrored in
-          placementValidator's decor-gapfill block) rather than formula-derived,
-          since each zone emptied unevenly. */}
-      {room.zones.some((z) => z.id === "hindu-buddha") && (
-        <>
-          <PottedPlant position={[6.2, 0, -1.2]} />
-          <PottedPlant position={[9.8, 0, -2.8]} />
-        </>
-      )}
-      {room.zones.some((z) => z.id === "transisi-iptek") && (
-        <>
-          <PottedPlant position={[2.8, 0, -0.8]} />
-          <PottedPlant position={[7.2, 0, -4.6]} />
-        </>
-      )}
+      {/* Potted plants removed per revisi desainer: pengguna menilai pohon/pot
+          tanaman sebagai filler generik tanpa nilai naratif — kekosongan kini
+          diatasi dengan membesarkan artefak/arca (lihat real_world_size di
+          artifacts.json) agar artefak itu sendiri yang mendominasi ruang,
+          bukan ditambal dekorasi. Elemen dekor fungsional (bangku, colonnade,
+          lampu, panel, signage, wayfinding) tetap dipertahankan. */}
 
       {/* Zone-specific set dressing (kept from the earlier per-room decor, now zone-anchored) */}
       {useMemo(() => {

@@ -112,29 +112,10 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
     });
   }
 
-  // Potted plants (RoomShell.tsx, 3 hall-wide fixed positions). Inset 1.6
-  // (was 1.3) — clears the colonnade's own 1.4 wall inset with margin.
-  const plantPts = [
-    { id: "decor-plant-1", x: minX + 1.6, z: centerZ - depth * 0.28 },
-    { id: "decor-plant-2", x: maxX - 1.6, z: centerZ + depth * 0.28 },
-    { id: "decor-plant-3", x: minX + 1.6, z: centerZ + depth * 0.28 },
-  ];
-  for (const p of plantPts) objects.push({ id: p.id, x: p.x, z: p.z, radius: FOOTPRINT.pottedPlant });
-
-  // Curatorial gap-filler plants (RoomShell.tsx fase-4 block) — hand-placed
-  // per zone in the interior areas emptied by hidden placeholders. Gated by
-  // zone presence exactly like RoomShell; keep the two in lockstep.
-  const gapFillPlants: Array<{ id: string; x: number; z: number; zone: string }> = [
-    { id: "decor-gapfill-hb-1", x: 6.2, z: -1.2, zone: "hindu-buddha" },
-    { id: "decor-gapfill-hb-2", x: 9.8, z: -2.8, zone: "hindu-buddha" },
-    { id: "decor-gapfill-ti-1", x: 2.8, z: -0.8, zone: "transisi-iptek" },
-    { id: "decor-gapfill-ti-2", x: 7.2, z: -4.6, zone: "transisi-iptek" },
-  ];
-  for (const p of gapFillPlants) {
-    if (room.zones.some((z) => z.id === p.zone)) {
-      objects.push({ id: p.id, x: p.x, z: p.z, radius: FOOTPRINT.pottedPlant });
-    }
-  }
+  // Potted plants (both the 3 hall-wide fixed ones and the fase-4 gap-fillers)
+  // were removed from RoomShell.tsx per revisi desainer — pengguna menilai
+  // pohon/pot tanaman sebagai filler generik tanpa nilai. Nothing to place or
+  // exclude for them anymore.
 
   // Hero-framing pillar pairs (RoomShell.tsx) — a former "threshold pillar"
   // pair between adjacent zone centers used to be mirrored here too, but it
@@ -172,15 +153,14 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
   }
 
   // HallColonnade pillars (HallEdgeDecor.tsx) — skips any slot too close to
-  // a zone's hero/signature focus, a wall-flush niche piece, or a potted
-  // plant corner (mirrors RoomShell's colonnadeExclusions).
+  // a zone's hero/signature focus or a wall-flush niche piece (mirrors
+  // RoomShell's colonnadeExclusions).
   const nicheExclusions = artifacts
     .filter((a) => a.display_mode === "niche")
     .map((a) => ({ x: a.koordinat_ruangan.x, z: a.koordinat_ruangan.z, dist: footprintForArtifact(a) + 1.0 }));
   const colonnadeExclusions = [
     ...heroFramePoints.map((h) => ({ x: h.x, z: h.z, dist: 2.3 })),
     ...nicheExclusions,
-    ...plantPts.map((p) => ({ x: p.x, z: p.z, dist: 1.45 })),
   ];
   const PILLAR_SPACING = 4.5;
   const PILLAR_INSET = 1.4;
