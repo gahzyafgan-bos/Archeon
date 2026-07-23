@@ -1,5 +1,5 @@
-import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
+import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
@@ -45,20 +45,6 @@ function hashId(id: string): number {
   return Math.abs(h);
 }
 
-/** Rooms mount every one of their artifacts up front, so without gating,
- * walking into a hall with several heavy `.glb`s (e.g. Hall 1's prasejarah +
- * hindu-buddha zones both carry multi-MB models) would kick off every
- * download at once — the exact "berat di HP" regression this project has
- * already had to fix once. Instead a model only starts loading once the
- * player has walked within this radius of it (see the `modelInRange` state
- * below); everything farther away keeps showing the lightweight placeholder.
- * Sized comfortably larger than a single zone's radius (~7m) but well short
- * of the ~18m gap between adjacent zone centers, so approaching one zone
- * doesn't also trigger the next zone's models, while still giving a real
- * model plenty of time to finish loading before the player is close enough
- * to inspect it. */
-const MODEL_LOAD_RADIUS = 14;
-
 /**
  * All batch-1 `.glb`s ship Draco-compressed (KHR_draco_mesh_compression). drei's
  * `useGLTF` defaults the Draco decoder to Google's gstatic CDN, which is not
@@ -88,7 +74,6 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const modelGroupRef = useRef<THREE.Group>(null);
   const graphicsPreset = useGraphicsPreset();
-  const { camera } = useThree();
   const nearbyId = useMuseumStore((s) => s.nearbyArtifact?.id);
   const focusedId = useMuseumStore((s) => s.focusedArtifact?.id);
   const focusArtifact = useMuseumStore((s) => s.focusArtifact);
@@ -133,34 +118,25 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
   const footprintRadius = objectFootprintRadius(artifact);
   const pedestalScale = (baseRadius: number) => (footprintRadius ? Math.max(1, footprintRadius / baseRadius) : 1);
 
-  // Gate loading the real (possibly multi-MB) model behind proximity —
-  // see MODEL_LOAD_RADIUS. Starts false and flips once, permanently, the
-  // first time the player comes within range; never unloads again (the
-  // model is small once decoded/cached, and re-triggering Suspense every
-  // time the player wanders off would be worse than just keeping it).
-  const [modelInRange, setModelInRange] = useState(false);
-
   useFrame((_, delta) => {
     const spin = delta * (isFocused ? 0 : 0.25);
     if (meshRef.current) meshRef.current.rotation.y += spin;
     if (modelGroupRef.current) modelGroupRef.current.rotation.y += spin;
-
-    if (artifact.url_model_3d && !modelInRange) {
-      const dx = camera.position.x - x;
-      const dz = camera.position.z - z;
-      if (dx * dx + dz * dz <= MODEL_LOAD_RADIUS * MODEL_LOAD_RADIUS) {
-        setModelInRange(true);
-      }
-    }
   });
 
-  // Preload as soon as the model comes into load range, so there's no hitch
-  // by the time the player is actually close enough to inspect it.
+  // Eager-load every artifact's real model as soon as its hall mounts, so the
+  // arca/artefak are already there the moment the room opens — not popped in
+  // only after the player walks up to each one (explicit product requirement:
+  // "dari awal dibuka arca dan artefak lain harus sudah ada"). Only the active
+  // hall's artifacts are mounted at a time, so this preloads one hall's set,
+  // not the whole museum. (The old per-distance gate that deferred this is
+  // gone; if mobile download cost becomes a concern, reintroduce it behind a
+  // device/graphics-preset check rather than for every client.)
   useEffect(() => {
-    if (artifact.url_model_3d && modelInRange) {
+    if (artifact.url_model_3d) {
       useGLTF.preload(artifact.url_model_3d, DRACO_DECODER_PATH);
     }
-  }, [artifact.url_model_3d, modelInRange]);
+  }, [artifact.url_model_3d]);
 
   return (
     <group position={[x, 0, z]} rotation={[0, artifact.rotasi_y ?? 0, 0]}>
@@ -358,7 +334,7 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
           Suspense and unmount the whole artifact — the piece vanishes entirely
           instead of degrading to a placeholder. The boundary keeps the placeholder
           as a real fallback (spec constraint) and logs the concrete cause. */}
-      {artifact.url_model_3d && modelInRange ? (
+      {artifact.url_model_3d ? (
         <ModelErrorBoundary
           url={artifact.url_model_3d}
           fallback={
