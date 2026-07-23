@@ -1,5 +1,5 @@
-import { Suspense, useEffect, useMemo, useRef } from "react";
-import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
@@ -45,6 +45,20 @@ function hashId(id: string): number {
   return Math.abs(h);
 }
 
+/** Rooms mount every one of their artifacts up front, so without gating,
+ * walking into a hall with several heavy `.glb`s (e.g. Hall 1's prasejarah +
+ * hindu-buddha zones both carry multi-MB models) would kick off every
+ * download at once — the exact "berat di HP" regression this project has
+ * already had to fix once. Instead a model only starts loading once the
+ * player has walked within this radius of it (see the `modelInRange` state
+ * below); everything farther away keeps showing the lightweight placeholder.
+ * Sized comfortably larger than a single zone's radius (~7m) but well short
+ * of the ~18m gap between adjacent zone centers, so approaching one zone
+ * doesn't also trigger the next zone's models, while still giving a real
+ * model plenty of time to finish loading before the player is close enough
+ * to inspect it. */
+const MODEL_LOAD_RADIUS = 14;
+
 /**
  * Renders one artifact in the scene. Artifacts with a real `.glb` (per spec
  * section 10, `artifact.url_model_3d`) render via `RealArtifactModel`;
@@ -62,6 +76,7 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const modelGroupRef = useRef<THREE.Group>(null);
   const graphicsPreset = useGraphicsPreset();
+  const { camera } = useThree();
   const nearbyId = useMuseumStore((s) => s.nearbyArtifact?.id);
   const focusedId = useMuseumStore((s) => s.focusedArtifact?.id);
   const focusArtifact = useMuseumStore((s) => s.focusArtifact);
@@ -106,20 +121,34 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
   const footprintRadius = objectFootprintRadius(artifact);
   const pedestalScale = (baseRadius: number) => (footprintRadius ? Math.max(1, footprintRadius / baseRadius) : 1);
 
-  // Preload the real model as soon as this artifact mounts (rooms mount all
-  // their artifacts up front), so there's no hitch the first time the
-  // player walks up and it needs to actually appear.
-  useEffect(() => {
-    if (artifact.url_model_3d) {
-      useGLTF.preload(artifact.url_model_3d);
-    }
-  }, [artifact.url_model_3d]);
+  // Gate loading the real (possibly multi-MB) model behind proximity —
+  // see MODEL_LOAD_RADIUS. Starts false and flips once, permanently, the
+  // first time the player comes within range; never unloads again (the
+  // model is small once decoded/cached, and re-triggering Suspense every
+  // time the player wanders off would be worse than just keeping it).
+  const [modelInRange, setModelInRange] = useState(false);
 
   useFrame((_, delta) => {
     const spin = delta * (isFocused ? 0 : 0.25);
     if (meshRef.current) meshRef.current.rotation.y += spin;
     if (modelGroupRef.current) modelGroupRef.current.rotation.y += spin;
+
+    if (artifact.url_model_3d && !modelInRange) {
+      const dx = camera.position.x - x;
+      const dz = camera.position.z - z;
+      if (dx * dx + dz * dz <= MODEL_LOAD_RADIUS * MODEL_LOAD_RADIUS) {
+        setModelInRange(true);
+      }
+    }
   });
+
+  // Preload as soon as the model comes into load range, so there's no hitch
+  // by the time the player is actually close enough to inspect it.
+  useEffect(() => {
+    if (artifact.url_model_3d && modelInRange) {
+      useGLTF.preload(artifact.url_model_3d);
+    }
+  }, [artifact.url_model_3d, modelInRange]);
 
   return (
     <group position={[x, 0, z]} rotation={[0, artifact.rotasi_y ?? 0, 0]}>
@@ -310,8 +339,8 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
         </mesh>
       )}
 
-      {/* Artifact mesh: real model when the asset has arrived, placeholder otherwise */}
-      {artifact.url_model_3d ? (
+      {/* Artifact mesh: real model once loaded (and in range), placeholder otherwise */}
+      {artifact.url_model_3d && modelInRange ? (
         <Suspense
           fallback={
             <mesh position={[0, y, 0]}>

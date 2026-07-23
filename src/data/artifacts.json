@@ -156,10 +156,114 @@
     }
   },
   {
+    "id": "r1-kapak-persegi",
+    "nama": "Kapak Persegi (Beliung Persegi)",
+    "deskripsi": "[DRAFT] Alat batu Neolitikum berbentuk persegi panjang dengan permukaan yang diasah halus, digunakan untuk menebang kayu dan mengolah tanah. Berbeda dari Kapak Perimbas yang lebih masif dan kasar, Kapak Persegi menandai kemajuan teknik pengasahan batu pada masa bercocok tanam. Deskripsi ini perlu dilengkapi kurator.",
+    "url_model_3d": "/models/kapak-persegi.glb",
+    "placeholder_shape": "box",
+    "url_audio": "",
+    "transkrip_audio": "",
+    "koordinat_ruangan": {
+      "x": -10.8,
+      "y": 1.24,
+      "z": 0.5
+    },
+    "rotasi_y": 0.2,
+    "url_thumbnail": "",
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "prasejarah",
+    "display_tier": "regular",
+    "pedestal_height": 1.2,
+    "real_world_size": {
+      "width": 0.2,
+      "height": 0.08,
+      "depth": 0.12
+    }
+  },
+  {
+    "id": "r1-fosil-kepala-buaya",
+    "nama": "Fosil Kepala Buaya",
+    "deskripsi": "[DRAFT] Fosil tengkorak kepala buaya purba yang ditemukan di situs prasejarah Jawa Timur, menjadi bukti keberadaan reptil besar di ekosistem purba Nusantara. Deskripsi ini perlu dilengkapi kurator.",
+    "url_model_3d": "/models/fossil-kepala-buaya.glb",
+    "placeholder_shape": "box",
+    "url_audio": "",
+    "transkrip_audio": "",
+    "koordinat_ruangan": {
+      "x": -7.5,
+      "y": 0.83,
+      "z": 1.3
+    },
+    "rotasi_y": 1.57,
+    "url_thumbnail": "",
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "prasejarah",
+    "display_tier": "featured",
+    "pedestal_height": 0.7,
+    "real_world_size": {
+      "width": 0.4,
+      "height": 0.25,
+      "depth": 0.55
+    }
+  },
+  {
+    "id": "r1-fosil-kepala-kerbau",
+    "nama": "Fosil Kepala Kerbau",
+    "deskripsi": "[DRAFT] Fosil tengkorak kepala kerbau purba yang ditemukan di situs prasejarah Jawa Timur, melengkapi bukti keragaman fauna besar pada masa prasejarah Nusantara. Deskripsi ini perlu dilengkapi kurator.",
+    "url_model_3d": "/models/fossil-kepala-kerbau.glb",
+    "placeholder_shape": "box",
+    "url_audio": "",
+    "transkrip_audio": "",
+    "koordinat_ruangan": {
+      "x": -4.7,
+      "y": 0.875,
+      "z": -4.7
+    },
+    "rotasi_y": -1.0,
+    "url_thumbnail": "",
+    "ruangan": "hall-1",
+    "is_ikonik": false,
+    "zoneId": "prasejarah",
+    "display_tier": "featured",
+    "pedestal_height": 0.7,
+    "real_world_size": {
+      "width": 0.55,
+      "height": 0.35,
+      "depth": 0.4
+    }
+  },
+  {
+    "id": "r1-manusia-purba",
+    "nama": "Rekonstruksi Manusia Purba",
+    "deskripsi": "[DRAFT] Rekonstruksi sosok manusia purba berdasarkan temuan fosil di Jawa, menggambarkan postur dan ciri fisik yang membantu pengunjung membayangkan wujud nenek moyang manusia modern di Nusantara. Deskripsi ini perlu dilengkapi kurator.",
+    "url_model_3d": "/models/manusia-purba.glb",
+    "placeholder_shape": "cylinder",
+    "url_audio": "",
+    "transkrip_audio": "",
+    "koordinat_ruangan": {
+      "x": -5.3,
+      "y": 1.525,
+      "z": 0.1
+    },
+    "rotasi_y": 2.5,
+    "url_thumbnail": "",
+    "ruangan": "hall-1",
+    "is_ikonik": true,
+    "zoneId": "prasejarah",
+    "display_tier": "featured",
+    "pedestal_height": 0.7,
+    "real_world_size": {
+      "width": 0.55,
+      "height": 1.65,
+      "depth": 0.45
+    }
+  },
+  {
     "id": "r2-arca-ganesha",
     "nama": "Arca Ganesha",
     "deskripsi": "Arca Ganesha dalam posisi utkutasana (jongkok), tangan depan memegang gading patah dan mangkuk tengkorak, tangan belakang membawa kapak dan aksamala. Salah satu koleksi ikonik Museum Mpu Tantular.",
-    "url_model_3d": "",
+    "url_model_3d": "/models/ganesha.glb",
     "placeholder_shape": "cone",
     "url_audio": "",
     "transkrip_audio": "",
@@ -185,7 +289,7 @@
     "id": "r2-arca-durga-mahisasuramardhini",
     "nama": "Arca Durga Mahisasuramardhini",
     "deskripsi": "Arca Durga dari Candi Jawi, Pasuruan. Digambarkan berdiri sikap tribhangga di atas kerbau (Mahesa), delapan tangan memegang cakra, pedang, anak panah, ekor kerbau, sangkha, perisai, busur, dan kepala raksasa asura.",
-    "url_model_3d": "",
+    "url_model_3d": "/models/durga-mahisasuramardini.glb",
     "placeholder_shape": "cone",
     "url_audio": "",
     "transkrip_audio": "",
@@ -419,7 +523,7 @@
     "id": "r2-garudeya-emas",
     "nama": "Garudeya Emas 22 Karat",
     "deskripsi": "Garudeya emas 22 karat yang ditemukan di Desa Plaosan (1989), satu-satunya artefak emas 22 karat di Indonesia. Aslinya dipajang dalam brankas kaca berjeruji untuk keamanan. Signature piece Museum Mpu Tantular — dipentaskan di titik klimaks zona, dikawal arca Dwarapala asli di kedua sisi jalur menuju vitrinenya.",
-    "url_model_3d": "",
+    "url_model_3d": "/models/garudeya.glb",
     "placeholder_shape": "torus",
     "url_audio": "",
     "transkrip_audio": "",
@@ -494,10 +598,36 @@
     }
   },
   {
+    "id": "r2-surya-stambha",
+    "nama": "Surya Stambha",
+    "deskripsi": "[DRAFT] Surya Stambha, pilar/tugu batu bermotif matahari yang melambangkan pemujaan terhadap Dewa Surya dalam kosmologi Hindu-Buddha, menjadi penanda situs suci pada masa kerajaan Jawa Timur. Deskripsi ini perlu dilengkapi kurator.",
+    "url_model_3d": "/models/surya-stambha.glb",
+    "placeholder_shape": "cylinder",
+    "url_audio": "",
+    "transkrip_audio": "",
+    "koordinat_ruangan": {
+      "x": 4.0,
+      "y": 1.5,
+      "z": -5.5
+    },
+    "rotasi_y": 0,
+    "url_thumbnail": "",
+    "ruangan": "hall-1",
+    "is_ikonik": true,
+    "zoneId": "hindu-buddha",
+    "display_tier": "featured",
+    "pedestal_height": 0.7,
+    "real_world_size": {
+      "width": 0.5,
+      "height": 1.6,
+      "depth": 0.5
+    }
+  },
+  {
     "id": "r3-telepon-antik",
     "nama": "Telepon Genggam/Meja Antik",
     "deskripsi": "Telepon genggam dan meja antik yang menjadi bukti awal perkembangan teknologi komunikasi di Indonesia pada masa transisi ke era modern.",
-    "url_model_3d": "",
+    "url_model_3d": "/models/pesawat-telepon.glb",
     "placeholder_shape": "box",
     "url_audio": "",
     "transkrip_audio": "",
@@ -672,6 +802,32 @@
     "real_world_size": {
       "width": 0.8,
       "height": 0.12,
+      "depth": 0.35
+    }
+  },
+  {
+    "id": "r3-simponion",
+    "nama": "Symphonion (Kotak Musik Mekanik)",
+    "deskripsi": "[DRAFT] Symphonion, kotak musik mekanik antik yang memutar piringan logam berlubang untuk menghasilkan melodi tanpa listrik — hiburan rumah tangga populer pada awal abad ke-20 sebelum era radio. Deskripsi ini perlu dilengkapi kurator.",
+    "url_model_3d": "/models/simponion.glb",
+    "placeholder_shape": "box",
+    "url_audio": "",
+    "transkrip_audio": "",
+    "koordinat_ruangan": {
+      "x": 6.5,
+      "y": 0.91,
+      "z": -2.0
+    },
+    "rotasi_y": 0.3,
+    "url_thumbnail": "",
+    "ruangan": "hall-2",
+    "is_ikonik": false,
+    "zoneId": "transisi-iptek",
+    "display_tier": "featured",
+    "pedestal_height": 0.7,
+    "real_world_size": {
+      "width": 0.45,
+      "height": 0.42,
       "depth": 0.35
     }
   }
