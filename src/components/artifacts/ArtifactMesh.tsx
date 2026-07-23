@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -58,6 +58,18 @@ function hashId(id: string): number {
  * model plenty of time to finish loading before the player is close enough
  * to inspect it. */
 const MODEL_LOAD_RADIUS = 14;
+
+/**
+ * All batch-1 `.glb`s ship Draco-compressed (KHR_draco_mesh_compression). drei's
+ * `useGLTF` defaults the Draco decoder to Google's gstatic CDN, which is not
+ * reliably reachable here (a museum kiosk build that may run offline) — when the
+ * decoder fetch stalls, EVERY Draco model silently never finishes decoding and
+ * stays stuck on its Suspense-fallback placeholder. That was the real reason all
+ * 10 models rendered as primitives at once. Point the loader at a decoder we
+ * vendor locally in `public/draco/` (copied from three's examples) so decoding
+ * has no external dependency. Passing this string as the `useDraco` arg sets
+ * DRACOLoader.setDecoderPath(). Must match the preload path below exactly. */
+const DRACO_DECODER_PATH = "/draco/";
 
 /**
  * Renders one artifact in the scene. Artifacts with a real `.glb` (per spec
@@ -146,7 +158,7 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
   // by the time the player is actually close enough to inspect it.
   useEffect(() => {
     if (artifact.url_model_3d && modelInRange) {
-      useGLTF.preload(artifact.url_model_3d);
+      useGLTF.preload(artifact.url_model_3d, DRACO_DECODER_PATH);
     }
   }, [artifact.url_model_3d, modelInRange]);
 
@@ -339,9 +351,16 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
         </mesh>
       )}
 
-      {/* Artifact mesh: real model once loaded (and in range), placeholder otherwise */}
+      {/* Artifact mesh: real model once loaded (and in range), placeholder otherwise.
+          The ErrorBoundary is essential: <Suspense> only catches the loading
+          promise, NOT a rejection. If a `.glb` fails to decode (bad asset, missing
+          Draco decoder, 404) the thrown error would otherwise propagate past this
+          Suspense and unmount the whole artifact — the piece vanishes entirely
+          instead of degrading to a placeholder. The boundary keeps the placeholder
+          as a real fallback (spec constraint) and logs the concrete cause. */}
       {artifact.url_model_3d && modelInRange ? (
-        <Suspense
+        <ModelErrorBoundary
+          url={artifact.url_model_3d}
           fallback={
             <mesh position={[0, y, 0]}>
               <PlaceholderGeometry shape={artifact.placeholder_shape} size={artifact.real_world_size} />
@@ -349,29 +368,42 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
                 color={isElevated ? accentColor : regularArtifactColor}
                 roughness={0.5}
                 metalness={isElevated ? 0.35 : 0.05}
-                transparent
-                opacity={0.35}
               />
             </mesh>
           }
         >
-          <group
-            ref={modelGroupRef}
-            onClick={(e: ThreeEvent<MouseEvent>) => {
-              e.stopPropagation();
-              if (!isFocused) focusArtifact(artifact);
-            }}
+          <Suspense
+            fallback={
+              <mesh position={[0, y, 0]}>
+                <PlaceholderGeometry shape={artifact.placeholder_shape} size={artifact.real_world_size} />
+                <meshStandardMaterial
+                  color={isElevated ? accentColor : regularArtifactColor}
+                  roughness={0.5}
+                  metalness={isElevated ? 0.35 : 0.05}
+                  transparent
+                  opacity={0.35}
+                />
+              </mesh>
+            }
           >
-            <RealArtifactModel
-              url={artifact.url_model_3d}
-              pedestalHeight={pedestalH}
-              targetSize={artifact.real_world_size}
-              scale={artifact.model_scale}
-              yOffset={artifact.model_y_offset}
-              rotationY={artifact.model_rotation_y}
-            />
-          </group>
-        </Suspense>
+            <group
+              ref={modelGroupRef}
+              onClick={(e: ThreeEvent<MouseEvent>) => {
+                e.stopPropagation();
+                if (!isFocused) focusArtifact(artifact);
+              }}
+            >
+              <RealArtifactModel
+                url={artifact.url_model_3d}
+                pedestalHeight={pedestalH}
+                targetSize={artifact.real_world_size}
+                scale={artifact.model_scale}
+                yOffset={artifact.model_y_offset}
+                rotationY={artifact.model_rotation_y}
+              />
+            </group>
+          </Suspense>
+        </ModelErrorBoundary>
       ) : (
         <mesh
           ref={meshRef}
@@ -449,6 +481,27 @@ export function ArtifactMesh({ artifact, accentColor }: ArtifactMeshProps) {
   );
 }
 
+/** Catches a `.glb` load/decode failure so one bad model degrades to its
+ * placeholder instead of throwing past <Suspense> and unmounting the artifact
+ * (or, worse, the surrounding scene). Logs the concrete URL + error so the real
+ * cause (404, missing Draco decoder, corrupt asset) is visible in the console
+ * rather than manifesting only as an invisible/absent piece. */
+class ModelErrorBoundary extends Component<
+  { url: string; fallback: ReactNode; children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown) {
+    console.error(`[ArtifactModel] gagal memuat "${this.props.url}" — fallback ke placeholder.`, error);
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
 /** Loads a real Draco-compressed `.glb` (asset standard: 1 unit = 1 meter,
  * pivot at the object's base) and places it directly on top of the
  * pedestal/vitrine/niche shelf it's staged on, mirroring where a
@@ -476,7 +529,10 @@ function RealArtifactModel({
   yOffset?: number;
   rotationY?: number;
 }) {
-  const { scene } = useGLTF(url);
+  const { scene } = useGLTF(url, DRACO_DECODER_PATH);
+  useEffect(() => {
+    console.info(`[ArtifactModel] ✓ termuat & ter-decode: ${url}`);
+  }, [url]);
   const { model, fitScale } = useMemo(() => {
     const clone = scene.clone(true);
     clone.traverse((obj) => {
