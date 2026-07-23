@@ -51,6 +51,7 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
   const strafe = useRef(new THREE.Vector3(0, 0, 0));
   const deltaPos = useRef(new THREE.Vector3(0, 0, 0));
   const lookDir = useRef(new THREE.Vector3(0, 0, 0));
+  const facingDir = useRef(new THREE.Vector3(0, 0, 0));
 
   const moveInput = useMuseumStore((s) => s.moveInput);
   const lookInput = useMuseumStore((s) => s.lookInput);
@@ -291,20 +292,46 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
 
     // --- Artifact proximity (skip while an artifact is already focused) ---
     if (!focusedArtifact) {
-      let closest: Artifact | null = null;
-      let closestDist = Infinity;
+      // Where the player is actually looking (XZ plane), so the `E` label
+      // matches the piece in front of them. Without this, in a packed row the
+      // raw-closest-center artifact wins even when the player faces a different
+      // one — the "Lihat Telepon Antik" label appearing while standing at the
+      // bicycle, because two trigger zones (a wide bike + a nearby table) overlap
+      // and the table's center happened to be marginally closer.
+      camera.getWorldDirection(facingDir.current);
+
+      // Prefer the closest artifact the player is FACING; fall back to the
+      // closest overall only when nothing in range is in front (so turning
+      // toward a piece still selects it, but a piece behind you never steals
+      // the label from the one you're looking at).
+      let closestFront: Artifact | null = null;
+      let closestFrontDist = Infinity;
+      let closestAny: Artifact | null = null;
+      let closestAnyDist = Infinity;
       for (const artifact of artifacts) {
-        const dx = camera.position.x - artifact.koordinat_ruangan.x;
-        const dz = camera.position.z - artifact.koordinat_ruangan.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
+        const toX = artifact.koordinat_ruangan.x - camera.position.x;
+        const toZ = artifact.koordinat_ruangan.z - camera.position.z;
+        const dist = Math.sqrt(toX * toX + toZ * toZ);
         // Big real-world objects (spec: fix skala) should trigger the `E`
         // prompt from farther away than their old miniature placeholder did.
         const triggerRadius = PROXIMITY_RADIUS + (objectFootprintRadius(artifact) ?? 0);
-        if (dist < triggerRadius && dist < closestDist) {
-          closest = artifact;
-          closestDist = dist;
+        if (dist >= triggerRadius) continue;
+
+        if (dist < closestAnyDist) {
+          closestAny = artifact;
+          closestAnyDist = dist;
+        }
+        // Facing test on the XZ plane: dot of the look direction with the
+        // (normalized) direction to the artifact. > 0 means it's in the front
+        // half — i.e. roughly where the camera points, not behind the player.
+        const invLen = dist > 1e-4 ? 1 / dist : 0;
+        const facing = facingDir.current.x * toX * invLen + facingDir.current.z * toZ * invLen;
+        if (facing > 0 && dist < closestFrontDist) {
+          closestFront = artifact;
+          closestFrontDist = dist;
         }
       }
+      const closest = closestFront ?? closestAny;
       if (closest?.id !== nearbyArtifactId) {
         setNearbyArtifact(closest);
       }
