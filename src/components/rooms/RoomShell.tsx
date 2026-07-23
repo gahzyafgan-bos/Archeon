@@ -605,6 +605,27 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
       <PottedPlant position={[maxX - 1.6, 0, centerZ + depth * 0.28]} />
       <PottedPlant position={[minX + 1.6, 0, centerZ + depth * 0.28]} />
 
+      {/* Curatorial gap-fillers (spec fase 4: "isi kekosongan dengan elemen
+          dekoratif ringan, BUKAN placeholder artefak"). Light greenery planted
+          in the interior areas a zone was left with after its modelless
+          placeholders were hidden — so the now-sparser zones read as deliberate
+          negative space rather than bare floor. Hand-placed per zone (cleared
+          of every artifact + procedural decor footprint — mirrored in
+          placementValidator's decor-gapfill block) rather than formula-derived,
+          since each zone emptied unevenly. */}
+      {room.zones.some((z) => z.id === "hindu-buddha") && (
+        <>
+          <PottedPlant position={[6.2, 0, -1.2]} />
+          <PottedPlant position={[9.8, 0, -2.8]} />
+        </>
+      )}
+      {room.zones.some((z) => z.id === "transisi-iptek") && (
+        <>
+          <PottedPlant position={[2.8, 0, -0.8]} />
+          <PottedPlant position={[7.2, 0, -4.6]} />
+        </>
+      )}
+
       {/* Zone-specific set dressing (kept from the earlier per-room decor, now zone-anchored) */}
       {useMemo(() => {
         const elements: ReactNode[] = [];

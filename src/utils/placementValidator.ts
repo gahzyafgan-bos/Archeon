@@ -121,6 +121,21 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
   ];
   for (const p of plantPts) objects.push({ id: p.id, x: p.x, z: p.z, radius: FOOTPRINT.pottedPlant });
 
+  // Curatorial gap-filler plants (RoomShell.tsx fase-4 block) — hand-placed
+  // per zone in the interior areas emptied by hidden placeholders. Gated by
+  // zone presence exactly like RoomShell; keep the two in lockstep.
+  const gapFillPlants: Array<{ id: string; x: number; z: number; zone: string }> = [
+    { id: "decor-gapfill-hb-1", x: 6.2, z: -1.2, zone: "hindu-buddha" },
+    { id: "decor-gapfill-hb-2", x: 9.8, z: -2.8, zone: "hindu-buddha" },
+    { id: "decor-gapfill-ti-1", x: 2.8, z: -0.8, zone: "transisi-iptek" },
+    { id: "decor-gapfill-ti-2", x: 7.2, z: -4.6, zone: "transisi-iptek" },
+  ];
+  for (const p of gapFillPlants) {
+    if (room.zones.some((z) => z.id === p.zone)) {
+      objects.push({ id: p.id, x: p.x, z: p.z, radius: FOOTPRINT.pottedPlant });
+    }
+  }
+
   // Hero-framing pillar pairs (RoomShell.tsx) — a former "threshold pillar"
   // pair between adjacent zone centers used to be mirrored here too, but it
   // was removed outright from RoomShell.tsx (never framed anything, sat
