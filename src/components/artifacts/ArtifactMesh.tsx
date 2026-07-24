@@ -8,7 +8,7 @@ import type { Artifact } from "@/types/artifact";
 import { DustParticles } from "./DustParticles";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
 import { objectFootprintRadius } from "@/utils/artifactSize";
-import { DRACO_DECODER_PATH, preloadModel } from "@/utils/modelLoader";
+import { DRACO_DECODER_PATH, extendModelLoader, preloadModel } from "@/utils/modelLoader";
 
 interface ArtifactMeshProps {
   artifact: Artifact;
@@ -517,7 +517,7 @@ function RealArtifactModel({
   yOffset?: number;
   rotationY?: number;
 }) {
-  const { scene } = useGLTF(url, DRACO_DECODER_PATH);
+  const { scene } = useGLTF(url, DRACO_DECODER_PATH, true, extendModelLoader);
   useEffect(() => {
     console.info(`[ArtifactModel] ✓ termuat & ter-decode: ${url}`);
   }, [url]);

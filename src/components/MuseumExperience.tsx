@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { Stats, PerformanceMonitor, AdaptiveDpr, AdaptiveEvents, Preload, useProgress } from "@react-three/drei";
 import { useMuseumStore, type RoomId } from "@/store/useMuseumStore";
 import { ROOM_CONFIGS, type Door } from "@/data/roomConfig";
@@ -11,6 +11,7 @@ import { useAmbience } from "@/hooks/useAmbience";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
 import { useAdjacentHallPreload } from "@/hooks/useAdjacentHallPreload";
+import { initKTX2Support } from "@/utils/modelLoader";
 import { MiniMapFrame, MiniMapTracker } from "./ui/MiniMap";
 import { PostProcessing } from "./PostProcessing";
 import { CardboardStereoView } from "./vr/CardboardStereoView";
@@ -36,6 +37,21 @@ function renderableArtifacts(data: Artifact[]): Artifact[] {
     }
   }
   return shown;
+}
+
+/**
+ * Detects the renderer's supported GPU texture formats for the shared
+ * KTX2Loader, once, from inside the Canvas (where the WebGLRenderer exists).
+ * Must run before any model with KTX2 (Basis) textures is decoded — mounted
+ * ahead of <Hall>, and the cross-hall preloader only kicks in after the first
+ * hall settles, so support is always ready in time.
+ */
+function KTX2Support() {
+  const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    initKTX2Support(gl);
+  }, [gl]);
+  return null;
 }
 
 /**
@@ -155,6 +171,7 @@ export function MuseumExperience() {
             instead of ever risking a sustained stutter. Skipped in VR —
             CardboardStereoView already manages its own eye-texture
             resolution and is already locked to the Rendah preset floor. */}
+        <KTX2Support />
         <PerformanceMonitor>
           <Suspense fallback={null}>
             <Hall hall={room} artifacts={artifacts} />
