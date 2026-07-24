@@ -1,10 +1,16 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import type { RoomConfig } from "@/data/roomConfig";
 import type { Artifact } from "@/types/artifact";
 import { objectFootprintRadius } from "@/utils/artifactSize";
+
+// Shared immutable zero vector — Vector3.lerp() only READS its target, never
+// mutates it, so a single frozen instance is safe to reuse as the decelerate
+// target instead of allocating `new THREE.Vector3(0,0,0)` every frame the
+// player is slowing to a stop (a per-frame GC source on mobile).
+const ZERO_VEC = new THREE.Vector3(0, 0, 0);
 
 const BASE_MOVE_SPEED = 4.2; // world units / second
 const BASE_LOOK_SPEED = 2.2; // radians / second at full joystick deflection
@@ -52,6 +58,34 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
   const deltaPos = useRef(new THREE.Vector3(0, 0, 0));
   const lookDir = useRef(new THREE.Vector3(0, 0, 0));
   const facingDir = useRef(new THREE.Vector3(0, 0, 0));
+  // Reused focus-zoom target (was allocated fresh every frame while an
+  // artifact is focused — see the focus block in useFrame).
+  const focusTargetPos = useRef(new THREE.Vector3(0, 0, 0));
+
+  // Static per-artifact collision/proximity data, computed once per artifact
+  // list instead of recomputing objectFootprintRadius() twice per artifact
+  // every frame (collision loop + proximity loop below). Artifact positions
+  // are fixed, so their collision radius and `E`-trigger radius never change
+  // between frames — only the player moves. (spec Fase 5: "dihitung sekali
+  // saat load/posisi berubah, bukan tiap frame".)
+  const colliders = useMemo(
+    () =>
+      artifacts.map((artifact) => {
+        const footprint = objectFootprintRadius(artifact) ?? 0;
+        return {
+          artifact,
+          x: artifact.koordinat_ruangan.x,
+          z: artifact.koordinat_ruangan.z,
+          // Grows with real_world_size so a life-size bicycle/statue isn't
+          // walkable-through past a flat 0.8m stand-in radius.
+          collisionRadius: Math.max(0.8, footprint),
+          // Big real-world objects trigger the `E` prompt from farther away
+          // than their old miniature placeholder did.
+          triggerRadius: PROXIMITY_RADIUS + footprint,
+        };
+      }),
+    [artifacts]
+  );
 
   const moveInput = useMuseumStore((s) => s.moveInput);
   const lookInput = useMuseumStore((s) => s.lookInput);
@@ -103,7 +137,7 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
         };
       }
       const target = focusedArtifact.koordinat_ruangan;
-      const targetPos = new THREE.Vector3(target.x, target.y + 0.3, target.z + 1.6);
+      const targetPos = focusTargetPos.current.set(target.x, target.y + 0.3, target.z + 1.6);
       // Use cubic ease-in-out, or faster if reduceMotion enabled
       const t = 1 - Math.pow(0.001, delta * focusLerp);
       const ease = settings.reduceMotion ? 1 : easeInOutCubic(t);
@@ -217,7 +251,7 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
       currentVelocity.current.lerp(targetVelocity.current, ACCELERATION * delta);
       walkTime.current += delta;
     } else {
-      currentVelocity.current.lerp(new THREE.Vector3(0, 0, 0), DECELERATION * delta);
+      currentVelocity.current.lerp(ZERO_VEC, DECELERATION * delta);
       // Fade out walk time smoothly to prevent sudden head bob stop
       walkTime.current = Math.max(0, walkTime.current - delta * 3);
       // When almost stopped, set velocity to zero to stop any residual movement
@@ -239,25 +273,18 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
       nextX = Math.max(minX + PLAYER_RADIUS, Math.min(maxX - PLAYER_RADIUS, nextX));
       nextZ = Math.max(minZ + PLAYER_RADIUS, Math.min(maxZ - PLAYER_RADIUS, nextZ));
 
-      // 2. Collision with artifacts
-      for (const artifact of artifacts) {
-        const artifactX = artifact.koordinat_ruangan.x;
-        const artifactZ = artifact.koordinat_ruangan.z;
-        // Collision radius for artifacts — grows with real_world_size so a
-        // life-size bicycle/statue isn't walkable-through past its old flat
-        // 0.8m stand-in radius (spec: fix skala, update bounding/collision).
-        const artifactRadius = Math.max(0.8, objectFootprintRadius(artifact) ?? 0);
-
-        const dx = nextX - artifactX;
-        const dz = nextZ - artifactZ;
+      // 2. Collision with artifacts (radii precomputed once in `colliders`)
+      for (const c of colliders) {
+        const dx = nextX - c.x;
+        const dz = nextZ - c.z;
         const distance = Math.sqrt(dx * dx + dz * dz);
-        const minDist = PLAYER_RADIUS + artifactRadius;
-        
+        const minDist = PLAYER_RADIUS + c.collisionRadius;
+
         if (distance < minDist) {
           // Push player away from artifact
           const angle = Math.atan2(dz, dx);
-          nextX = artifactX + Math.cos(angle) * minDist;
-          nextZ = artifactZ + Math.sin(angle) * minDist;
+          nextX = c.x + Math.cos(angle) * minDist;
+          nextZ = c.z + Math.sin(angle) * minDist;
         }
       }
 
@@ -308,17 +335,16 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
       let closestFrontDist = Infinity;
       let closestAny: Artifact | null = null;
       let closestAnyDist = Infinity;
-      for (const artifact of artifacts) {
-        const toX = artifact.koordinat_ruangan.x - camera.position.x;
-        const toZ = artifact.koordinat_ruangan.z - camera.position.z;
+      for (const c of colliders) {
+        const toX = c.x - camera.position.x;
+        const toZ = c.z - camera.position.z;
         const dist = Math.sqrt(toX * toX + toZ * toZ);
-        // Big real-world objects (spec: fix skala) should trigger the `E`
-        // prompt from farther away than their old miniature placeholder did.
-        const triggerRadius = PROXIMITY_RADIUS + (objectFootprintRadius(artifact) ?? 0);
-        if (dist >= triggerRadius) continue;
+        // triggerRadius precomputed once (grows with real_world_size so big
+        // pieces raise the `E` prompt from farther out than a mini placeholder).
+        if (dist >= c.triggerRadius) continue;
 
         if (dist < closestAnyDist) {
-          closestAny = artifact;
+          closestAny = c.artifact;
           closestAnyDist = dist;
         }
         // Facing test on the XZ plane: dot of the look direction with the
@@ -327,7 +353,7 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
         const invLen = dist > 1e-4 ? 1 / dist : 0;
         const facing = facingDir.current.x * toX * invLen + facingDir.current.z * toZ * invLen;
         if (facing > 0 && dist < closestFrontDist) {
-          closestFront = artifact;
+          closestFront = c.artifact;
           closestFrontDist = dist;
         }
       }
