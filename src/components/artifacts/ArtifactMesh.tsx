@@ -8,6 +8,7 @@ import type { Artifact } from "@/types/artifact";
 import { DustParticles } from "./DustParticles";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
 import { objectFootprintRadius } from "@/utils/artifactSize";
+import { DRACO_DECODER_PATH, preloadModel } from "@/utils/modelLoader";
 
 interface ArtifactMeshProps {
   artifact: Artifact;
@@ -18,6 +19,10 @@ const WOOD = "#7A5230";
 const BRASS = "#B08D3C";
 const STONE_FEATURED = "#6b5f4e";
 const STONE_REGULAR = "#8a7d68";
+
+// DRACO_DECODER_PATH now lives in utils/modelLoader.ts (shared with the
+// cross-hall preloader) so every load site keys drei's cache identically —
+// see that file. Re-exported locally is unnecessary; import it directly.
 
 /** Resolves the presentational tier: explicit `display_tier` wins; otherwise
  * `is_ikonik` pieces keep their old elevated look ("featured") so existing
@@ -45,18 +50,6 @@ function hashId(id: string): number {
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
   return Math.abs(h);
 }
-
-/**
- * All batch-1 `.glb`s ship Draco-compressed (KHR_draco_mesh_compression). drei's
- * `useGLTF` defaults the Draco decoder to Google's gstatic CDN, which is not
- * reliably reachable here (a museum kiosk build that may run offline) — when the
- * decoder fetch stalls, EVERY Draco model silently never finishes decoding and
- * stays stuck on its Suspense-fallback placeholder. That was the real reason all
- * 10 models rendered as primitives at once. Point the loader at a decoder we
- * vendor locally in `public/draco/` (copied from three's examples) so decoding
- * has no external dependency. Passing this string as the `useDraco` arg sets
- * DRACOLoader.setDecoderPath(). Must match the preload path below exactly. */
-const DRACO_DECODER_PATH = "/draco/";
 
 /**
  * Renders one artifact in the scene. Artifacts with a real `.glb` (per spec
@@ -154,9 +147,7 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
   // gone; if mobile download cost becomes a concern, reintroduce it behind a
   // device/graphics-preset check rather than for every client.)
   useEffect(() => {
-    if (artifact.url_model_3d) {
-      useGLTF.preload(artifact.url_model_3d, DRACO_DECODER_PATH);
-    }
+    preloadModel(artifact.url_model_3d);
   }, [artifact.url_model_3d]);
 
   return (

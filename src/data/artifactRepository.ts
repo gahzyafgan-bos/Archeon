@@ -43,3 +43,16 @@ export async function fetchAllArtifacts(): Promise<Artifact[]> {
 export function getArtifactsByRoomSync(room: RoomId): Artifact[] {
   return ALL_ARTIFACTS.filter((a) => a.ruangan === room);
 }
+
+/** Every real `.glb` URL belonging to a room, deduped — used by the
+ * cross-hall idle preloader to warm the *next* hall's heavy Draco models
+ * (Ganesha/Durga/Garudeya/Surya-stambha all live in one hall) while the
+ * player is still in the current one, so crossing the archway doesn't cold-load
+ * ~27MB of geometry in a single frame. Reads the full dataset directly (not the
+ * scene's render-filtered list) so it works before any hall has mounted. */
+export function getModelUrlsByRoom(room: RoomId): string[] {
+  const urls = ALL_ARTIFACTS.filter((a) => a.ruangan === room && hasRealModel(a)).map(
+    (a) => a.url_model_3d
+  );
+  return Array.from(new Set(urls));
+}

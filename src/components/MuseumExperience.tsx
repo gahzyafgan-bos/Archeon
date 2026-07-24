@@ -10,6 +10,7 @@ import { Hall } from "./rooms/Hall";
 import { useAmbience } from "@/hooks/useAmbience";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
+import { useAdjacentHallPreload } from "@/hooks/useAdjacentHallPreload";
 import { MiniMapFrame, MiniMapTracker } from "./ui/MiniMap";
 import { PostProcessing } from "./PostProcessing";
 import { CardboardStereoView } from "./vr/CardboardStereoView";
@@ -69,6 +70,11 @@ export function MuseumExperience() {
   // timer. Works outside the Canvas too (plain zustand subscription), so it
   // can drive the DOM LoadingScreen directly.
   const { progress: glProgress, active: glActive } = useProgress();
+
+  // Warm the *next* hall's heavy models during idle time — but only once the
+  // current hall has settled (dataReady && nothing still loading), so this
+  // never steals bandwidth/CPU from the first paint. See the hook's doc.
+  useAdjacentHallPreload(renderedRoom, dataReady && !glActive);
 
   // Initial load: fetch lobby artifacts (gates isLoading together with the
   // real asset progress above) so the scene never shows before both the
@@ -172,8 +178,14 @@ export function MuseumExperience() {
         {/* Precompiles every material/shader currently in the scene once
             loading settles (spec 4a.2) — without this, the first frame
             after the loading screen drops can still hitch while the GPU
-            compiles shaders on demand as each object is first drawn. */}
-        <Preload all />
+            compiles shaders on demand as each object is first drawn.
+            Re-keyed per hall + artifact count so it recompiles when hall-2's
+            (heavier GLTF) materials mount at the archway crossfade, instead of
+            only ever covering hall-1 and letting hall-2's shaders compile
+            on-demand mid-walk (the classic "hitch when the big arca first
+            comes into view"). The remount runs during the transition beat, a
+            controlled moment, not while the player is moving. */}
+        <Preload key={`preload-${renderedRoom}-${artifacts.length}`} all />
       </Canvas>
       {/* Hidden in VR mode: a single unmirrored corner overlay doesn't read correctly split across two eye viewports. */}
       {!isVRMode && <MiniMapFrame canvasRef={miniMapCanvasRef} />}
