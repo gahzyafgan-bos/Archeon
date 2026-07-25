@@ -7,7 +7,6 @@ import { ARCHWAY_WIDTH, ARCHWAY_HEIGHT, ROOM_CONFIGS } from "@/data/roomConfig";
 import type { Artifact, ZoneId } from "@/types/artifact";
 import { ArtifactMesh } from "@/components/artifacts/ArtifactMesh";
 import { Dwarapala } from "@/components/artifacts/Dwarapala";
-import { Pillar } from "@/components/architecture/Pillar";
 import { HangingLamp } from "@/components/architecture/HangingLamp";
 import { HangingBanner } from "@/components/architecture/HangingBanner";
 import { HallColonnade, HallBenches, type ColonnadeExclusion } from "@/components/architecture/HallEdgeDecor";
@@ -23,15 +22,6 @@ import { useIsOverlayActive } from "@/hooks/useIsOverlayActive";
 
 const WALL_THICKNESS = 0.3;
 const WOOD_COLOR = "#7A5230";
-// Hero-framing pillar geometry (see the heroFocus block below) — kept as
-// named constants because placementValidator.ts mirrors this exact formula
-// and must stay in lockstep.
-const HERO_FRAME_FORWARD = 1.6;
-const HERO_FRAME_PERP = 1.8;
-// Above this distance from the nearest perimeter wall, a hero-framing pillar
-// pair no longer reads as "framing a wall-staged hero" — it reads as two
-// stray columns in open floor. See distanceToNearestWall's call site below.
-const HERO_FRAME_MAX_WALL_DIST = 5;
 
 interface RoomShellProps {
   room: RoomConfig;
@@ -129,20 +119,6 @@ function nearestWallFor(
   return { axis: "z", coord: bounds.maxZ - 0.15, faceSign: -1 };
 }
 
-/** Raw distance from a point to the nearest perimeter wall — used to decide
- * whether a candidate "hero-framing" pillar pair actually reads as framing
- * (close to the wall the hero itself is staged against) or as two stray
- * columns floating in open floor (single-zone halls, where "between zone
- * center and hero" can land further from any wall than the hero itself). */
-function distanceToNearestWall(point: { x: number; z: number }, bounds: RoomBounds): number {
-  return Math.min(
-    point.x - bounds.minX,
-    bounds.maxX - point.x,
-    point.z - bounds.minZ,
-    bounds.maxZ - point.z
-  );
-}
-
 /**
  * Wood-framed batik backdrop planted directly behind a zone's hero artifact
  * (spec section 2b "latar/backdrop kontras" + section 1 "terminating vista"
@@ -181,6 +157,53 @@ function HeroBackdrop({
       <mesh position={facePos}>
         <boxGeometry args={faceArgs} />
         <meshStandardMaterial map={texture} emissive={accent} emissiveIntensity={0.1} roughness={0.55} />
+      </mesh>
+    </group>
+  );
+}
+
+/**
+ * Dedicated highest-tier staging for the museum's signature piece, Garudeya
+ * Emas (spec Fase 3) — separate from the generic per-zone hero staging so it
+ * reads as the single most important object in the museum, not just another
+ * zone hero. A brass-framed DARK backdrop (indigo, not the bright batik panel
+ * heroes get) so the small gold object pops sharply against it, plus a
+ * two-ring floor medallion marking the spot as special even before you see the
+ * object. The eye-level vitrine + warm spotlight themselves live in
+ * ArtifactMesh's Garudeya showcase (keyed on its id). No floor-level pillars or
+ * banners in front — the sightline to it is kept deliberately clear.
+ */
+function GarudeyaStage({ pos, bounds }: { pos: { x: number; z: number }; bounds: RoomBounds }) {
+  const wall = nearestWallFor(pos, bounds);
+  const along = wall.axis === "x" ? pos.z : pos.x;
+  const width = 3.4;
+  const height = 4.6;
+  const centerY = 0.3 + height / 2;
+  const framePos: [number, number, number] = wall.axis === "x" ? [wall.coord, centerY, along] : [along, centerY, wall.coord];
+  const facePos: [number, number, number] =
+    wall.axis === "x" ? [wall.coord + wall.faceSign * 0.08, centerY, along] : [along, centerY, wall.coord + wall.faceSign * 0.08];
+  const frameArgs: [number, number, number] = wall.axis === "x" ? [0.16, height, width] : [width, height, 0.16];
+  const faceArgs: [number, number, number] =
+    wall.axis === "x" ? [0.03, height - 0.4, width - 0.4] : [width - 0.4, height - 0.4, 0.03];
+  return (
+    <group>
+      <mesh position={framePos} receiveShadow>
+        <boxGeometry args={frameArgs} />
+        <meshStandardMaterial color="#B08D3C" roughness={0.5} metalness={0.45} />
+      </mesh>
+      <mesh position={facePos}>
+        <boxGeometry args={faceArgs} />
+        <meshStandardMaterial color="#22335c" roughness={0.65} />
+      </mesh>
+      {/* Floor medallion — brass outer ring + indigo inner ring, ~2.15m radius,
+          reinforcing the 2-2.5m clear pocket the layout keeps around it. */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[pos.x, 0.02, pos.z]}>
+        <ringGeometry args={[1.7, 2.15, 48]} />
+        <meshStandardMaterial color="#B08D3C" roughness={0.5} metalness={0.5} transparent opacity={0.85} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[pos.x, 0.015, pos.z]}>
+        <ringGeometry args={[1.2, 1.5, 48]} />
+        <meshStandardMaterial color="#2E4A7D" roughness={0.7} transparent opacity={0.5} />
       </mesh>
     </group>
   );
@@ -301,6 +324,12 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
     for (const artifact of artifacts) {
       if (artifact.display_mode === "niche") {
         const r = objectFootprintRadius(artifact) ?? FOOTPRINT.artifactNiche;
+        points.push({ x: artifact.koordinat_ruangan.x, z: artifact.koordinat_ruangan.z, dist: r + 1.0 });
+      }
+      // Signature piece (Garudeya) needs the most colonnade-free clearance of
+      // anything — it isn't a zone heroFocus, so exclude it explicitly.
+      if (artifact.display_tier === "signature") {
+        const r = Math.max(FOOTPRINT.artifactSignature, objectFootprintRadius(artifact) ?? 0);
         points.push({ x: artifact.koordinat_ruangan.x, z: artifact.koordinat_ruangan.z, dist: r + 1.0 });
       }
     }
@@ -462,42 +491,18 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
         <Environment preset="apartment" environmentIntensity={graphicsPreset.environmentIntensity} />
       )}
 
-      {/* Hero-framing pillar pairs — a slender, intimate pair planted between
-          each zone's center and its hero artifact (ZoneConfig.heroFocus), so
-          the hero reads as deliberately framed/staged rather than another
-          grid item (spec section 1 "berpasangan simetris membingkai hero" +
-          2c "framed reveal"). Only rendered when the resulting frame point
-          actually lands near the wall the hero itself is staged against
-          (<= HERO_FRAME_MAX_WALL_DIST) — otherwise "between zone center and
-          hero" can land further from any wall than the hero itself (this
-          happens in single-zone halls, where the center-to-hero line runs
-          straight down the middle of the room), which reads as two stray
-          columns rather than a frame. A former "threshold pillar" pair that
-          used to sit between adjacent zone centers has been removed outright
-          for the same reason — it never framed anything and sat 6-12m from
-          any wall, squarely in the open floor (see HangingBanner markers
-          added in its place instead). */}
-      {room.zones.map((zone) => {
-        if (!zone.heroFocus) return null;
-        const dx = zone.heroFocus.x - zone.center.x;
-        const dz = zone.heroFocus.z - zone.center.z;
-        const len = Math.hypot(dx, dz) || 1;
-        const ux = dx / len;
-        const uz = dz / len;
-        // Frame point sits 1.5m back from the hero toward the zone center —
-        // between the approaching visitor and the piece itself.
-        const frameX = zone.heroFocus.x - ux * HERO_FRAME_FORWARD;
-        const frameZ = zone.heroFocus.z - uz * HERO_FRAME_FORWARD;
-        if (distanceToNearestWall({ x: frameX, z: frameZ }, room.bounds) > HERO_FRAME_MAX_WALL_DIST) return null;
-        const perpX = -uz * HERO_FRAME_PERP;
-        const perpZ = ux * HERO_FRAME_PERP;
-        return (
-          <group key={`hero-frame-${zone.id}`}>
-            <Pillar height={3} radius={0.24} style="candi" accentColor={zone.accent} position={[frameX + perpX, 0, frameZ + perpZ]} />
-            <Pillar height={3} radius={0.24} style="candi" accentColor={zone.accent} position={[frameX - perpX, 0, frameZ - perpZ]} />
-          </group>
-        );
-      })}
+      {/* Garudeya Emas signature staging (spec Fase 3): dark backdrop + floor
+          medallion around the museum's most important piece. The former
+          "hero-framing candi pillar pairs" were removed here — two 3m columns
+          planted 1.6m in front of each zone hero were exactly the floor-level
+          obstruction the redesign brief flagged (they buried the tiny gold
+          Garudeya in its old corner). Heroes now read via their own spotlight
+          + wall backdrop (below) and generous negative space instead of
+          framing pillars in the sightline. */}
+      {(() => {
+        const g = artifacts.find((a) => a.id === "r2-garudeya-emas");
+        return g ? <GarudeyaStage pos={{ x: g.koordinat_ruangan.x, z: g.koordinat_ruangan.z }} bounds={room.bounds} /> : null;
+      })()}
 
       {/* Hero backdrop panels — one per zone hero, planted against whichever
           perimeter wall the hero actually sits nearest to. */}
@@ -556,29 +561,6 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
             />
           );
         })}
-      {room.zones.map((zone) => {
-        if (!zone.heroFocus) return null;
-        // Must match the hero-frame pillar formula above.
-        const dx = zone.heroFocus.x - zone.center.x;
-        const dz = zone.heroFocus.z - zone.center.z;
-        const len = Math.hypot(dx, dz) || 1;
-        const ux = dx / len;
-        const uz = dz / len;
-        const frameX = zone.heroFocus.x - ux * HERO_FRAME_FORWARD;
-        const frameZ = zone.heroFocus.z - uz * HERO_FRAME_FORWARD;
-        if (distanceToNearestWall({ x: frameX, z: frameZ }, room.bounds) <= HERO_FRAME_MAX_WALL_DIST) return null;
-        return (
-          <HangingBanner
-            key={`hero-approach-banner-${zone.id}`}
-            width={1.8}
-            height={2.4}
-            style="parang"
-            color1="#EDE0C4"
-            color2={zone.accent}
-            position={[frameX, wallHeight - 1.8, frameZ]}
-          />
-        );
-      })}
 
       {/* Bulk edge decor — instanced, so the count doesn't cost extra draw calls */}
       <HallColonnade room={room} exclude={colonnadeExclusions} />
@@ -608,9 +590,9 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
           // wall (see placementValidator.ts, kept in sync) rather than the
           // old formula-derived spots that now clip the new artifact layout.
           const stoneClusters = [
-            { x: -11.05, z: -1.74 },
-            { x: -12.5, z: -2.74 },
-            { x: -12.68, z: -0.12 },
+            { x: -11.4, z: -6.5 },
+            { x: -11.4, z: -3.6 },
+            { x: -11.3, z: -1.6 },
           ];
           stoneClusters.forEach((pos, i) => {
             elements.push(

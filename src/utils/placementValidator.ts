@@ -98,9 +98,6 @@ export function validatePlacement(roomLabel: string, objects: PlacedObject[]): v
  */
 export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): PlacedObject[] {
   const { minX, maxX, minZ, maxZ } = room.bounds;
-  const centerX = (minX + maxX) / 2;
-  const centerZ = (minZ + maxZ) / 2;
-  const depth = maxZ - minZ;
   const objects: PlacedObject[] = [];
 
   for (const artifact of artifacts) {
@@ -117,29 +114,11 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
   // pohon/pot tanaman sebagai filler generik tanpa nilai. Nothing to place or
   // exclude for them anymore.
 
-  // Hero-framing pillar pairs (RoomShell.tsx) — a former "threshold pillar"
-  // pair between adjacent zone centers used to be mirrored here too, but it
-  // was removed outright from RoomShell.tsx (never framed anything, sat
-  // 6-12m from any wall in open floor). Must match HERO_FRAME_FORWARD/
-  // HERO_FRAME_PERP/HERO_FRAME_MAX_WALL_DIST in RoomShell.tsx.
-  const heroFramePoints: Array<{ x: number; z: number }> = [];
-  for (const zone of room.zones) {
-    if (!zone.heroFocus) continue;
-    const dx = zone.heroFocus.x - zone.center.x;
-    const dz = zone.heroFocus.z - zone.center.z;
-    const len = Math.hypot(dx, dz) || 1;
-    const ux = dx / len;
-    const uz = dz / len;
-    const frameX = zone.heroFocus.x - ux * 1.6;
-    const frameZ = zone.heroFocus.z - uz * 1.6;
-    const wallDist = Math.min(frameX - minX, maxX - frameX, frameZ - minZ, maxZ - frameZ);
-    if (wallDist > 5) continue;
-    heroFramePoints.push({ x: zone.heroFocus.x, z: zone.heroFocus.z });
-    const perpX = -uz * 1.8;
-    const perpZ = ux * 1.8;
-    objects.push({ id: `decor-hero-frame-${zone.id}-a`, x: frameX + perpX, z: frameZ + perpZ, radius: FOOTPRINT.pillar });
-    objects.push({ id: `decor-hero-frame-${zone.id}-b`, x: frameX - perpX, z: frameZ - perpZ, radius: FOOTPRINT.pillar });
-  }
+  // Hero-framing pillar pairs used to be rendered here (and mirrored) but were
+  // removed from RoomShell.tsx — two 3m columns planted in front of each zone
+  // hero were the floor-level obstruction the redesign flagged (they buried
+  // Garudeya). Heroes now stage via spotlight + wall backdrop + negative space
+  // only, so there is nothing to place here anymore.
 
   // Zone signboard posts (ZoneSignboard.tsx)
   for (const zone of room.zones) {
@@ -155,13 +134,19 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
   // HallColonnade pillars (HallEdgeDecor.tsx) — skips any slot too close to
   // a zone's hero/signature focus or a wall-flush niche piece (mirrors
   // RoomShell's colonnadeExclusions).
+  // Mirrors RoomShell's colonnadeExclusions: skip a colonnade slot near any
+  // zone heroFocus (2.3) or a wall-flush niche piece, plus the signature piece
+  // (Garudeya) which needs the widest colonnade-free clearance.
+  const heroExclusions = room.zones
+    .filter((z) => z.heroFocus)
+    .map((z) => ({ x: z.heroFocus!.x, z: z.heroFocus!.z, dist: 2.3 }));
   const nicheExclusions = artifacts
     .filter((a) => a.display_mode === "niche")
     .map((a) => ({ x: a.koordinat_ruangan.x, z: a.koordinat_ruangan.z, dist: footprintForArtifact(a) + 1.0 }));
-  const colonnadeExclusions = [
-    ...heroFramePoints.map((h) => ({ x: h.x, z: h.z, dist: 2.3 })),
-    ...nicheExclusions,
-  ];
+  const signatureExclusions = artifacts
+    .filter((a) => a.display_tier === "signature")
+    .map((a) => ({ x: a.koordinat_ruangan.x, z: a.koordinat_ruangan.z, dist: footprintForArtifact(a) + 1.0 }));
+  const colonnadeExclusions = [...heroExclusions, ...nicheExclusions, ...signatureExclusions];
   const PILLAR_SPACING = 4.5;
   const PILLAR_INSET = 1.4;
   let ci = 0;
@@ -197,9 +182,9 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
   const prasejarah = room.zones.find((z) => z.id === "prasejarah");
   if (prasejarah) {
     [
-      [-11.05, -1.74],
-      [-12.5, -2.74],
-      [-12.68, -0.12],
+      [-11.4, -6.5],
+      [-11.4, -3.6],
+      [-11.3, -1.6],
     ].forEach(([x, z], i) => objects.push({ id: `decor-stone-cluster-${i}`, x, z, radius: FOOTPRINT.stoneCluster }));
   }
 

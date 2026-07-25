@@ -7,7 +7,7 @@ import { fetchArtifactsByRoom, hasRealModel } from "@/data/artifactRepository";
 import type { Artifact } from "@/types/artifact";
 import { PlayerRig } from "./PlayerRig";
 import { Hall } from "./rooms/Hall";
-import { useAmbience } from "@/hooks/useAmbience";
+import { useSoundtrack } from "@/hooks/useSoundtrack";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
 import { useAdjacentHallPreload } from "@/hooks/useAdjacentHallPreload";
@@ -78,7 +78,9 @@ export function MuseumExperience() {
   const [dataReady, setDataReady] = useState(false);
 
   useDeviceDetection();
-  useAmbience(renderedRoom);
+  // One continuous background soundtrack for the whole visit — plays looped and
+  // uninterrupted across hall changes (unlike the per-hall useAmbience).
+  useSoundtrack();
 
   // Real loading progress (spec 4a.3: "loading screen dengan progress
   // nyata") — drei's useProgress tracks THREE.DefaultLoadingManager, i.e.

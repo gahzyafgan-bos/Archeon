@@ -312,9 +312,11 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
             </mesh>
           ))}
 
-          {/* Garudeya spotlight (adjusted for brighter base) */}
+          {/* Garudeya spotlight (adjusted for brighter base). Y kept below the
+              hall's 6m ceiling now that the vitrine sits at eye level (pedestal
+              1.4) — group is already at pedestalH, so +4 lands at ~5.4m world. */}
           <spotLight
-            position={[0, 6, 0]}
+            position={[0, 4, 0]}
             angle={0.25}
             penumbra={0.5}
             intensity={50}

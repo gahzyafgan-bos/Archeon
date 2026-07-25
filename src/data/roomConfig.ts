@@ -70,90 +70,93 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
   "hall-1": {
     id: "hall-1",
     name: "Aula Nusantara Kuno",
-    // Right-sized from the original 40x24 (bounds: { minX: -20, maxX: 20,
-    // minZ: -12, maxZ: 12 }) down to 30x18 — a uniform 0.75 scale of the
-    // floor footprint, spec section 1/2a: the old room was big enough that
-    // (a) every zone read as far apart with an empty middle and (b) more
-    // floor/objects sat in the render frustum than needed on mobile.
-    // Ceiling height is NOT scaled down with it (see ceilingHeight below) —
-    // rapat di lantai, tinggi di atas, so it still reads as grande.
-    bounds: { minX: -15, maxX: 15, minZ: -9, maxZ: 9 },
-    ceilingHeight: 6.5,
+    // Right-sized again from 30x18 down to 24x15 (audit: only 9 renderable
+    // artifacts across 3 zones -> ~60 m2/objek, 3-4x too sparse for a gallery
+    // read). 24x15 brings it to ~40 m2/objek while still leaving Garudeya its
+    // >=2.5m clear vitrine pocket, each arca its 1.5m breathing room, a >=2m
+    // circulation spine, and the welcome orientation buffer. Ceiling stays
+    // tall relative to the smaller floor (rapat di lantai, tinggi di atas);
+    // >=5m keeps Surya Stambha (2.15m + pedestal) from feeling boxed in.
+    bounds: { minX: -12, maxX: 12, minZ: -7.5, maxZ: 7.5 },
+    ceilingHeight: 6,
     // The prompt's own example spawn used facingY: Math.PI with a comment
     // saying "facing into the hall" — but PlayerRig's forward vector at
     // yaw=Math.PI actually points toward +Z (out of the hall, since zones
     // sit at z<=8 relative to spawn z=10). Using facingY: 0 instead so the
     // player actually faces into the hall on arrival, matching the old
     // (working) lobby spawn convention.
-    spawn: { x: 0, z: 7.5, facingY: 0 },
+    spawn: { x: 0, z: 6, facingY: 0 },
     wallColor: "#F2E9D8",
     floorColor: "#E4D5B7",
     accentColor: "#B08D3C",
     doors: [
       {
-        position: { x: 0, z: -8.5 },
-        radius: 3.2,
+        position: { x: 0, z: -7 },
+        radius: 2.5,
         targetRoom: "hall-2",
-        // Must land clearly outside Hall 2's own return-door trigger (below,
-        // now radius 3.2 around z=7.5 after Hall 2's right-size) or the
-        // player bounces straight back the instant its cooldown clears —
-        // z=3.5 keeps a comfortable margin.
-        targetSpawn: { x: 0, z: 3.5, facingY: 0 },
+        // Land near Hall 2's entrance but clear of its own return-door
+        // trigger (radius 2.3 around z=5.6 after Hall 2's right-size) — z=3.0
+        // keeps a comfortable margin so the player doesn't bounce straight back.
+        targetSpawn: { x: 0, z: 3.0, facingY: 0 },
         label: "Aula Transisi & IPTEK",
       },
     ],
     zones: [
-      { id: "welcome", label: "Selamat Datang", center: { x: 0, z: 6 }, accent: "#B08D3C", pathOrder: 0, radius: 4.5 },
+      { id: "welcome", label: "Selamat Datang", center: { x: 0, z: 5.2 }, accent: "#B08D3C", pathOrder: 0, radius: 3.5 },
       {
         id: "prasejarah",
         label: "Koleksi Prasejarah",
-        center: { x: -9, z: -3 },
+        center: { x: -6.5, z: -2 },
         accent: "#C56A3A",
         pathOrder: 1,
-        radius: 6.75,
-        heroFocus: { x: -11.2, z: -6.7 },
+        radius: 5.2,
+        // Manusia-purba terminating vista (the configured Pithecanthropus hero
+        // has no .glb, so the visible hero is manusia-purba at this spot).
+        heroFocus: { x: -9.5, z: -5 },
       },
       {
         id: "hindu-buddha",
         label: "Galeri Hindu-Buddha",
-        center: { x: 9, z: -3 },
+        center: { x: 6.5, z: -2 },
         accent: "#2E4A7D",
         pathOrder: 2,
-        radius: 6.75,
-        heroFocus: { x: 12.3, z: -5.7 },
+        radius: 5.2,
+        // Zone hero = Arca Durga (promoted to hero tier); Garudeya Emas is
+        // staged separately as the museum-wide signature piece (see RoomShell
+        // GarudeyaStage + ArtifactMesh showcase), so it is NOT the zone
+        // heroFocus — that keeps the generic framing/backdrop off Garudeya.
+        heroFocus: { x: 5.5, z: -4.5 },
       },
     ],
     // Sits on the direct sightline from spawn, between the two side zones —
     // previously an empty aisle leading to a bare back wall (spec section
     // 3: "titik tengah kosong... mata tidak punya tujuan"). See RoomShell's
     // CenterInstallation.
-    centerFocus: { x: 0, z: -5.5 },
+    centerFocus: { x: 0, z: -3 },
   },
   "hall-2": {
     id: "hall-2",
     name: "Aula Transisi & IPTEK",
-    // Right-sized from 32x24 down to 22x16 (~0.69x/0.67x) — Hall 2 only
-    // ever holds one zone, so it can be packed more aggressively than
-    // Hall 1's multi-zone layout (spec section 2a). Ceiling kept tall
-    // relative to the smaller footprint for the same "rapat di lantai,
-    // tinggi di atas" reason as Hall 1.
-    bounds: { minX: -11, maxX: 11, minZ: -8, maxZ: 8 },
-    ceilingHeight: 6,
-    spawn: { x: 0, z: 3.5, facingY: 0 },
+    // Right-sized again from 22x16 down to 18x12 (audit: 4 renderable
+    // artifacts -> ~88 m2/objek, the sparsest hall). Single-zone, so it can be
+    // packed tighter than Hall 1; 18x12 still fits the Sepeda Motor Uap hero as
+    // a terminating vista + the asymmetric daily-life cluster + a >=2m walkway.
+    // Ceiling 5.5 keeps >=5m headroom.
+    bounds: { minX: -9, maxX: 9, minZ: -6, maxZ: 6 },
+    ceilingHeight: 5.5,
+    spawn: { x: 0, z: 3.0, facingY: 0 },
     wallColor: "#F2E9D8",
     floorColor: "#E4D5B7",
     accentColor: "#1F7A6E",
     doors: [
       {
-        position: { x: 0, z: 7.5 },
-        radius: 3.2,
+        position: { x: 0, z: 5.6 },
+        radius: 2.3,
         targetRoom: "hall-1",
-        // Same margin fix as Hall 1's door above — must clear Hall 1's own
-        // archway trigger (radius 3.2 around z=-8.5) or the player bounces
-        // straight back the instant its cooldown clears; z=-4.5 keeps
-        // >3.2 units of margin and lands the arriving player in Hall 1's
-        // own center aisle, right by centerFocus.
-        targetSpawn: { x: 0, z: -4.5, facingY: Math.PI },
+        // Land clear of Hall 1's own archway trigger (radius 2.5 around
+        // z=-7) — z=-4.0 keeps >3 units of margin and drops the arriving
+        // player in Hall 1's center aisle, right by centerFocus.
+        targetSpawn: { x: 0, z: -4.0, facingY: Math.PI },
         label: "Kembali ke Aula Nusantara Kuno",
       },
     ],
@@ -161,11 +164,11 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
       {
         id: "transisi-iptek",
         label: "Transisi ke IPTEK",
-        center: { x: 0, z: -1 },
+        center: { x: 0, z: -0.4 },
         accent: "#1F7A6E",
         pathOrder: 3,
-        radius: 7,
-        heroFocus: { x: 0, z: -5.33 },
+        radius: 6,
+        heroFocus: { x: 0, z: -4.3 },
       },
     ],
   },
