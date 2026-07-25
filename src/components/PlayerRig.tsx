@@ -91,6 +91,7 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
   const lookInput = useMuseumStore((s) => s.lookInput);
   const isVRMode = useMuseumStore((s) => s.isVRMode);
   const vrLook = useMuseumStore((s) => s.vrLook);
+  const vrLookOffset = useMuseumStore((s) => s.vrLookOffset);
   const isMovementLocked = useMuseumStore((s) => s.isMovementLocked);
   const setNearbyArtifact = useMuseumStore((s) => s.setNearbyArtifact);
   const nearbyArtifactId = useMuseumStore((s) => s.nearbyArtifact?.id);
@@ -180,10 +181,13 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
     if (isVRMode) {
       // VR Cardboard mode: look direction comes straight from the phone's
       // gyroscope (useDeviceOrientationLook), already smoothed/recentered —
-      // bypass the joystick/mouse integration below entirely. Keep yaw/pitch
+      // bypass the joystick/mouse integration below entirely. The gamepad
+      // right stick may add an extra yaw/pitch offset on top (vrLookOffset)
+      // for players who can't physically swivel; it's zero unless the stick
+      // is used, so head-look stays authoritative by default. Keep yaw/pitch
       // refs in sync so control falls back smoothly if VR mode is toggled off.
-      yaw.current = vrLook.yaw;
-      pitch.current = vrLook.pitch;
+      yaw.current = vrLook.yaw + vrLookOffset.yaw;
+      pitch.current = Math.max(-1.1, Math.min(1.1, vrLook.pitch + vrLookOffset.pitch));
       targetYaw.current = yaw.current;
       targetPitch.current = pitch.current;
     } else {

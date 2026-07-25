@@ -141,6 +141,14 @@ interface MuseumState {
   /** Absolute look rotation (radians) derived from the phone's gyroscope, consumed by PlayerRig instead of lookInput while isVRMode is true. */
   vrLook: { yaw: number; pitch: number };
   setVRLook: (v: { yaw: number; pitch: number }) => void;
+  /**
+   * Extra yaw/pitch (radians) the gamepad right stick accumulates on top of
+   * the gyro's absolute vrLook while in VR mode — lets the pad turn the view
+   * for players who can't physically swivel, without overwriting the gyro.
+   * Reset to zero on recenter / VR toggle. Transient (not persisted).
+   */
+  vrLookOffset: { yaw: number; pitch: number };
+  setVRLookOffset: (v: { yaw: number; pitch: number }) => void;
   /** Bumped by useGamepadControls' recenter button; useDeviceOrientationLook watches it to re-baseline "facing forward". */
   vrRecenterSignal: number;
   requestVRRecenter: () => void;
@@ -233,6 +241,8 @@ export const useMuseumStore = create<MuseumState>()(
       setVRMode: (v) => set({ isVRMode: v }),
       vrLook: { yaw: 0, pitch: 0 },
       setVRLook: (v) => set({ vrLook: v }),
+      vrLookOffset: { yaw: 0, pitch: 0 },
+      setVRLookOffset: (v) => set({ vrLookOffset: v }),
       vrRecenterSignal: 0,
       requestVRRecenter: () => set((state) => ({ vrRecenterSignal: state.vrRecenterSignal + 1 })),
       isGamepadConnected: false,
