@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { useFullscreen } from "@/hooks/useFullscreen";
+import { CreditLine } from "./CreditLine";
 
 export function OnboardingFlow() {
   const hasCompletedOnboarding = useMuseumStore((s) => s.hasCompletedOnboarding);
@@ -92,7 +93,8 @@ export function OnboardingFlow() {
            of the fixed nav zones fit without pushing slide content into scroll. */
         @media (max-height: 500px) and (orientation: landscape) {
           .onboarding-header-row { height: 2.25rem !important; padding-top: 0.5rem !important; }
-          .onboarding-footer-row { padding-top: 0.5rem !important; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem) !important; }
+          .onboarding-footer-row { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+          .onboarding-credit-row { padding-top: 0.35rem !important; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.4rem) !important; }
           .onboarding-slide h2 { font-size: clamp(1.05rem, 4vw, 1.4rem) !important; margin-bottom: 0.5rem !important; }
           .onboarding-slide p { margin-bottom: 0.5rem !important; }
         }
@@ -342,7 +344,7 @@ export function OnboardingFlow() {
             don't overlap "Mulai Jelajahi". */}
         <div
           className="onboarding-footer-row flex-shrink-0 px-6 pt-4 bg-museum-charcoal/50 border-t border-white/5 flex items-center justify-between z-20"
-          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }}
+          style={{ paddingBottom: "1rem" }}
         >
           {/* Back button */}
           <button
@@ -387,6 +389,17 @@ export function OnboardingFlow() {
               </span>
             )}
           </div>
+        </div>
+
+        {/* Credit strip. Separated by a hairline and set smaller/dimmer than
+            the body text so it is present without competing with the museum's
+            name on slide 1. The footer above gave up its safe-area padding to
+            this row, so the total reserved space is unchanged. */}
+        <div
+          className="onboarding-credit-row flex-shrink-0 px-6 pt-2.5 border-t border-white/5 bg-museum-charcoal/50 z-20"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
+        >
+          <CreditLine logoSize={16} />
         </div>
       </div>
     </div>

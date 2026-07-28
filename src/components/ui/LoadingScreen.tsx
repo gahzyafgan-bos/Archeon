@@ -1,4 +1,5 @@
 import { useMuseumStore } from "@/store/useMuseumStore";
+import { CreditLine } from "./CreditLine";
 
 export function LoadingScreen() {
   const isLoading = useMuseumStore((s) => s.isLoading);
@@ -33,6 +34,13 @@ export function LoadingScreen() {
           </div>
         </div>
       </div>
+
+      {/* Credit sits at the foot of the screen, where a waiting visitor's eye
+          has somewhere to land, and well clear of the museum's own name. */}
+      <CreditLine
+        className="absolute inset-x-0 animate-fade-in"
+        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
+      />
     </div>
   );
 }

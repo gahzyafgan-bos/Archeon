@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { vrLookSource } from "@/hooks/useDeviceOrientationLook";
+import { GREETER_COLLIDER_RADIUS, getGreetersForRoom } from "@/data/greeters";
 import type { RoomConfig } from "@/data/roomConfig";
 import type { Artifact } from "@/types/artifact";
 import { objectFootprintRadius } from "@/utils/artifactSize";
@@ -158,6 +159,19 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
         };
       }),
     [artifacts]
+  );
+
+  // The welcome-zone greeters are people, not artifacts, so they carry no
+  // proximity/`E` trigger — only a plain capsule so a visitor can't walk
+  // through someone. Same precomputed shape as `colliders`; they never move.
+  const greeterColliders = useMemo(
+    () =>
+      getGreetersForRoom(room.id).map((greeter) => ({
+        x: greeter.position[0],
+        z: greeter.position[2],
+        collisionRadius: GREETER_COLLIDER_RADIUS,
+      })),
+    [room.id]
   );
 
   // `moveInput` / `lookInput` / `vrLookOffset` are deliberately NOT subscribed
@@ -489,6 +503,22 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
           const angle = Math.atan2(dz, dx);
           nextX = c.x + Math.cos(angle) * minDist;
           nextZ = c.z + Math.sin(angle) * minDist;
+        }
+      }
+
+      // 3. Collision with the welcome-zone greeters — same slide-around
+      // response, kept as its own loop (rather than one merged array built
+      // per frame) so nothing is allocated here.
+      for (const g of greeterColliders) {
+        const dx = nextX - g.x;
+        const dz = nextZ - g.z;
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        const minDist = PLAYER_RADIUS + g.collisionRadius;
+
+        if (distance < minDist) {
+          const angle = Math.atan2(dz, dx);
+          nextX = g.x + Math.cos(angle) * minDist;
+          nextZ = g.z + Math.sin(angle) * minDist;
         }
       }
 

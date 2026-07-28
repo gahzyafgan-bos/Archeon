@@ -1,9 +1,13 @@
 import React, { useState } from "react";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { GRAPHICS_QUALITY_LABELS, type GraphicsQuality } from "@/utils/graphicsPresets";
+import { APP_NAME, APP_TAGLINE, APP_VERSION, MUSEUM_NAME, TEAM_NAME } from "@/constants/credits";
+import { CreditLine } from "./CreditLine";
 
 export function SettingsPanel() {
-  const [activeTab, setActiveTab] = useState<"controls" | "audio" | "visual" | "vr">("controls");
+  const [activeTab, setActiveTab] = useState<"controls" | "audio" | "visual" | "vr" | "about">(
+    "controls"
+  );
   const isSettingsOpen = useMuseumStore((s) => s.isSettingsOpen);
   const setIsSettingsOpen = useMuseumStore((s) => s.setIsSettingsOpen);
   const settings = useMuseumStore((s) => s.settings);
@@ -49,7 +53,10 @@ export function SettingsPanel() {
 
         {/* Scrollable middle: tabs + tab content */}
         <div className="museum-scroll-fade flex-1 min-h-0 overflow-y-auto museum-scroll px-6 pb-6">
-          <div className="mb-6 flex gap-2 border-b border-white/10 pb-4">
+          {/* flex-wrap: with "Tentang" added this row no longer fits on one
+              line on a narrow phone — wrapping is preferable to shrinking the
+              hit targets. */}
+          <div className="mb-6 flex flex-wrap gap-2 border-b border-white/10 pb-4">
             <button
               onClick={() => setActiveTab("controls")}
               className={`px-4 py-2 rounded-full transition-all ${
@@ -89,6 +96,16 @@ export function SettingsPanel() {
               }`}
             >
               Mode VR
+            </button>
+            <button
+              onClick={() => setActiveTab("about")}
+              className={`px-4 py-2 rounded-full transition-all ${
+                activeTab === "about"
+                  ? "bg-museum-gold/20 text-museum-gold border border-museum-gold/50"
+                  : "text-museum-mist hover:text-museum-bone"
+              }`}
+            >
+              Tentang
             </button>
           </div>
 
@@ -482,6 +499,34 @@ export function SettingsPanel() {
                   Naikkan K1/K2 kalau tepi gambar masih terlihat melengkung lewat lensa; turunkan
                   kalau tengah gambar terasa "ditarik" atau terlalu banyak area hitam di tepi.
                 </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "about" && (
+            <div className="space-y-5">
+              <div>
+                <h3 className="font-display text-xl text-museum-bone">{APP_NAME}</h3>
+                <p className="text-museum-mist text-sm leading-relaxed mt-2">{APP_TAGLINE}</p>
+              </div>
+
+              <div className="border-t border-white/10 pt-4 space-y-2 text-sm">
+                <div className="flex justify-between gap-4">
+                  <span className="text-museum-mist">Museum</span>
+                  <span className="text-museum-bone text-right">{MUSEUM_NAME}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-museum-mist">Dikembangkan oleh</span>
+                  <span className="text-museum-bone text-right">{TEAM_NAME}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-museum-mist">Versi aplikasi</span>
+                  <span className="text-museum-bone text-right">{APP_VERSION}</span>
+                </div>
+              </div>
+
+              <div className="border-t border-white/10 pt-4">
+                <CreditLine logoSize={18} />
               </div>
             </div>
           )}
