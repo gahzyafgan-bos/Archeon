@@ -69,4 +69,21 @@ export interface Artifact {
    * `.glb` model scale to (1 unit = 1 meter convention). Optional — artifacts
    * without it fall back to the old fixed per-shape placeholder size. */
   real_world_size?: { width: number; height: number; depth: number };
+  /**
+   * Base surface appearance for a `.glb` that ships with NO textures at all.
+   *
+   * A few models in `public/models/` are bare geometry exports: no images, one
+   * material, `baseColorFactor` left at glTF's default 0.8 grey. Nothing in the
+   * app turns those white — they were authored that way, and the result reads
+   * as an unpainted mock-up rather than a museum object. This lets the data
+   * give such a model a plausible base colour until a properly textured export
+   * replaces it.
+   *
+   * Deliberately opt-in per artifact and stored in the data, not the component:
+   * it is an authoring decision about one asset, and it should disappear by
+   * deleting a field the day a real texture arrives. Artifacts whose model has
+   * its own textures must NOT set this — it would overwrite them.
+   * See docs/artefak-butuh-verifikasi-kurator.md.
+   */
+  material_override?: { color: string; metalness?: number; roughness?: number };
 }

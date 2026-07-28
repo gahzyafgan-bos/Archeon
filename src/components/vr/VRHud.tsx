@@ -20,12 +20,11 @@ function EyeOverlay() {
         <p>D-pad ◀ ▶ = jarak lensa {lensSeparationMm}mm</p>
       </div>
 
-      {focusedArtifact ? (
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-center px-3">
-          <p className="text-museum-gold text-[10px] tracking-widest uppercase">{focusedArtifact.nama}</p>
-          <p className="text-museum-mist/80 text-[9px] mt-0.5">Tombol B untuk kembali</p>
-        </div>
-      ) : (
+      {/* Nothing is drawn while an artifact is focused: VRInfoPanel now shows
+          the name and description as geometry inside the scene, where the
+          stereo camera reaches both eyes. Repeating it here would double the
+          text and put one copy across the seam between the viewports. */}
+      {focusedArtifact ? null : (
         nearbyArtifact && (
           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-center px-3 animate-slide-up-fade">
             <p className="text-museum-gold text-[10px] tracking-widest uppercase">Tekan A untuk melihat</p>

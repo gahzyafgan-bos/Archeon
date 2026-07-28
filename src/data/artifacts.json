@@ -2,7 +2,7 @@
   {
     "id": "r1-fosil-pithecanthropus-erectus",
     "nama": "Fosil Tengkorak Pithecanthropus Erectus",
-    "deskripsi": "Replika tengkorak manusia purba yang menjadi salah satu koleksi paling penting Museum Mpu Tantular untuk memahami evolusi manusia di Jawa. Temuan ini menjadi bukti keberadaan manusia purba di wilayah Nusantara sejak jutaan tahun lalu.",
+    "deskripsi": "Replika tengkorak manusia purba dengan atap kepala yang rendah dan memanjang, tonjolan tulang alis tebal yang menyatu di atas kedua rongga mata, serta dahi yang melandai ke belakang tanpa lengkungan menonjol.\n\nPithecanthropus erectus adalah sebutan lama bagi manusia purba berjalan tegak yang fosilnya ditemukan di Jawa; dalam penamaan yang dipakai sekarang, kelompok ini digolongkan sebagai Homo erectus. Tengkorak menjadi bagian yang paling banyak diteliti karena bentuk dan isinya menyimpan petunjuk tentang cara hidup pemiliknya.\n\nAmati tonjolan alis dan garis dahinya, lalu bandingkan dengan tengkorak Homo erectus yang dipajang berdekatan — perbedaan halus di bagian inilah yang dipakai peneliti untuk menyusun tahap-tahap evolusi.",
     "url_model_3d": "",
     "placeholder_shape": "sphere",
     "url_audio": "",
@@ -28,7 +28,7 @@
   {
     "id": "r1-fosil-homo-erectus",
     "nama": "Fosil Tengkorak Homo Erectus",
-    "deskripsi": "Fosil tengkorak Homo erectus yang menunjukkan tahap evolusi manusia purba di Jawa. Temuan ini melengkapi narasi sejarah perkembangan manusia di wilayah Nusantara.",
+    "deskripsi": "Fosil tengkorak Homo erectus dengan tulang yang tebal, atap kepala membulat rendah, dan bagian belakang kepala yang menonjol menyerupai sanggul. Permukaannya gelap dan padat, khas tulang yang telah membatu.\n\nHomo erectus adalah manusia purba berjalan tegak dengan persebaran yang luas, dan Jawa termasuk wilayah tempat fosilnya banyak ditemukan. Ruang otaknya lebih besar dibanding pendahulunya namun masih di bawah manusia masa kini — perubahan yang berjalan sangat perlahan selama ratusan ribu tahun.\n\nPerhatikan ketebalan dinding tengkoraknya. Tulang setebal itu termasuk ciri yang membedakannya dari tengkorak manusia modern yang jauh lebih tipis.",
     "url_model_3d": "",
     "placeholder_shape": "sphere",
     "url_audio": "",
@@ -132,7 +132,7 @@
   {
     "id": "r1-koleksi-batuan",
     "nama": "Koleksi Batuan Prasejarah",
-    "deskripsi": "Koleksi batuan prasejarah yang meliputi obsidian, peridotit, konglomerat, dan fosil kayu. Dijadikan vitrine edukatif untuk memahami geologi dan lingkungan hidup manusia purba.",
+    "deskripsi": "Kumpulan batuan yang mewakili bahan-bahan penting pada masa prasejarah: obsidian yang hitam mengilap, peridotit yang kehijauan, konglomerat dengan butiran kerikil yang menyatu, serta kayu yang telah membatu menjadi fosil.\n\nJenis batuan menentukan apa yang bisa dibuat manusia purba. Obsidian pecah dengan tepi setajam kaca sehingga cocok untuk alat serpih, sementara batuan yang lebih keras dan liat dipilih untuk alat pukul. Fosil kayu memberi petunjuk tentang tumbuhan yang pernah hidup di sekitarnya.\n\nBandingkan permukaan tiap batu dari dekat — kilap, warna, dan kekasarannya berbeda-beda, dan perbedaan itulah yang dulu menentukan kegunaannya.",
     "url_model_3d": "",
     "placeholder_shape": "box",
     "url_audio": "",
@@ -158,7 +158,7 @@
   {
     "id": "r1-kapak-persegi",
     "nama": "Kapak Persegi (Beliung Persegi)",
-    "deskripsi": "[DRAFT] Alat batu Neolitikum berbentuk persegi panjang dengan permukaan yang diasah halus, digunakan untuk menebang kayu dan mengolah tanah. Berbeda dari Kapak Perimbas yang lebih masif dan kasar, Kapak Persegi menandai kemajuan teknik pengasahan batu pada masa bercocok tanam. Deskripsi ini perlu dilengkapi kurator.",
+    "deskripsi": "Alat batu dari masa bercocok tanam dengan penampang persegi panjang dan permukaan yang diasah hingga halus. Salah satu sisinya ditajamkan menjadi mata beliung, sementara pangkalnya dibiarkan lebih tebal agar dapat diikatkan kuat pada gagang kayu.\n\nBeliung semacam ini umumnya dipakai untuk menebang pohon, membelah kayu, dan mengolah tanah — pekerjaan yang menjadi penting ketika manusia mulai menetap dan bertani. Kehadirannya menandai pergeseran besar dari hidup berburu dan meramu menuju bercocok tanam.\n\nBandingkan permukaannya dengan Kapak Perimbas yang dipajang di dekatnya. Perimbas masih kasar berbekas pukulan, sedangkan permukaan beliung ini rata dan mengilap — bukti teknik mengasah batu yang jauh lebih maju.",
     "url_model_3d": "/models/kapak-persegi.glb",
     "placeholder_shape": "box",
     "url_audio": "",
@@ -184,7 +184,7 @@
   {
     "id": "r1-fosil-kepala-buaya",
     "nama": "Fosil Kepala Buaya",
-    "deskripsi": "[DRAFT] Fosil tengkorak kepala buaya purba yang ditemukan di situs prasejarah Jawa Timur, menjadi bukti keberadaan reptil besar di ekosistem purba Nusantara. Deskripsi ini perlu dilengkapi kurator.",
+    "deskripsi": "Fosil tengkorak buaya purba dengan moncong panjang dan deretan rongga gigi yang masih terlihat jelas. Tulangnya telah membatu, berwarna gelap kecokelatan, dan sebagian permukaannya aus termakan waktu.\n\nMoncong yang memanjang dan gigi yang seragam adalah ciri pemangsa perairan. Buaya menangkap mangsanya di sungai, rawa, dan perairan dangkal, sehingga temuan seperti ini membantu menggambarkan ekosistem berair yang pernah ada di Jawa pada masa prasejarah.\n\nPerhatikan letak rongga matanya yang berada di bagian atas kepala — posisi yang memungkinkan hewan ini mengintai permukaan air sementara hampir seluruh tubuhnya tetap terendam.",
     "url_model_3d": "/models/fossil-kepala-buaya.glb",
     "placeholder_shape": "box",
     "url_audio": "",
@@ -210,7 +210,7 @@
   {
     "id": "r1-fosil-kepala-kerbau",
     "nama": "Fosil Kepala Kerbau",
-    "deskripsi": "[DRAFT] Fosil tengkorak kepala kerbau purba yang ditemukan di situs prasejarah Jawa Timur, melengkapi bukti keragaman fauna besar pada masa prasejarah Nusantara. Deskripsi ini perlu dilengkapi kurator.",
+    "deskripsi": "Fosil tengkorak kerbau purba, lengkap dengan pangkal tanduk yang melengkung lebar ke samping. Tulangnya telah membatu dan berwarna gelap, dengan rongga mata serta deretan geraham yang masih dapat dikenali.\n\nKerbau termasuk hewan pemakan rumput bertubuh besar yang hidup di padang terbuka dan daerah berair. Fosil fauna besar seperti ini kerap ditemukan berdekatan dengan jejak manusia purba, dan membantu menggambarkan lingkungan tempat mereka hidup sekaligus hewan apa saja yang mungkin mereka buru.\n\nAmati bentangan pangkal tanduknya dan permukaan gerahamnya yang lebar serta datar — ciri khas hewan yang menghabiskan sebagian besar waktunya mengunyah rumput.",
     "url_model_3d": "/models/fossil-kepala-kerbau.glb",
     "placeholder_shape": "box",
     "url_audio": "",
@@ -236,7 +236,7 @@
   {
     "id": "r1-manusia-purba",
     "nama": "Rekonstruksi Manusia Purba",
-    "deskripsi": "[DRAFT] Rekonstruksi sosok manusia purba berdasarkan temuan fosil di Jawa, menggambarkan postur dan ciri fisik yang membantu pengunjung membayangkan wujud nenek moyang manusia modern di Nusantara. Deskripsi ini perlu dilengkapi kurator.",
+    "deskripsi": "Rekonstruksi sosok manusia purba yang disusun berdasarkan temuan fosil di Jawa. Perawakannya tegap dan pendek, dengan dahi yang melandai, tonjolan tulang alis yang tebal, serta rahang yang lebih maju dibanding manusia masa kini.\n\nRekonstruksi seperti ini dibuat dengan membangun kembali otot dan jaringan lunak di atas bentuk tengkorak yang ditemukan. Hasilnya bukan potret seseorang, melainkan gambaran umum tentang bagaimana kira-kira wujud manusia yang hidup di Jawa jauh sebelum sejarah tertulis dimulai.\n\nBandingkan bentuk kepalanya dengan fosil tengkorak yang dipajang di sekitarnya — dari tulang-tulang itulah proporsi wajah ini disusun.",
     "url_model_3d": "/models/manusia-purba.glb",
     "placeholder_shape": "cylinder",
     "url_audio": "",
@@ -418,7 +418,7 @@
   {
     "id": "r2-nandi",
     "nama": "Nandi",
-    "deskripsi": "Arca Nandi, sapi kendaraan Dewa Siwa. Simbol kesetiaan dan ketaatan, biasanya ditempatkan di dekat arca Siwa di kompleks candi.",
+    "deskripsi": "Arca lembu jantan dalam sikap menderum, keempat kakinya terlipat di bawah tubuh dan kepalanya terangkat menghadap ke depan. Punuk pada bahunya menonjol jelas, ciri lembu yang lazim dijumpai di Asia Selatan dan Asia Tenggara.\n\nDalam kepercayaan Hindu, Nandi adalah kendaraan sekaligus penjaga Dewa Siwa. Arcanya lazim ditempatkan menghadap ke arah tempat pemujaan Siwa, seolah menunggu dengan setia — dari situlah Nandi menjadi lambang kesetiaan dan pengabdian.\n\nPerhatikan arah pandangnya. Pada kompleks candi, ke mana Nandi menghadap adalah petunjuk di mana bilik utama Siwa berada.",
     "url_model_3d": "",
     "placeholder_shape": "cylinder",
     "url_audio": "",
@@ -444,7 +444,7 @@
   {
     "id": "r2-dwarapala-1",
     "nama": "Arca Dwarapala (Kiri)",
-    "deskripsi": "Salah satu sepasang arca penjaga raksasa (dwarapala) yang biasanya ditempatkan di ambang pintu candi atau bangunan suci. Menunjukkan pengaruh budaya Hindu-Buddha dalam arsitektur. Diletakkan di jalur menuju Garudeya Emas, seakan ikut menjaga koleksi paling berharga di zona ini.",
+    "deskripsi": "Arca penjaga bertubuh raksasa dalam sikap berjongkok, dengan mata melotot, taring mencuat, dan gada besar tergenggam di satu tangan. Wajahnya sengaja dibuat menyeramkan — bukan untuk menakuti pengunjung, melainkan untuk menghalau niat buruk.\n\nDwarapala selalu hadir berpasangan dan ditempatkan di ambang masuk candi atau bangunan suci. Keduanya menandai sebuah batas: di luar adalah dunia sehari-hari, di dalam adalah ruang yang disucikan. Arca sebesar ini menunjukkan betapa serius batas tersebut diperlakukan.\n\nIni adalah arca sebelah kiri. Cari pasangannya di seberang, lalu bandingkan keduanya — sepasang dwarapala umumnya dibuat mirip namun tidak persis sama.",
     "url_model_3d": "",
     "placeholder_shape": "cone",
     "url_audio": "",
@@ -470,7 +470,7 @@
   {
     "id": "r2-dwarapala-2",
     "nama": "Arca Dwarapala (Kanan)",
-    "deskripsi": "Salah satu sepasang arca penjaga raksasa (dwarapala) yang biasanya ditempatkan di ambang pintu candi atau bangunan suci. Pasangan dari arca dwarapala sebelah kiri, sama-sama mengawal jalur menuju Garudeya Emas.",
+    "deskripsi": "Arca penjaga bertubuh raksasa, pasangan dari dwarapala di seberangnya. Sikap berjongkok, mata melotot, dan gada di tangan mengikuti pakem yang sama, dikerjakan sebagai satu kesatuan dengan pasangannya.\n\nSepasang dwarapala berdiri berhadapan di kedua sisi jalan masuk, membentuk gerbang tak kasat mata yang harus dilewati siapa pun yang hendak masuk. Penempatan berpasangan ini bukan sekadar soal simetri, melainkan bagian dari cara masyarakat masa itu menandai ruang suci.\n\nAmati perbedaan kecilnya dengan arca pasangan — arah tangan yang memegang gada, atau kemiringan kepalanya. Perbedaan seperti itu umumnya disengaja agar keduanya saling menghadap.",
     "url_model_3d": "",
     "placeholder_shape": "cone",
     "url_audio": "",
@@ -522,7 +522,7 @@
   {
     "id": "r2-garudeya-emas",
     "nama": "Garudeya Emas 22 Karat",
-    "deskripsi": "Garudeya emas 22 karat yang ditemukan di Desa Plaosan (1989), satu-satunya artefak emas 22 karat di Indonesia. Di museum aslinya artefak ini disimpan dalam brankas kaca berjeruji demi keamanan. Signature piece Museum Mpu Tantular — di ruang virtual ini sengaja dipentaskan terbuka tanpa pembatas dan diperbesar dari ukuran aslinya agar detail ukirannya terbaca jelas, berdiri di titik klimaks zona dan dikawal arca Dwarapala asli di kedua sisi jalur menuju plintnya.",
+    "deskripsi": "Garudeya emas 22 karat, ditemukan di Desa Plaosan pada 1989 dan tercatat sebagai satu-satunya artefak emas 22 karat di Indonesia. Sosok Garuda dipahat dengan sayap terkembang dan detail bulu yang halus, dikerjakan pada logam yang lunak sekaligus sangat berharga.\n\nDalam mitologi Hindu, Garudeya adalah kisah Garuda yang menebus perbudakan ibunya dengan merebut air kehidupan — lambang bakti seorang anak sekaligus keberanian menghadapi kekuatan yang jauh lebih besar. Benda emas berukuran kecil seperti ini umumnya bukan barang sehari-hari, melainkan berkaitan dengan upacara atau kedudukan tinggi pemiliknya.\n\nDi museum aslinya artefak ini disimpan dalam brankas kaca berjeruji demi keamanan, sehingga jarang dapat diamati dari dekat. Di ruang virtual ini ukurannya sengaja diperbesar agar ukirannya terbaca — perhatikan garis-garis bulu pada bentangan sayapnya.",
     "url_model_3d": "/models/garudeya.glb",
     "placeholder_shape": "torus",
     "url_audio": "",
@@ -548,7 +548,7 @@
   {
     "id": "r2-prasasti-loceret",
     "nama": "Prasasti Loceret",
-    "deskripsi": "Prasasti Loceret yang mencatat peristiwa penting pada masa kerajaan Hindu-Buddha di Jawa Timur. Menjadi sumber sejarah penting untuk memahami pemerintahan masa itu.",
+    "deskripsi": "Lempeng batu bertulis dengan aksara kuno yang dipahatkan baris demi baris pada permukaannya. Sebagian huruf masih tegas terbaca, sebagian lain telah aus oleh cuaca dan usia.\n\nPrasasti adalah dokumen resmi yang sengaja dipahat pada batu agar bertahan lama. Isinya umumnya berupa keputusan penguasa — penetapan tanah untuk bangunan suci, pengesahan batas wilayah, atau peringatan suatu peristiwa — lengkap dengan penanggalan dan saksi. Karena dibuat pada masanya sendiri, prasasti termasuk sumber sejarah yang paling dapat dipercaya.\n\nDekati permukaannya dan amati bagaimana barisan aksaranya disusun rapat dan lurus, dipahat tanpa alat bantu modern.",
     "url_model_3d": "",
     "placeholder_shape": "box",
     "url_audio": "",
@@ -574,7 +574,7 @@
   {
     "id": "r2-prasasti-sangguran-info",
     "nama": "Info Prasasti Sangguran",
-    "deskripsi": "Infografik tentang Prasasti Sangguran yang saat ini sedang diupayakan repatriasi dari Belanda. Prasasti ini memiliki nilai sejarah penting untuk Indonesia.",
+    "deskripsi": "Panel informasi tentang Prasasti Sangguran, sebuah prasasti batu asal Jawa Timur yang kini berada di luar negeri dan tengah diupayakan untuk dipulangkan ke Indonesia.\n\nPrasasti ini menjadi salah satu contoh benda cagar budaya yang berpindah jauh dari tempat asalnya pada masa lampau. Upaya repatriasi — pemulangan benda bersejarah ke negara asalnya — kini menjadi bagian penting dari kerja pelestarian warisan budaya.\n\nKarena bendanya sendiri belum berada di museum, yang ditampilkan di sini adalah keterangannya. Bacalah sebagai pengingat bahwa sebagian sejarah Nusantara masih tersimpan jauh dari rumahnya.",
     "url_model_3d": "",
     "placeholder_shape": "box",
     "url_audio": "",
@@ -600,7 +600,7 @@
   {
     "id": "r2-surya-stambha",
     "nama": "Surya Stambha",
-    "deskripsi": "[DRAFT] Surya Stambha, pilar/tugu batu bermotif matahari yang melambangkan pemujaan terhadap Dewa Surya dalam kosmologi Hindu-Buddha, menjadi penanda situs suci pada masa kerajaan Jawa Timur. Deskripsi ini perlu dilengkapi kurator.",
+    "deskripsi": "Tugu batu tegak dengan pahatan bermotif matahari pada bidang utamanya. Bentuknya ramping memanjang ke atas, dan sebagian permukaannya sudah aus sehingga pahatannya terlihat samar di beberapa bagian.\n\nDalam tradisi Hindu-Buddha, tiang batu semacam ini didirikan sebagai penanda tempat suci sekaligus lambang pemujaan terhadap Surya, dewa matahari. Kehadirannya menunjukkan bahwa matahari menempati kedudukan penting dalam kepercayaan masyarakat Jawa pada masa itu.\n\nDekati dan cari lingkaran matahari beserta pancaran sinarnya pada permukaan batu — motif inilah yang memberi nama pada tugu ini.",
     "url_model_3d": "/models/surya-stambha.glb",
     "placeholder_shape": "cylinder",
     "url_audio": "",
@@ -626,7 +626,7 @@
   {
     "id": "r3-telepon-antik",
     "nama": "Telepon Genggam/Meja Antik",
-    "deskripsi": "Telepon genggam dan meja antik yang menjadi bukti awal perkembangan teknologi komunikasi di Indonesia pada masa transisi ke era modern.",
+    "deskripsi": "Pesawat telepon lawas bergaya meja, dengan gagang bicara terpisah yang diangkat dari dudukannya dan badan pesawat sebagai tempat memanggil sambungan.\n\nTelepon jenis ini bekerja lewat kabel dan sentral manual: penelepon tidak langsung terhubung ke tujuan, melainkan ke petugas yang menyambungkan kabel satu per satu. Kehadirannya di Nusantara menandai masuknya komunikasi jarak jauh yang berlangsung seketika — sesuatu yang sebelumnya hanya mungkin lewat surat atau kurir.\n\nPerhatikan bahan dan bobotnya: logam dan kayu, bukan plastik. Alat komunikasi pada masa itu dibuat untuk bertahan puluhan tahun.",
     "url_model_3d": "/models/pesawat-telepon.glb",
     "placeholder_shape": "box",
     "url_audio": "",
@@ -651,8 +651,8 @@
   },
   {
     "id": "r3-sepeda-tinggi",
-    "nama": "Sepeda Tinggi / Sepeda Kayu (Michael Kesler)",
-    "deskripsi": "Sepeda tinggi atau sepeda kayu ciptaan Michael Kesler, alat transportasi awal yang menjadi simbol modernitas di Hindia Belanda.",
+    "nama": "Sepeda Tinggi",
+    "deskripsi": "Sepeda beroda depan sangat besar dengan sadel yang dipasang tinggi tepat di atasnya, sementara roda belakangnya jauh lebih kecil. Rangka dan sebagian komponennya memakai kayu, dengan pedal yang menempel langsung pada poros roda depan tanpa perantara rantai.\n\nPada Sepeda Tinggi, satu putaran pedal sama dengan satu putaran roda depan — karena itu rodanya dibuat sebesar mungkin agar sekali mengayuh menempuh jarak yang jauh. Konsekuensinya, penunggang harus duduk sangat tinggi dan turun dari sepeda bukan perkara mudah. Rancangan ini populer sebelum sistem rantai dan gigi membuat roda raksasa tidak lagi diperlukan.\n\nPerhatikan perbandingan kedua rodanya, lalu cari pedal yang menyatu langsung dengan poros roda depan — dari situ akan terlihat mengapa sepeda ini harus setinggi itu.",
     "url_model_3d": "/models/r3-sepeda-tinggi.glb",
     "placeholder_shape": "torus",
     "url_audio": "",
@@ -669,6 +669,7 @@
     "zoneId": "transisi-iptek",
     "display_tier": "featured",
     "pedestal_height": 0.5,
+    "material_override": {"color":"#6E4A2B","metalness":0.25,"roughness":0.62},
     "real_world_size": {
       "width": 1.6,
       "height": 1.4,
@@ -678,7 +679,7 @@
   {
     "id": "r3-sepeda-motor-uap",
     "nama": "Sepeda Motor Uap",
-    "deskripsi": "Sepeda motor uap dengan kecepatan hingga 30 km/jam, artefak transportasi awal yang unik dan menunjukkan perkembangan teknologi mesin di masa kolonial. Dipentaskan sebagai centerpiece zona Transisi-IPTEK, di titik terjauh dari pintu masuk sebagai terminating vista.",
+    "deskripsi": "Kendaraan roda dua bermesin uap, dengan tungku dan ketel yang menyatu pada rangkanya. Uap bertekanan dari ketel itulah yang menggerakkan torak dan memutar roda — bukan ledakan bahan bakar seperti pada sepeda motor yang kita kenal sekarang.\n\nKecepatannya tercatat mencapai sekitar 30 kilometer per jam, angka yang terdengar sederhana hari ini namun luar biasa pada masanya. Menjalankannya menuntut persiapan: api harus dinyalakan dan air dipanaskan lebih dulu hingga tekanan uap mencukupi, sehingga berkendara bukan sekadar memutar kunci.\n\nCari ketel dan cerobongnya, lalu telusuri batang penghubung yang menyalurkan tenaga ke roda. Seluruh mesinnya terbuka dan bisa diamati langsung — sesuatu yang hampir mustahil pada kendaraan masa kini.",
     "url_model_3d": "/models/r3-sepeda-daimler.glb",
     "placeholder_shape": "cylinder",
     "url_audio": "",
@@ -695,6 +696,7 @@
     "zoneId": "transisi-iptek",
     "display_tier": "hero",
     "pedestal_height": 0.45,
+    "material_override": {"color":"#5C4636","metalness":0.45,"roughness":0.5},
     "real_world_size": {
       "width": 1.9,
       "height": 1.1,
@@ -704,7 +706,7 @@
   {
     "id": "r3-jam-matahari",
     "nama": "Jam Matahari",
-    "deskripsi": "Jam matahari yang digunakan sebagai alat penentu waktu salat di masa lalu, menunjukkan kombinasi teknologi dan kebutuhan keagamaan masyarakat.",
+    "deskripsi": "Alat penunjuk waktu berupa bidang bertanda dengan sebuah batang yang berdiri tegak di atasnya. Bayangan batang itulah yang bergerak sepanjang hari dan menunjuk garis-garis waktu pada bidangnya.\n\nJam matahari bekerja tanpa mesin, tanpa pegas, dan tanpa daya — hanya memanfaatkan perputaran bumi terhadap matahari. Di Nusantara, alat semacam ini antara lain dipakai untuk membantu menentukan masuknya waktu salat, sehingga fungsinya bukan sekadar praktis melainkan juga keagamaan.\n\nAmati garis-garis pada bidangnya. Jaraknya sengaja tidak dibuat sama rata, karena bayangan bergerak lebih cepat pada jam-jam tertentu dibanding jam lainnya.",
     "url_model_3d": "",
     "placeholder_shape": "cylinder",
     "url_audio": "",
@@ -730,7 +732,7 @@
   {
     "id": "r3-teleskop",
     "nama": "Teleskop",
-    "deskripsi": "Teleskop kuno yang digunakan untuk pengamatan astronomi, menunjukkan perkembangan ilmu pengetahuan pada masa transisi ke era IPTEK. Diletakkan di sumbu pandang dekat pintu masuk zona, mengarahkan mata pengunjung menuju Sepeda Motor Uap di ujung ruangan.",
+    "deskripsi": "Teropong bintang lawas berbentuk tabung panjang yang bertumpu pada kaki penyangga, dengan lensa besar di ujung depan dan lensa kecil di ujung tempat mata mengintip.\n\nTeleskop bekerja dengan mengumpulkan cahaya jauh lebih banyak daripada yang mampu ditangkap mata, lalu memusatkannya menjadi bayangan yang diperbesar. Alat inilah yang mengubah langit dari sekadar hiasan malam menjadi sesuatu yang bisa diteliti — kawah di bulan dan gugusan bintang menjadi terlihat.\n\nPerhatikan sendi-sendi pada kakinya. Bagian itu memungkinkan tabung diarahkan dengan sangat halus, karena benda langit terus bergeser perlahan sepanjang malam.",
     "url_model_3d": "",
     "placeholder_shape": "cylinder",
     "url_audio": "",
@@ -756,7 +758,7 @@
   {
     "id": "r3-model-plta",
     "nama": "Model Peraga PLTA Kuno",
-    "deskripsi": "Model peraga PLTA (Pembangkit Listrik Tenaga Air) kuno yang menunjukkan awal perkembangan teknologi pembangkit listrik di Indonesia.",
+    "deskripsi": "Model peraga pembangkit listrik tenaga air yang menampilkan bagian-bagian utamanya dalam ukuran kecil: saluran air, kincir atau turbin yang diputar aliran, serta generator yang mengubah putaran itu menjadi listrik.\n\nModel seperti ini dibuat untuk mengajar, bukan untuk bekerja sungguhan. Dengan memperlihatkan seluruh rangkaian sekaligus, alat peraga membuat gagasan yang rumit — bahwa air yang jatuh bisa berubah menjadi cahaya lampu — dapat dipahami hanya dengan melihat.\n\nIkuti alurnya dari atas ke bawah: air masuk, memutar sudu, memutar poros, lalu menghasilkan arus. Urutan itulah inti dari setiap PLTA, sebesar apa pun ukurannya.",
     "url_model_3d": "",
     "placeholder_shape": "box",
     "url_audio": "",
@@ -782,7 +784,7 @@
   {
     "id": "r3-senjata-api-kolonial",
     "nama": "Koleksi Senjata Api Kolonial",
-    "deskripsi": "Koleksi senjata api kolonial yang meliputi pistol blunderbuss, senapan flintlock tower, dan revolver. Dijadikan vitrine dengan konteks sejarah kolonial di Indonesia.",
+    "deskripsi": "Kumpulan senjata api dari masa kolonial: pistol blunderbuss dengan moncong melebar, senapan flintlock yang memakai mekanisme pemantik batu api, serta revolver dengan silinder peluru yang berputar.\n\nKetiganya memperlihatkan satu urutan perkembangan yang jelas. Blunderbuss dan flintlock masih diisi dari moncong dan hanya dapat menembak sekali sebelum diisi ulang, sementara revolver membawa beberapa peluru sekaligus di dalam silindernya.\n\nBandingkan mekanisme pemantiknya satu per satu — dari batu api yang dipukulkan hingga pemicu yang memutar silinder, terlihat bagaimana setiap penyempurnaan mempersingkat jeda antar tembakan.",
     "url_model_3d": "",
     "placeholder_shape": "box",
     "url_audio": "",
@@ -808,7 +810,7 @@
   {
     "id": "r3-simponion",
     "nama": "Symphonion (Kotak Musik Mekanik)",
-    "deskripsi": "[DRAFT] Symphonion, kotak musik mekanik antik yang memutar piringan logam berlubang untuk menghasilkan melodi tanpa listrik — hiburan rumah tangga populer pada awal abad ke-20 sebelum era radio. Deskripsi ini perlu dilengkapi kurator.",
+    "deskripsi": "Kotak musik mekanik berbadan kayu dengan piringan logam berlubang di dalamnya. Piringan itu diputar oleh pegas yang diengkol dengan tangan, dan lubang-lubangnya memetik gigi-gigi logam kecil sehingga terdengar melodi — seluruhnya tanpa listrik.\n\nAlat semacam ini menjadi hiburan rumah tangga pada masa sebelum radio dan piringan hitam tersebar luas. Setiap lagu tersimpan pada satu piringan, dan menggantinya cukup dengan menukar piringan.\n\nPerhatikan piringan logamnya: pola lubang di permukaannya bukan hiasan, melainkan not lagu yang dibaca oleh mesin ini.",
     "url_model_3d": "/models/simponion.glb",
     "placeholder_shape": "box",
     "url_audio": "",

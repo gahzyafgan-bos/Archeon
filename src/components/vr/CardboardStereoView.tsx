@@ -57,7 +57,45 @@ const distortionFragmentShader = /* glsl */ `
   // spacing, distorting around the geometric middle of the viewport would
   // warp the image about the wrong point and undo the alignment.
   uniform float lensCenterX;
+  uniform float toneMappingExposure;
   varying vec2 vUv;
+
+  // ---- Display transform -------------------------------------------------
+  // Rendering to a render target makes three skip both of these, so this pass
+  // has to perform them itself — exactly once, on the way to the screen. Both
+  // functions are copied verbatim from three's own tonemapping_pars_fragment
+  // and colorspace_pars_fragment chunks rather than approximated, because the
+  // whole point is for VR to match normal mode pixel for pixel; a "close
+  // enough" curve would leave a tint of its own.
+  vec3 RRTAndODTFit( vec3 v ) {
+    vec3 a = v * ( v + 0.0245786 ) - 0.000090537;
+    vec3 b = v * ( 0.983729 * v + 0.4329510 ) + 0.238081;
+    return a / b;
+  }
+
+  vec3 ACESFilmicToneMapping( vec3 color ) {
+    const mat3 ACESInputMat = mat3(
+      vec3( 0.59719, 0.07600, 0.02840 ), vec3( 0.35458, 0.90834, 0.13383 ),
+      vec3( 0.04823, 0.01566, 0.83777 )
+    );
+    const mat3 ACESOutputMat = mat3(
+      vec3(  1.60475, -0.10208, -0.00327 ), vec3( -0.53108,  1.10813, -0.07276 ),
+      vec3( -0.07367, -0.00605,  1.07602 )
+    );
+    color *= toneMappingExposure / 0.6;
+    color = ACESInputMat * color;
+    color = RRTAndODTFit( color );
+    color = ACESOutputMat * color;
+    return clamp( color, 0.0, 1.0 );
+  }
+
+  vec3 sRGBTransferOETF( vec3 value ) {
+    return mix(
+      pow( value, vec3( 0.41666 ) ) * 1.055 - vec3( 0.055 ),
+      value * 12.92,
+      vec3( lessThanEqual( value, vec3( 0.0031308 ) ) )
+    );
+  }
 
   void main() {
     vec2 centered = (vUv - 0.5) * 2.0;
@@ -73,7 +111,8 @@ const distortionFragmentShader = /* glsl */ `
     if (sampleUv.x < 0.0 || sampleUv.x > 1.0 || sampleUv.y < 0.0 || sampleUv.y > 1.0) {
       gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
     } else {
-      gl_FragColor = texture2D(map, sampleUv);
+      vec3 linearColor = texture2D(map, sampleUv).rgb;
+      gl_FragColor = vec4(sRGBTransferOETF(ACESFilmicToneMapping(linearColor)), 1.0);
     }
   }
 `;
@@ -82,11 +121,23 @@ function createEyeRenderTarget() {
   const target = new THREE.WebGLRenderTarget(2, 2, {
     minFilter: THREE.LinearFilter,
     magFilter: THREE.LinearFilter,
+    // Half float, and colorSpace left at three's linear default on purpose.
+    //
+    // three renders into any non-XR render target with tone mapping switched
+    // off and the output colour space forced to linear — it assumes an
+    // intermediate buffer in a post chain, and leaves the display conversion
+    // to whoever writes the final pixel. So these targets hold raw linear
+    // radiance, and values well above 1.0 are normal: the marigold key light
+    // over Garudeya alone is intensity 85.
+    //
+    // An 8-bit target would clamp all of that to 1.0 per channel BEFORE
+    // anything got to roll the highlights off, and clipping channel-by-channel
+    // on a warm palette is precisely what turns bright warm surfaces into flat
+    // saturated yellow. Half float keeps the overshoot intact so the ACES curve
+    // in the distortion pass can do its job. These targets are small (roughly
+    // 0.45 x canvas width per eye), so the extra bandwidth is affordable.
+    type: THREE.HalfFloatType,
   });
-  // Match the renderer's output encoding so the distortion pass can sample
-  // this texture and write it straight to the screen with no extra
-  // colorspace conversion of its own.
-  target.texture.colorSpace = THREE.SRGBColorSpace;
   return target;
 }
 
@@ -129,6 +180,7 @@ export function CardboardStereoView() {
           k2: { value: vrDistortionK2 },
           aspect: { value: 1 },
           lensCenterX: { value: 0 },
+          toneMappingExposure: { value: 1 },
         },
         vertexShader: distortionVertexShader,
         fragmentShader: distortionFragmentShader,
@@ -230,6 +282,10 @@ export function CardboardStereoView() {
     distortionUniforms.k1.value = vrDistortionK1;
     distortionUniforms.k2.value = vrDistortionK2;
     distortionUniforms.aspect.value = halfWidth / size.height;
+    // Read the exposure off the renderer rather than the graphics preset, so
+    // this pass reproduces whatever normal mode would have applied — including
+    // any later change to how exposure is chosen.
+    distortionUniforms.toneMappingExposure.value = gl.toneMappingExposure;
 
     gl.setScissorTest(false);
 

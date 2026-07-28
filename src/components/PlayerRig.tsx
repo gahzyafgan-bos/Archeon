@@ -242,20 +242,66 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
         };
       }
       const target = focusedArtifact.koordinat_ruangan;
-      const targetPos = focusTargetPos.current.set(target.x, target.y + 0.3, target.z + 1.6);
+      const targetPos = focusTargetPos.current;
+      if (isVRMode) {
+        // Approach from whichever side the visitor already stands on, at a
+        // distance that grows with the object.
+        //
+        // The flat-screen path below always parks the camera at a fixed
+        // z + 1.6, which is fine there because the info panel and its blur
+        // cover most of the view anyway. In VR that framing IS the entire
+        // view, and a fixed +Z offset walks the camera straight into a wall
+        // whenever a piece is displayed against the far side of the room, or
+        // straight inside the object itself now that a bicycle is 1.6m wide
+        // and a motorcycle 1.9m. Either way the visitor's whole world goes
+        // dark — which is exactly the reported symptom.
+        const from = savedPose.current.position;
+        const dx = from.x - target.x;
+        const dz = from.z - target.z;
+        const len = Math.hypot(dx, dz) || 1;
+        const size = focusedArtifact.real_world_size;
+        const extent = size ? Math.max(size.width, size.height, size.depth) : 0;
+        const standoff = Math.max(1.5, extent * 1.15 + 0.9);
+        targetPos.set(
+          target.x + (dx / len) * standoff,
+          Math.max(1.2, target.y + 0.25),
+          target.z + (dz / len) * standoff
+        );
+      } else {
+        targetPos.set(target.x, target.y + 0.3, target.z + 1.6);
+      }
       // Use cubic ease-in-out, or faster if reduceMotion enabled
       const t = 1 - Math.pow(0.001, delta * focusLerp);
       const ease = settings.reduceMotion ? 1 : easeInOutCubic(t);
       camera.position.lerp(targetPos, ease);
 
-      lookDir.current.set(target.x, target.y, target.z).sub(camera.position);
-      const targetYawVal = Math.atan2(-lookDir.current.x, -lookDir.current.z);
-      const targetPitchVal = Math.atan2(
-        lookDir.current.y,
-        Math.sqrt(lookDir.current.x * lookDir.current.x + lookDir.current.z * lookDir.current.z)
-      );
-      yaw.current += (targetYawVal - yaw.current) * ease;
-      pitch.current += (targetPitchVal - pitch.current) * ease;
+      if (isVRMode) {
+        // Never wrest the view away from the head. Turning someone's gaze for
+        // them inside a headset is disorienting at best; since we now approach
+        // from the side they were already standing on, the piece stays in
+        // front of them anyway. Position eases in, direction stays theirs.
+        if (vrLookSource.epoch !== vrEpochSeen.current) {
+          rebaseVRLook();
+        } else if (vrLookSource.hasReading) {
+          const smoothing = 1 - Math.exp(-VR_LOOK_DAMPING * delta);
+          vrSmoothed.current.yaw = lerpAngle(vrSmoothed.current.yaw, vrLookSource.yaw, smoothing);
+          vrSmoothed.current.pitch += (vrLookSource.pitch - vrSmoothed.current.pitch) * smoothing;
+        }
+        yaw.current = wrapAngle(vrYawBase.current + vrSmoothed.current.yaw + vrLookOffset.yaw);
+        pitch.current = Math.max(
+          -PITCH_LIMIT,
+          Math.min(PITCH_LIMIT, vrSmoothed.current.pitch + vrLookOffset.pitch)
+        );
+      } else {
+        lookDir.current.set(target.x, target.y, target.z).sub(camera.position);
+        const targetYawVal = Math.atan2(-lookDir.current.x, -lookDir.current.z);
+        const targetPitchVal = Math.atan2(
+          lookDir.current.y,
+          Math.sqrt(lookDir.current.x * lookDir.current.x + lookDir.current.z * lookDir.current.z)
+        );
+        yaw.current += (targetYawVal - yaw.current) * ease;
+        pitch.current += (targetPitchVal - pitch.current) * ease;
+      }
       targetYaw.current = yaw.current;
       targetPitch.current = pitch.current;
       camera.rotation.order = "YXZ";
@@ -265,24 +311,26 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
       const t = 1 - Math.pow(0.001, delta * focusLerp);
       const ease = settings.reduceMotion ? 1 : easeInOutCubic(t);
       camera.position.lerp(savedPose.current.position, ease);
-      yaw.current += (savedPose.current.yaw - yaw.current) * ease;
-      pitch.current += (savedPose.current.pitch - pitch.current) * ease;
+      // In VR the head kept control of the view the whole time the artifact was
+      // focused, so there is no rotation to give back — only the position eases
+      // home. Forcing the saved heading here would yank the view for no reason.
+      if (!isVRMode) {
+        yaw.current += (savedPose.current.yaw - yaw.current) * ease;
+        pitch.current += (savedPose.current.pitch - pitch.current) * ease;
+      }
       targetYaw.current = yaw.current;
       targetPitch.current = pitch.current;
       camera.rotation.order = "YXZ";
       camera.rotation.set(pitch.current, yaw.current, 0);
       if (camera.position.distanceTo(savedPose.current.position) < 0.02 || settings.reduceMotion) {
         camera.position.copy(savedPose.current.position);
-        yaw.current = savedPose.current.yaw;
-        pitch.current = savedPose.current.pitch;
+        if (!isVRMode) {
+          yaw.current = savedPose.current.yaw;
+          pitch.current = savedPose.current.pitch;
+        }
         targetYaw.current = yaw.current;
         targetPitch.current = pitch.current;
         savedPose.current = null;
-        // In VR the gyro kept reading while the artifact was focused, so
-        // handing control straight back would snap the view from the restored
-        // pose to wherever the head now points. Re-anchor to the pose we just
-        // eased to instead.
-        if (isVRMode) rebaseVRLook();
       }
       return; // finish easing back before handing control back to the player
     }

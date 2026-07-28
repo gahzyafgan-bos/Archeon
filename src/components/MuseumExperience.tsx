@@ -15,6 +15,7 @@ import { initKTX2Support } from "@/utils/modelLoader";
 import { MiniMapFrame, MiniMapTracker } from "./ui/MiniMap";
 import { PostProcessing } from "./PostProcessing";
 import { CardboardStereoView } from "./vr/CardboardStereoView";
+import { VRInfoPanel } from "./vr/VRInfoPanel";
 
 /**
  * Keeps only the artifacts that actually have a real 3D model to show, so
@@ -179,6 +180,12 @@ export function MuseumExperience() {
             <Hall hall={room} artifacts={artifacts} />
             <PlayerRig room={room} artifacts={artifacts} onEnterDoor={handleEnterDoor} />
             {!isVRMode && <MiniMapTracker canvasEl={miniMapCanvasRef.current} room={renderedRoom} />}
+            {/* Artifact info lives IN the scene while VR is active, so the
+                stereo camera draws it into both eyes with the rest of the
+                world — a DOM panel can't reach either eye viewport. Mounted
+                before CardboardStereoView so it is part of the scene the eye
+                passes render. */}
+            <VRInfoPanel />
             {isVRMode
               ? <CardboardStereoView />
               : graphicsPreset.postProcessingEnabled && <PostProcessing />}

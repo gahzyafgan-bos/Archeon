@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "validate:artifacts": "node scripts/validate-artifacts.mjs",
+    "build": "npm run validate:artifacts && tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint ."
   },

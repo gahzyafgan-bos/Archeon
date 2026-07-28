@@ -1,9 +1,10 @@
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { useAudioGuide } from "@/hooks/useAudioGuide";
+import { DRACO_DECODER_PATH, extendModelLoader } from "@/utils/modelLoader";
 import type { Artifact } from "@/types/artifact";
 
 export function InfoPanel() {
@@ -150,7 +151,11 @@ function MiniArtifact({ artifact }: { artifact: Artifact }) {
   if (artifact.url_model_3d) {
     return (
       <Suspense fallback={<MiniPlaceholder artifact={artifact} />}>
-        <MiniRealModel url={artifact.url_model_3d} rotationY={artifact.model_rotation_y} />
+        <MiniRealModel
+          url={artifact.url_model_3d}
+          rotationY={artifact.model_rotation_y}
+          materialOverride={artifact.material_override}
+        />
       </Suspense>
     );
   }
@@ -160,18 +165,56 @@ function MiniArtifact({ artifact }: { artifact: Artifact }) {
 /** Real model preview normalized to fit this fixed-distance mini viewer,
  * independent of the model's actual in-hall scale — it's centered and sized
  * to the same visual footprint regardless of the source asset's real-world dimensions. */
-function MiniRealModel({ url, rotationY = 0 }: { url: string; rotationY?: number }) {
-  const { scene } = useGLTF(url);
-  const { model, offset, fitScale } = useMemo(() => {
+function MiniRealModel({
+  url,
+  rotationY = 0,
+  materialOverride,
+}: {
+  url: string;
+  rotationY?: number;
+  materialOverride?: Artifact["material_override"];
+}) {
+  // Same loader configuration as the main scene, per the invariant documented
+  // in modelLoader.ts: the local Draco decoder plus the shared KTX2Loader. A
+  // bare useGLTF(url) here has no KTX2Loader attached, so a model whose
+  // textures are Basis-compressed would decode without any of them and render
+  // untextured — and it only avoided that by happening to hit the cache entry
+  // the main scene had already filled.
+  const { scene } = useGLTF(url, DRACO_DECODER_PATH, true, extendModelLoader);
+  const { model, offset, fitScale, ownedMaterials } = useMemo(() => {
     const clone = scene.clone(true);
+    // Clone before recolouring — see the matching note in ArtifactMesh.
+    const owned: THREE.Material[] = [];
+    if (materialOverride) {
+      clone.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        const recoloured = sources.map((source) => {
+          const copy = source.clone();
+          if ("color" in copy) (copy as THREE.MeshStandardMaterial).color.set(materialOverride.color);
+          if (materialOverride.metalness !== undefined && "metalness" in copy) {
+            (copy as THREE.MeshStandardMaterial).metalness = materialOverride.metalness;
+          }
+          if (materialOverride.roughness !== undefined && "roughness" in copy) {
+            (copy as THREE.MeshStandardMaterial).roughness = materialOverride.roughness;
+          }
+          owned.push(copy);
+          return copy;
+        });
+        mesh.material = Array.isArray(mesh.material) ? recoloured : recoloured[0];
+      });
+    }
     const box = new THREE.Box3().setFromObject(clone);
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
     box.getSize(size);
     box.getCenter(center);
     const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-    return { model: clone, offset: center, fitScale: 1.1 / maxDim };
-  }, [scene]);
+    return { model: clone, offset: center, fitScale: 1.1 / maxDim, ownedMaterials: owned };
+  }, [scene, materialOverride]);
+
+  useEffect(() => () => ownedMaterials.forEach((m) => m.dispose()), [ownedMaterials]);
 
   return (
     <group scale={fitScale} rotation={[0, rotationY, 0]}>

@@ -381,6 +381,7 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
                 scale={artifact.model_scale}
                 yOffset={artifact.model_y_offset}
                 rotationY={artifact.model_rotation_y}
+                materialOverride={artifact.material_override}
               />
             </group>
           </Suspense>
@@ -502,6 +503,7 @@ function RealArtifactModel({
   scale = 1,
   yOffset = 0,
   rotationY = 0,
+  materialOverride,
 }: {
   url: string;
   pedestalHeight: number;
@@ -509,18 +511,39 @@ function RealArtifactModel({
   scale?: number;
   yOffset?: number;
   rotationY?: number;
+  materialOverride?: Artifact["material_override"];
 }) {
   const { scene } = useGLTF(url, DRACO_DECODER_PATH, true, extendModelLoader);
   useEffect(() => {
     console.info(`[ArtifactModel] ✓ termuat & ter-decode: ${url}`);
   }, [url]);
-  const { model, fitScale } = useMemo(() => {
+  const { model, fitScale, ownedMaterials } = useMemo(() => {
     const clone = scene.clone(true);
+    // Object3D.clone() shares materials with the source by reference, and the
+    // source here is drei's cached GLTF — shared by every mount of this model.
+    // Anything recoloured therefore has to be cloned first, and disposed on
+    // unmount, or the edit leaks into the cache and into other instances.
+    const owned: THREE.Material[] = [];
     clone.traverse((obj) => {
-      if ((obj as THREE.Mesh).isMesh) {
-        obj.castShadow = true;
-        obj.receiveShadow = true;
-      }
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      if (!materialOverride) return;
+      const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      const recoloured = sources.map((source) => {
+        const copy = source.clone();
+        if ("color" in copy) (copy as THREE.MeshStandardMaterial).color.set(materialOverride.color);
+        if (materialOverride.metalness !== undefined && "metalness" in copy) {
+          (copy as THREE.MeshStandardMaterial).metalness = materialOverride.metalness;
+        }
+        if (materialOverride.roughness !== undefined && "roughness" in copy) {
+          (copy as THREE.MeshStandardMaterial).roughness = materialOverride.roughness;
+        }
+        owned.push(copy);
+        return copy;
+      });
+      mesh.material = Array.isArray(mesh.material) ? recoloured : recoloured[0];
     });
 
     let fit = 1;
@@ -532,8 +555,10 @@ function RealArtifactModel({
       const targetMax = Math.max(targetSize.width, targetSize.height, targetSize.depth);
       fit = targetMax / modelMax;
     }
-    return { model: clone, fitScale: fit };
-  }, [scene, targetSize]);
+    return { model: clone, fitScale: fit, ownedMaterials: owned };
+  }, [scene, targetSize, materialOverride]);
+
+  useEffect(() => () => ownedMaterials.forEach((m) => m.dispose()), [ownedMaterials]);
 
   return (
     <primitive
