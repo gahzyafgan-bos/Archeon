@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { useVirtualJoysticks } from "@/hooks/useVirtualJoysticks";
+import { useShowTouchControls } from "@/hooks/useShowTouchControls";
 import { useDeviceOrientationLook } from "@/hooks/useDeviceOrientationLook";
 import { useGamepadControls } from "@/hooks/useGamepadControls";
 import { useFullscreen } from "@/hooks/useFullscreen";
@@ -22,9 +23,16 @@ export function HUD() {
   const isVRMode = useMuseumStore((s) => s.isVRMode);
   const setVRMode = useMuseumStore((s) => s.setVRMode);
 
-  const leftZoneRef = useRef<HTMLDivElement>(null);
-  const rightZoneRef = useRef<HTMLDivElement>(null);
-  useVirtualJoysticks(leftZoneRef, rightZoneRef);
+  const isSettingsOpen = useMuseumStore((s) => s.isSettingsOpen);
+  const showTouchControls = useShowTouchControls();
+
+  // Callback refs held in state, NOT useRef: the zones below only mount once
+  // loading and onboarding finish, and they unmount again whenever a panel
+  // takes over. useVirtualJoysticks has to run at each of those moments, and
+  // only a state-held element changes identity to make that happen.
+  const [leftZone, setLeftZone] = useState<HTMLDivElement | null>(null);
+  const [rightZone, setRightZone] = useState<HTMLDivElement | null>(null);
+  useVirtualJoysticks(leftZone, rightZone);
 
   // Mounted here (rather than App.tsx) because HUD is already gated to only
   // exist during actual gameplay — the same lifetime VR entry makes sense in.
@@ -165,7 +173,7 @@ export function HUD() {
             className="glass-panel rounded-full pl-2 pr-5 py-2 flex items-center gap-3 text-museum-bone hover:border-museum-gold/50 transition-colors"
           >
             <span className="w-7 h-7 rounded-full border border-museum-gold/70 flex items-center justify-center text-museum-gold text-xs font-semibold">
-              {isTouchDevice ? "X" : "E"}
+              {showTouchControls ? "X" : "E"}
             </span>
             <span className="text-sm tracking-wide">Lihat {nearbyArtifact.nama}</span>
           </button>
@@ -173,7 +181,7 @@ export function HUD() {
       )}
 
       {/* Desktop keyboard hint, auto-hidden on touch devices */}
-      {!isTouchDevice && !focusedArtifact && (
+      {!showTouchControls && !focusedArtifact && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
           <p className="text-museum-mist/70 text-[11px] tracking-widest uppercase">
             WASD gerak &nbsp;·&nbsp; Drag mouse lihat sekeliling &nbsp;·&nbsp; E interaksi
@@ -188,11 +196,11 @@ export function HUD() {
           fires touchcancel and drops the gesture mid-rotation. Paired with
           useVirtualJoysticks' LOOK_SATURATION so full turn rate is reached
           before the rim, not at it. */}
-      {isTouchDevice && !focusedArtifact && (
+      {showTouchControls && !focusedArtifact && !isSettingsOpen && (
         <>
           <div
-            ref={leftZoneRef}
-            className="fixed z-20 w-40 h-40 rounded-full"
+            ref={setLeftZone}
+            className="fixed z-20 w-40 h-40 rounded-full bg-black/25 border border-white/10"
             style={{
               touchAction: "none",
               bottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
@@ -200,8 +208,8 @@ export function HUD() {
             }}
           />
           <div
-            ref={rightZoneRef}
-            className="fixed z-20 w-40 h-40 rounded-full"
+            ref={setRightZone}
+            className="fixed z-20 w-40 h-40 rounded-full bg-black/25 border border-white/10"
             style={{
               touchAction: "none",
               bottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",

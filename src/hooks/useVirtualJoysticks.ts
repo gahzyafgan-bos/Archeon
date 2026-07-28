@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import nipplejs from "nipplejs";
 import { useMuseumStore } from "@/store/useMuseumStore";
+import { useShowTouchControls } from "./useShowTouchControls";
 
 /**
  * Creates the two nipplejs joysticks described in the spec:
@@ -35,24 +36,41 @@ const MAX_TRAVEL = STICK_SIZE / 2;
  */
 const LOOK_SATURATION = 0.75;
 
+/**
+ * Takes the zone ELEMENTS, not refs to them.
+ *
+ * This distinction is the whole ballgame. A `useRef` object keeps the same
+ * identity forever, so an effect listing it as a dependency never re-runs when
+ * the element it points at is finally attached — and these zones mount late,
+ * only once loading and onboarding are done. The effect would fire while
+ * `ref.current` was still null, bail out, and never get another chance:
+ * two empty 160px divs in the DOM and no joystick inside either of them.
+ * Passing the elements themselves (via callback refs upstream) means React
+ * re-runs this every time a zone attaches or detaches, which is exactly when
+ * nipplejs needs to be created or torn down.
+ */
 export function useVirtualJoysticks(
-  leftZoneRef: React.RefObject<HTMLDivElement>,
-  rightZoneRef: React.RefObject<HTMLDivElement>
+  leftZone: HTMLElement | null,
+  rightZone: HTMLElement | null
 ) {
   const setMoveInput = useMuseumStore((s) => s.setMoveInput);
   const setLookInput = useMuseumStore((s) => s.setLookInput);
-  const isTouchDevice = useMuseumStore((s) => s.isTouchDevice);
+  const showTouchControls = useShowTouchControls();
   const managers = useRef<ReturnType<typeof nipplejs.create>[]>([]);
 
   useEffect(() => {
-    if (!isTouchDevice) return;
-    if (!leftZoneRef.current || !rightZoneRef.current) return;
+    if (!showTouchControls) return;
+    if (!leftZone || !rightZone) return;
 
     const common = {
       mode: "static" as const,
       position: { left: "50%", top: "50%" },
       size: STICK_SIZE,
-      restOpacity: 0.35,
+      // 0.35 left the pale right-hand stick almost invisible against the
+      // gallery's bright ivory floor. Paired with the dark backing disc the
+      // zones now carry (see HUD), both sticks read clearly at rest without
+      // becoming a heavy overlay.
+      restOpacity: 0.6,
       restJoystick: true,
       // Re-measure the zone on each gesture — the HUD sits on a fixed layer
       // whose offset changes when the mobile address bar collapses/expands.
@@ -61,13 +79,13 @@ export function useVirtualJoysticks(
 
     const leftManager = nipplejs.create({
       ...common,
-      zone: leftZoneRef.current,
+      zone: leftZone,
       color: "#c9a961",
     });
 
     const rightManager = nipplejs.create({
       ...common,
-      zone: rightZoneRef.current,
+      zone: rightZone,
       color: "#e8e6e1",
     });
 
@@ -111,5 +129,5 @@ export function useVirtualJoysticks(
       setMoveInput({ x: 0, y: 0 });
       setLookInput({ x: 0, y: 0 });
     };
-  }, [isTouchDevice, leftZoneRef, rightZoneRef, setMoveInput, setLookInput]);
+  }, [showTouchControls, leftZone, rightZone, setMoveInput, setLookInput]);
 }

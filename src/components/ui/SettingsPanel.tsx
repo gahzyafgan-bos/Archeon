@@ -185,6 +185,10 @@ export function SettingsPanel() {
                     </button>
                   ))}
                 </div>
+                <p className="text-museum-mist/70 text-[10px] mt-1">
+                  "Otomatis" menampilkan joystick sentuh di perangkat yang punya layar sentuh.
+                  Pilih "Joystick" untuk memaksanya muncul, atau "Keyboard" untuk menyembunyikannya.
+                </p>
               </div>
             </div>
           )}
