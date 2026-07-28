@@ -167,11 +167,16 @@ function HeroBackdrop({
  * Emas (spec Fase 3) — separate from the generic per-zone hero staging so it
  * reads as the single most important object in the museum, not just another
  * zone hero. A brass-framed DARK backdrop (indigo, not the bright batik panel
- * heroes get) so the small gold object pops sharply against it, plus a
- * two-ring floor medallion marking the spot as special even before you see the
- * object. The eye-level vitrine + warm spotlight themselves live in
- * ArtifactMesh's Garudeya showcase (keyed on its id). No floor-level pillars or
- * banners in front — the sightline to it is kept deliberately clear.
+ * heroes get) so the gold object pops sharply against it, plus a two-ring
+ * floor medallion marking the spot as special even before you see the object.
+ * The eye-level plinth + warm spotlights themselves live in ArtifactMesh's
+ * Garudeya showcase (keyed on its id). No floor-level pillars or banners in
+ * front — the sightline to it is kept deliberately clear.
+ *
+ * These cues carry more weight than they used to: the glass vitrine that used
+ * to surround the piece is gone, so the backdrop, the medallion and the empty
+ * floor around them are now the ONLY things telling a visitor this spot is
+ * special. Hence the wider medallion and the fully saturated indigo below.
  */
 function GarudeyaStage({ pos, bounds }: { pos: { x: number; z: number }; bounds: RoomBounds }) {
   const wall = nearestWallFor(pos, bounds);
@@ -193,17 +198,20 @@ function GarudeyaStage({ pos, bounds }: { pos: { x: number; z: number }; bounds:
       </mesh>
       <mesh position={facePos}>
         <boxGeometry args={faceArgs} />
-        <meshStandardMaterial color="#22335c" roughness={0.65} />
+        <meshStandardMaterial color="#2E4A7D" roughness={0.65} />
       </mesh>
-      {/* Floor medallion — brass outer ring + indigo inner ring, ~2.15m radius,
-          reinforcing the 2-2.5m clear pocket the layout keeps around it. */}
+      {/* Floor medallion — brass outer ring + indigo inner ring. Outer ring
+          pushed out to 2.45m so the drawn circle matches the 2-2.5m object-free
+          pocket the layout keeps here: with no railing, this ring IS the
+          "don't crowd it" signal, so it has to read at the actual size of the
+          space rather than sit well inside it. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[pos.x, 0.02, pos.z]}>
-        <ringGeometry args={[1.7, 2.15, 48]} />
-        <meshStandardMaterial color="#B08D3C" roughness={0.5} metalness={0.5} transparent opacity={0.85} />
+        <ringGeometry args={[1.95, 2.45, 48]} />
+        <meshStandardMaterial color="#B08D3C" roughness={0.5} metalness={0.5} transparent opacity={0.9} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[pos.x, 0.015, pos.z]}>
-        <ringGeometry args={[1.2, 1.5, 48]} />
-        <meshStandardMaterial color="#2E4A7D" roughness={0.7} transparent opacity={0.5} />
+        <ringGeometry args={[1.2, 1.6, 48]} />
+        <meshStandardMaterial color="#2E4A7D" roughness={0.7} transparent opacity={0.55} />
       </mesh>
     </group>
   );
@@ -328,9 +336,14 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
       }
       // Signature piece (Garudeya) needs the most colonnade-free clearance of
       // anything — it isn't a zone heroFocus, so exclude it explicitly.
+      // Margin widened 1.0 -> 1.6 when its vitrine was removed: the nearest
+      // colonnade slot sat 2.57m out, i.e. inside the 2.45m floor medallion,
+      // and with no glass box left to define the piece's territory that pillar
+      // was the thing making the pocket read as crowded. Keep this >= the
+      // medallion's outer radius. (Mirrored in placementValidator.ts.)
       if (artifact.display_tier === "signature") {
         const r = Math.max(FOOTPRINT.artifactSignature, objectFootprintRadius(artifact) ?? 0);
-        points.push({ x: artifact.koordinat_ruangan.x, z: artifact.koordinat_ruangan.z, dist: r + 1.0 });
+        points.push({ x: artifact.koordinat_ruangan.x, z: artifact.koordinat_ruangan.z, dist: r + 1.6 });
       }
     }
     return points;

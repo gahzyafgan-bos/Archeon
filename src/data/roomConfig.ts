@@ -73,7 +73,7 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
     // Right-sized again from 30x18 down to 24x15 (audit: only 9 renderable
     // artifacts across 3 zones -> ~60 m2/objek, 3-4x too sparse for a gallery
     // read). 24x15 brings it to ~40 m2/objek while still leaving Garudeya its
-    // >=2.5m clear vitrine pocket, each arca its 1.5m breathing room, a >=2m
+    // >=2.5m clear (now barrier-free) pocket, each arca its 1.5m breathing room, a >=2m
     // circulation spine, and the welcome orientation buffer. Ceiling stays
     // tall relative to the smaller floor (rapat di lantai, tinggi di atas);
     // >=5m keeps Surya Stambha (2.15m + pedestal) from feeling boxed in.

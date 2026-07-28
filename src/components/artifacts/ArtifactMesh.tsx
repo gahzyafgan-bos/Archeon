@@ -269,61 +269,52 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
         </mesh>
       )}
 
-      {/* Garudeya Showcase */}
+      {/* Garudeya Showcase — deliberately WITHOUT any physical barrier.
+          The glass vitrine + iron bars that used to stand here were removed on
+          the designer's call: once the piece was enlarged so its detail reads
+          from walking distance, caging it behind translucent geometry was the
+          one thing still hiding that detail. Its "this is the signature piece"
+          reading now comes entirely from non-barrier cues — the tall plinth,
+          the light below, the indigo backdrop + floor medallion (RoomShell's
+          GarudeyaStage) and the wide clear pocket the layout keeps around it.
+          Do NOT reintroduce a cage/rail here if it ever feels under-staged;
+          push the lighting and negative space instead. */}
       {isGarudeya && (
         <group position={[0, pedestalH, 0]}>
-          {/* Brankas kaca vitrine */}
-          <mesh position={[0, 0.8, 0]} castShadow>
-            <boxGeometry args={[1.4, 1.7, 1.4]} />
-            <meshPhysicalMaterial
-              color="#ffffff"
-              transparent
-              opacity={0.15}
-              roughness={0.1}
-              metalness={0.05}
-              transmission={0.6}
-              thickness={0.5}
-            />
-          </mesh>
-
-          {/* Jeruji besi vertikal */}
-          {[-0.5, -0.3, -0.1, 0.1, 0.3, 0.5].map((posX, i) => (
-            <mesh key={`left-${i}`} position={[posX, 0.8, -0.7]} castShadow>
-              <cylinderGeometry args={[0.02, 0.02, 1.7, 8]} />
-              <meshStandardMaterial color="#3a332a" roughness={0.7} metalness={0.8} />
-            </mesh>
-          ))}
-          {[-0.5, -0.3, -0.1, 0.1, 0.3, 0.5].map((posX, i) => (
-            <mesh key={`right-${i}`} position={[posX, 0.8, 0.7]} castShadow>
-              <cylinderGeometry args={[0.02, 0.02, 1.7, 8]} />
-              <meshStandardMaterial color="#3a332a" roughness={0.7} metalness={0.8} />
-            </mesh>
-          ))}
-          {[-0.5, -0.3, -0.1, 0.1, 0.3, 0.5].map((posZ, i) => (
-            <mesh key={`front-${i}`} position={[-0.7, 0.8, posZ]} castShadow>
-              <cylinderGeometry args={[0.02, 0.02, 1.7, 8]} />
-              <meshStandardMaterial color="#3a332a" roughness={0.7} metalness={0.8} />
-            </mesh>
-          ))}
-          {[-0.5, -0.3, -0.1, 0.1, 0.3, 0.5].map((posZ, i) => (
-            <mesh key={`back-${i}`} position={[0.7, 0.8, posZ]} castShadow>
-              <cylinderGeometry args={[0.02, 0.02, 1.7, 8]} />
-              <meshStandardMaterial color="#3a332a" roughness={0.7} metalness={0.8} />
-            </mesh>
-          ))}
-
-          {/* Garudeya spotlight (adjusted for brighter base). Y kept below the
-              hall's 6m ceiling now that the vitrine sits at eye level (pedestal
-              1.4) — group is already at pedestalH, so +4 lands at ~5.4m world. */}
+          {/* Key light. Tighter and considerably stronger than the vitrine-era
+              version: the glass used to catch and scatter this light, which
+              did half the work of making the corner read as special. With the
+              glass gone that has to come from the beam itself, so this is now
+              a hard marigold pool on the piece rather than a soft glow.
+              Group already sits at pedestalH, so +4 lands ~5.45m world —
+              still under the hall's 6m ceiling. */}
           <spotLight
             position={[0, 4, 0]}
-            angle={0.25}
-            penumbra={0.5}
-            intensity={50}
-            color="#e6c76e"
+            angle={0.2}
+            penumbra={0.35}
+            intensity={85}
+            color="#E8A020"
             castShadow={graphicsPreset.shadowsEnabled}
             shadow-mapSize={[graphicsPreset.shadowMapSize, graphicsPreset.shadowMapSize]}
           />
+          {/* Front fill, angled in from the approach side, so the gold reads as
+              gold from where visitors actually stand instead of going to
+              silhouette under a purely top-down key. Shadowless and
+              short-range — one cheap light, and still a net saving versus the
+              transmissive glass box this replaces. */}
+          <spotLight
+            position={[0, 1.5, 2.2]}
+            angle={0.5}
+            penumbra={0.8}
+            intensity={16}
+            distance={6}
+            decay={2}
+            color="#F0C070"
+            castShadow={false}
+          />
+          {/* Close warm bounce at plinth level — keeps the underside of the
+              artifact from going black now that nothing around it reflects. */}
+          <pointLight position={[0, 0.35, 0]} intensity={4} distance={2.4} decay={2} color="#E8A020" />
         </group>
       )}
 

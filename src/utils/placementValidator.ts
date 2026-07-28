@@ -28,8 +28,11 @@ export const FOOTPRINT = {
   artifactFeatured: 0.95,
   // Zone hero: two-step plinth, wider footprint than featured.
   artifactHero: 1.1,
-  // Museum-wide signature piece (Garudeya): plinth + glass vitrine —
-  // needs the most negative space of anything in the scene.
+  // Museum-wide signature piece (Garudeya): a bare eye-level plinth since the
+  // glass vitrine was removed. Deliberately kept well above the plinth's own
+  // ~0.52m radius — with no case around it, this generous number is what
+  // reserves the piece its object-free pocket, which is now the only thing
+  // marking out its territory.
   artifactSignature: 1.3,
   // Wall-mounted niche pieces (reliefs/inscriptions) are flush against the
   // wall on a shallow ledge — much smaller footprint than a floor pedestal.
@@ -143,9 +146,12 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
   const nicheExclusions = artifacts
     .filter((a) => a.display_mode === "niche")
     .map((a) => ({ x: a.koordinat_ruangan.x, z: a.koordinat_ruangan.z, dist: footprintForArtifact(a) + 1.0 }));
+  // +1.6 (not +1.0) for the signature piece — mirrors RoomShell's widened
+  // signature exclusion after the Garudeya vitrine was removed; see the
+  // comment there.
   const signatureExclusions = artifacts
     .filter((a) => a.display_tier === "signature")
-    .map((a) => ({ x: a.koordinat_ruangan.x, z: a.koordinat_ruangan.z, dist: footprintForArtifact(a) + 1.0 }));
+    .map((a) => ({ x: a.koordinat_ruangan.x, z: a.koordinat_ruangan.z, dist: footprintForArtifact(a) + 1.6 }));
   const colonnadeExclusions = [...heroExclusions, ...nicheExclusions, ...signatureExclusions];
   const PILLAR_SPACING = 4.5;
   const PILLAR_INSET = 1.4;

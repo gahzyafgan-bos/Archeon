@@ -138,12 +138,17 @@ interface MuseumState {
   // --- VR Cardboard mode ---
   isVRMode: boolean;
   setVRMode: (v: boolean) => void;
-  /** Absolute look rotation (radians) derived from the phone's gyroscope, consumed by PlayerRig instead of lookInput while isVRMode is true. */
-  vrLook: { yaw: number; pitch: number };
-  setVRLook: (v: { yaw: number; pitch: number }) => void;
   /**
+   * NOTE: the gyro's own absolute look rotation deliberately does NOT live in
+   * this store — it updates ~60×/sec, and a store write per sample re-rendered
+   * PlayerRig inside the Canvas every frame. It's published as a mutable
+   * object (`vrLookSource` in useDeviceOrientationLook) and read imperatively
+   * from useFrame instead. The offset below is safe to keep here: it only
+   * changes while the gamepad stick is actually being pushed, and nothing
+   * re-renders on it.
+   *
    * Extra yaw/pitch (radians) the gamepad right stick accumulates on top of
-   * the gyro's absolute vrLook while in VR mode — lets the pad turn the view
+   * the gyro's absolute look while in VR mode — lets the pad turn the view
    * for players who can't physically swivel, without overwriting the gyro.
    * Reset to zero on recenter / VR toggle. Transient (not persisted).
    */
@@ -239,8 +244,6 @@ export const useMuseumStore = create<MuseumState>()(
 
       isVRMode: false,
       setVRMode: (v) => set({ isVRMode: v }),
-      vrLook: { yaw: 0, pitch: 0 },
-      setVRLook: (v) => set({ vrLook: v }),
       vrLookOffset: { yaw: 0, pitch: 0 },
       setVRLookOffset: (v) => set({ vrLookOffset: v }),
       vrRecenterSignal: 0,

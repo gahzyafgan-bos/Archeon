@@ -2,9 +2,11 @@ import { useRef, useEffect, useMemo } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
+import { vrLookSource } from "@/hooks/useDeviceOrientationLook";
 import type { RoomConfig } from "@/data/roomConfig";
 import type { Artifact } from "@/types/artifact";
 import { objectFootprintRadius } from "@/utils/artifactSize";
+import { lerpAngle, wrapAngle } from "@/utils/angle";
 
 // Shared immutable zero vector — Vector3.lerp() only READS its target, never
 // mutates it, so a single frozen instance is safe to reuse as the decelerate
@@ -24,9 +26,52 @@ const LOOK_SMOOTHING = 8;
 const HEAD_BOB_AMPLITUDE = 0.03;
 const HEAD_BOB_FREQUENCY = 10;
 
+/** Pitch (look up/down) IS clamped — ±1.4 rad ≈ ±80°, just short of straight
+ * up/down so the view can never flip over or gimbal-lock. Yaw deliberately has
+ * no equivalent constant: see the wrapYaw note in useFrame. */
+const PITCH_LIMIT = 1.4;
+const TWO_PI = Math.PI * 2;
+
+/**
+ * Low-pass strength for the raw gyro reading in VR mode, as the lambda in the
+ * project's usual frame-rate-independent `1 - exp(-lambda * delta)` damping.
+ *
+ * The previous value ran through `1 - pow(0.001, delta * 18)`, which is
+ * `1 - exp(-124 * delta)` — an alpha of ~0.87 per 60fps frame, i.e. the sensor
+ * was passed through very nearly raw. Phone gyros always carry a little noise,
+ * and in a stereo view held centimetres from the eyes that noise reads as a
+ * constant shimmer. 25 gives a ~40ms time constant: enough to settle the
+ * jitter, short enough that head movement still feels attached to the head
+ * (over-smoothing head tracking causes its own "swimming" discomfort).
+ */
+const VR_LOOK_DAMPING = 25;
+
 // Cubic ease-in-out function
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+/**
+ * Deadzone + response curve for one look axis, shared by every look source
+ * (touch stick, gamepad right stick, mouse drag) so they all feel the same.
+ *
+ * Two things it does that the old `|v|^3` didn't:
+ *  - rescales from the deadzone edge, so response starts at 0 instead of
+ *    jumping to the deadzone value the instant the stick crosses it (and so a
+ *    gamepad, whose hook already applied its own radial deadzone, isn't
+ *    deadzoned twice);
+ *  - blends linear+quadratic instead of cubing. Cubing crushed the mid-range
+ *    to almost nothing — a stick held at 60% gave 0.6³ = 0.22, i.e. ~0.48
+ *    rad/s, ~13 seconds for one full turn. On a phone that reads as the view
+ *    "nyangkut" and refusing to keep rotating. This keeps fine control near
+ *    centre (0.3 -> 0.17) while making a normal push actually turn you
+ *    (0.6 -> 0.46, ~6s per full turn; full deflection is unchanged at 1.0).
+ */
+function shapeLookAxis(value: number, deadzone: number): number {
+  const magnitude = Math.abs(value);
+  if (magnitude <= deadzone) return 0;
+  const m = Math.min(1, (magnitude - deadzone) / (1 - deadzone));
+  return Math.sign(value) * (0.4 * m + 0.6 * m * m);
 }
 
 interface PlayerRigProps {
@@ -61,6 +106,21 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
   // Reused focus-zoom target (was allocated fresh every frame while an
   // artifact is focused — see the focus block in useFrame).
   const focusTargetPos = useRef(new THREE.Vector3(0, 0, 0));
+  // DEV-only: throttle for the look telemetry below. Total turn is tracked
+  // separately from `yaw` (which wraps) so a device test can read "how many
+  // full turns did holding the stick actually produce".
+  const lastLookLog = useRef(0);
+  const totalYawTurned = useRef(0);
+
+  // --- VR head-look state ---
+  // World-space heading that the gyro's (recentered, so ~0 = "forward") yaw is
+  // applied on top of. Without it, activating VR would slam the view to world
+  // yaw 0 regardless of where the player was facing a frame earlier.
+  const vrYawBase = useRef(0);
+  // Smoothed gyro reading. Lives here, not in the sensor hook, so the filter
+  // advances exactly once per rendered frame on the renderer's own delta.
+  const vrSmoothed = useRef({ yaw: 0, pitch: 0 });
+  const vrEpochSeen = useRef(-1);
 
   // Static per-artifact collision/proximity data, computed once per artifact
   // list instead of recomputing objectFootprintRadius() twice per artifact
@@ -87,11 +147,16 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
     [artifacts]
   );
 
-  const moveInput = useMuseumStore((s) => s.moveInput);
-  const lookInput = useMuseumStore((s) => s.lookInput);
+  // `moveInput` / `lookInput` / `vrLookOffset` are deliberately NOT subscribed
+  // to: every one of them is rewritten as a fresh object on every poll of
+  // whichever input is being held (gamepad, joystick), so subscribing meant
+  // this component — mounted inside the Canvas — re-rendered ~60×/sec for the
+  // entire time the player was moving or looking, and the frame then used the
+  // value React had last committed rather than the newest one. They're read
+  // out of the store imperatively inside useFrame instead, which is both
+  // cheaper and always current. Everything below changes rarely enough that a
+  // normal subscription is the right tool.
   const isVRMode = useMuseumStore((s) => s.isVRMode);
-  const vrLook = useMuseumStore((s) => s.vrLook);
-  const vrLookOffset = useMuseumStore((s) => s.vrLookOffset);
   const isMovementLocked = useMuseumStore((s) => s.isMovementLocked);
   const setNearbyArtifact = useMuseumStore((s) => s.setNearbyArtifact);
   const nearbyArtifactId = useMuseumStore((s) => s.nearbyArtifact?.id);
@@ -126,7 +191,26 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room.id, camera, settings.cameraFOV]);
 
+  /**
+   * Re-anchors VR head-look so that the view does not move at this instant.
+   * Called whenever the gyro's frame of reference jumps out from under us —
+   * on VR entry, on every recenter, and when the artifact-focus animation
+   * hands control back — by choosing `vrYawBase` such that the yaw currently
+   * on screen is exactly what the new reading reproduces. Also snaps the
+   * smoothing state to the live sample, so the filter doesn't spend its time
+   * constant catching up across a discontinuity it should never have seen.
+   */
+  const rebaseVRLook = () => {
+    const offset = useMuseumStore.getState().vrLookOffset;
+    vrSmoothed.current.yaw = vrLookSource.yaw;
+    vrSmoothed.current.pitch = vrLookSource.pitch;
+    vrEpochSeen.current = vrLookSource.epoch;
+    vrYawBase.current = wrapAngle(yaw.current - vrLookSource.yaw - offset.yaw);
+  };
+
   useFrame((_, delta) => {
+    const { moveInput, lookInput, vrLookOffset } = useMuseumStore.getState();
+
     // --- Smooth zoom-in/out when an artifact is focused/unfocused ---
     const focusLerp = settings.reduceMotion ? 15 : BASE_FOCUS_LERP;
     if (focusedArtifact) {
@@ -174,20 +258,40 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
         targetYaw.current = yaw.current;
         targetPitch.current = pitch.current;
         savedPose.current = null;
+        // In VR the gyro kept reading while the artifact was focused, so
+        // handing control straight back would snap the view from the restored
+        // pose to wherever the head now points. Re-anchor to the pose we just
+        // eased to instead.
+        if (isVRMode) rebaseVRLook();
       }
       return; // finish easing back before handing control back to the player
     }
 
     if (isVRMode) {
-      // VR Cardboard mode: look direction comes straight from the phone's
-      // gyroscope (useDeviceOrientationLook), already smoothed/recentered —
-      // bypass the joystick/mouse integration below entirely. The gamepad
-      // right stick may add an extra yaw/pitch offset on top (vrLookOffset)
-      // for players who can't physically swivel; it's zero unless the stick
-      // is used, so head-look stays authoritative by default. Keep yaw/pitch
-      // refs in sync so control falls back smoothly if VR mode is toggled off.
-      yaw.current = vrLook.yaw + vrLookOffset.yaw;
-      pitch.current = Math.max(-1.1, Math.min(1.1, vrLook.pitch + vrLookOffset.pitch));
+      // VR Cardboard mode: look direction comes from the phone's gyroscope
+      // (vrLookSource, published by useDeviceOrientationLook) — bypass the
+      // joystick/mouse integration below entirely. The gamepad right stick may
+      // add an extra yaw/pitch offset on top (vrLookOffset) for players who
+      // can't physically swivel; it's zero unless the stick is used, so
+      // head-look stays authoritative by default. Keep yaw/pitch refs in sync
+      // so control falls back smoothly if VR mode is toggled off.
+      if (vrLookSource.epoch !== vrEpochSeen.current) {
+        // A new "forward" baseline was just adopted (VR entry / recenter): the
+        // reported yaw has jumped to ~0. Re-anchor rather than interpolate.
+        rebaseVRLook();
+      } else if (vrLookSource.hasReading) {
+        // Filter the raw sensor here, on the render clock, so every frame
+        // advances the low-pass exactly once by its own delta.
+        const t = 1 - Math.exp(-VR_LOOK_DAMPING * delta);
+        vrSmoothed.current.yaw = lerpAngle(vrSmoothed.current.yaw, vrLookSource.yaw, t);
+        vrSmoothed.current.pitch += (vrLookSource.pitch - vrSmoothed.current.pitch) * t;
+      }
+
+      yaw.current = wrapAngle(vrYawBase.current + vrSmoothed.current.yaw + vrLookOffset.yaw);
+      pitch.current = Math.max(
+        -PITCH_LIMIT,
+        Math.min(PITCH_LIMIT, vrSmoothed.current.pitch + vrLookOffset.pitch)
+      );
       targetYaw.current = yaw.current;
       targetPitch.current = pitch.current;
     } else {
@@ -196,25 +300,53 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
       const deadzoneVal =
         settings.deadzone === "small" ? 0.05 : settings.deadzone === "medium" ? 0.1 : 0.2;
 
-      // Apply deadzone
-      let lookX = Math.abs(lookInput.x) > deadzoneVal ? lookInput.x : 0;
-      let lookY = Math.abs(lookInput.y) > deadzoneVal ? lookInput.y : 0;
+      // Deadzone + response curve (see shapeLookAxis).
+      const lookX = shapeLookAxis(lookInput.x, deadzoneVal);
+      const lookY = shapeLookAxis(lookInput.y, deadzoneVal);
 
-      // Apply sensitivity curve (cubic for more precision at low inputs)
-      if (lookX !== 0) {
-        const sign = Math.sign(lookX);
-        lookX = sign * Math.pow(Math.abs(lookX), 3);
-      }
-      if (lookY !== 0) {
-        const sign = Math.sign(lookY);
-        lookY = sign * Math.pow(Math.abs(lookY), 3);
-      }
-
-      // Apply look sensitivity and invert Y if needed
+      // `lookInput` is a RATE, not an angle: it says how hard the stick is
+      // pushed, and is integrated here over delta time. That is what makes the
+      // turn incremental — hold the stick and yaw keeps accumulating, so the
+      // player can spin 360° as many times as they like.
       const lookSpeed = BASE_LOOK_SPEED * settings.lookSensitivity;
-      targetYaw.current -= lookX * lookSpeed * delta;
+      const yawDelta = -lookX * lookSpeed * delta;
+      targetYaw.current += yawDelta;
+      totalYawTurned.current += yawDelta;
+
+      // DEV-only look telemetry (same throttled pattern as useGamepadControls'
+      // axes log). Lets an on-device test confirm the fix directly: hold the
+      // look stick one way and `turns` must keep climbing without ever
+      // settling, while `pitch` stops at the ±1.40 limit by design.
+      if (import.meta.env.DEV && (lookX !== 0 || lookY !== 0)) {
+        const now = performance.now();
+        if (now - lastLookLog.current > 500) {
+          lastLookLog.current = now;
+          // eslint-disable-next-line no-console
+          console.log(
+            `[look] in=(${lookInput.x.toFixed(2)}, ${lookInput.y.toFixed(2)}) ` +
+              `shaped=(${lookX.toFixed(2)}, ${lookY.toFixed(2)}) ` +
+              `yaw=${yaw.current.toFixed(2)} pitch=${pitch.current.toFixed(2)} ` +
+              `turns=${(totalYawTurned.current / TWO_PI).toFixed(2)}`
+          );
+        }
+      }
+
+      // Yaw is NEVER clamped — clamping it is exactly what stops a player from
+      // turning past a fixed heading. To keep the accumulated value from
+      // growing without bound (float precision), wrap it back into (-π, π] by
+      // MODULO, and shift the smoothed `yaw` by the same whole number of turns.
+      // Shifting both together leaves (target - yaw) bit-for-bit identical, so
+      // the smoothing below can't see the wrap: no jump or stall at ±180°.
+      if (targetYaw.current > Math.PI || targetYaw.current < -Math.PI) {
+        const turns = Math.round(targetYaw.current / TWO_PI);
+        targetYaw.current -= turns * TWO_PI;
+        yaw.current -= turns * TWO_PI;
+      }
+
+      // Pitch, unlike yaw, IS clamped — looking past ~80° up/down would flip
+      // the view over. This limit is correct behaviour, not a bug.
       targetPitch.current -= (settings.invertY ? -lookY : lookY) * lookSpeed * delta;
-      targetPitch.current = Math.max(-1.1, Math.min(1.1, targetPitch.current));
+      targetPitch.current = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, targetPitch.current));
 
       // Smooth camera rotation
       yaw.current += (targetYaw.current - yaw.current) * LOOK_SMOOTHING * delta;
@@ -295,8 +427,12 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
       camera.position.x = nextX;
       camera.position.z = nextZ;
 
-      // Head bob, disabled if reduceMotion is on
-      if (!settings.reduceMotion) {
+      // Head bob, disabled if reduceMotion is on — and always off in VR. A
+      // 3cm vertical oscillation at 10Hz is a subtle touch on a flat screen,
+      // but through Cardboard lenses it's the whole world shaking, and camera
+      // motion the inner ear didn't ask for is the classic trigger for
+      // simulator sickness.
+      if (!settings.reduceMotion && !isVRMode) {
         const bob = Math.sin(walkTime.current * HEAD_BOB_FREQUENCY) * HEAD_BOB_AMPLITUDE;
         camera.position.y = EYE_HEIGHT + bob;
       } else {

@@ -128,7 +128,16 @@ export function CardboardStereoView() {
 
   useEffect(() => {
     return () => {
+      // Hand the renderer back a full-screen viewport. WebGLRenderer keeps the
+      // last `setViewport` indefinitely, so leaving VR would otherwise resume
+      // r3f's auto-render still scissored/clipped to the right eye's half of
+      // the canvas — the scene drawn into one half of the screen until some
+      // unrelated resize happened to reset it.
+      const canvasSize = gl.getSize(new THREE.Vector2());
       gl.setScissorTest(false);
+      gl.setViewport(0, 0, canvasSize.width, canvasSize.height);
+      gl.setScissor(0, 0, canvasSize.width, canvasSize.height);
+
       targetL.dispose();
       targetR.dispose();
       distortionMaterial.dispose();

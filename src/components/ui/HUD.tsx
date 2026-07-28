@@ -181,25 +181,31 @@ export function HUD() {
         </div>
       )}
 
-      {/* Virtual joysticks, touch devices only */}
+      {/* Virtual joysticks, touch devices only.
+          40 (=160px) rather than the old 32 (=128px), and inset 1rem instead of
+          1.5rem: the look stick needs enough travel that "hold right to keep
+          turning" doesn't push the thumb over the edge of the screen, which
+          fires touchcancel and drops the gesture mid-rotation. Paired with
+          useVirtualJoysticks' LOOK_SATURATION so full turn rate is reached
+          before the rim, not at it. */}
       {isTouchDevice && !focusedArtifact && (
         <>
           <div
             ref={leftZoneRef}
-            className="fixed z-20 w-32 h-32 rounded-full"
+            className="fixed z-20 w-40 h-40 rounded-full"
             style={{
               touchAction: "none",
-              bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)",
-              left: "calc(env(safe-area-inset-left, 0px) + 1.5rem)",
+              bottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
+              left: "calc(env(safe-area-inset-left, 0px) + 1rem)",
             }}
           />
           <div
             ref={rightZoneRef}
-            className="fixed z-20 w-32 h-32 rounded-full"
+            className="fixed z-20 w-40 h-40 rounded-full"
             style={{
               touchAction: "none",
-              bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)",
-              right: "calc(env(safe-area-inset-right, 0px) + 1.5rem)",
+              bottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
+              right: "calc(env(safe-area-inset-right, 0px) + 1rem)",
             }}
           />
         </>

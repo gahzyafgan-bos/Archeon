@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
-
-const DAMPING = 18; // near-instant — deliberately much snappier than the joystick's LOOK_SMOOTHING
-const PITCH_LIMIT = 1.4; // radians, mirrors PlayerRig's own pitch clamp
+import { wrapAngle } from "@/utils/angle";
 
 // Reusable scratch objects (avoid GC pressure in a ~60Hz event handler).
 const euler = new THREE.Euler();
@@ -12,6 +10,37 @@ const zAxis = new THREE.Vector3(0, 0, 1);
 const q0 = new THREE.Quaternion();
 const q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // -90° around X: camera looks out the back of the device, not off the top
 const resultEuler = new THREE.Euler();
+
+/**
+ * The live gyro reading, as a plain mutable object rather than store/React
+ * state — read straight out of PlayerRig's `useFrame`.
+ *
+ * This is deliberate, and it is what keeps the stereo view steady. The reading
+ * updates every time the sensor fires (~60Hz); routing that through zustand
+ * meant a brand-new `vrLook` object per event, which re-rendered PlayerRig —
+ * inside the Canvas — 60 times a second, and made the rendered frame consume
+ * the value React last *committed* rather than the value the sensor last
+ * *reported*. Because the VR look angle is absolute (unlike the non-VR path,
+ * where `lookInput` is a rate that gets integrated and so hides latency), that
+ * commit lag turned into uneven per-frame angular steps: constant micro-judder.
+ * A mutable object has no such scheduling in between — the renderer always
+ * sees the newest sample, exactly once, on its own clock.
+ */
+export const vrLookSource = {
+  /** Yaw relative to the current "forward" baseline, radians, wrapped to (-π, π]. */
+  yaw: 0,
+  /** Pitch relative to the baseline's level reference, radians. */
+  pitch: 0,
+  /** False until the first usable sensor sample lands (or right after VR is toggled). */
+  hasReading: false,
+  /**
+   * Bumped whenever a new "forward" baseline is adopted — i.e. on VR entry and
+   * on every recenter. At that instant `yaw` jumps discontinuously to ~0, so
+   * the consumer must re-anchor instead of interpolating across the jump (see
+   * PlayerRig's rebaseVRLook).
+   */
+  epoch: 0,
+};
 
 function degToRad(d: number) {
   return d * (Math.PI / 180);
@@ -38,78 +67,59 @@ function computeYawPitch(alpha: number, beta: number, gamma: number, screenOrien
   return { yaw: resultEuler.y, pitch: resultEuler.x };
 }
 
-/** Shortest-path angle lerp so yaw doesn't spin the long way around at the ±π wraparound. */
-function lerpAngle(from: number, to: number, t: number) {
-  let diff = (to - from) % (Math.PI * 2);
-  if (diff > Math.PI) diff -= Math.PI * 2;
-  if (diff < -Math.PI) diff += Math.PI * 2;
-  return from + diff * t;
-}
-
-function wrapAngle(a: number) {
-  let wrapped = a % (Math.PI * 2);
-  if (wrapped > Math.PI) wrapped -= Math.PI * 2;
-  if (wrapped < -Math.PI) wrapped += Math.PI * 2;
-  return wrapped;
-}
-
 /**
- * Reads the phone's gyroscope (`deviceorientation`) and writes an absolute,
- * recentered yaw/pitch into the store's `vrLook`, which PlayerRig consumes
- * directly in place of the joystick/mouse-driven `lookInput` while VR mode
- * is active. Does not touch `lookInput` itself, so the non-VR look path is
- * untouched.
+ * Reads the phone's gyroscope (`deviceorientation`) and publishes an absolute,
+ * recentered yaw/pitch into `vrLookSource`, which PlayerRig consumes directly
+ * in place of the joystick/mouse-driven `lookInput` while VR mode is active.
+ * Does not touch `lookInput` itself, so the non-VR look path is untouched.
+ *
+ * Smoothing lives in PlayerRig, not here: filtering has to run on the same
+ * clock as the frame it feeds, otherwise the filter and the renderer tick at
+ * independent rates and reintroduce exactly the unevenness it exists to remove.
+ * This hook therefore runs no animation loop of its own.
  */
 export function useDeviceOrientationLook() {
   const isVRMode = useMuseumStore((s) => s.isVRMode);
-  const setVRLook = useMuseumStore((s) => s.setVRLook);
   const vrRecenterSignal = useMuseumStore((s) => s.vrRecenterSignal);
 
   const baseline = useRef<{ yaw: number; pitch: number } | null>(null);
-  const target = useRef({ yaw: 0, pitch: 0 });
-  const smoothed = useRef({ yaw: 0, pitch: 0 });
 
   useEffect(() => {
-    if (!isVRMode) {
-      baseline.current = null;
-      return;
-    }
+    // Entering or leaving VR both start from a clean slate: no baseline, no
+    // stale reading, and an epoch bump so PlayerRig re-anchors to whatever
+    // heading is on screen right now instead of snapping to the gyro's zero.
+    baseline.current = null;
+    vrLookSource.yaw = 0;
+    vrLookSource.pitch = 0;
+    vrLookSource.hasReading = false;
+    vrLookSource.epoch += 1;
+
+    if (!isVRMode) return;
     if (typeof DeviceOrientationEvent === "undefined") return;
 
     const handleOrientation = (e: DeviceOrientationEvent) => {
       if (e.alpha === null || e.beta === null || e.gamma === null) return;
       const { yaw, pitch } = computeYawPitch(e.alpha, e.beta, e.gamma, getScreenOrientationAngle());
-      // First reading (or the one right after a recenter request) becomes the new "facing forward, level" baseline.
-      if (!baseline.current) baseline.current = { yaw, pitch };
-      target.current = {
-        yaw: wrapAngle(yaw - baseline.current.yaw),
-        pitch: pitch - baseline.current.pitch,
-      };
+      // First reading (or the one right after a recenter request) becomes the
+      // new "facing forward, level" baseline.
+      if (!baseline.current) {
+        baseline.current = { yaw, pitch };
+        vrLookSource.epoch += 1;
+      }
+      vrLookSource.yaw = wrapAngle(yaw - baseline.current.yaw);
+      vrLookSource.pitch = pitch - baseline.current.pitch;
+      vrLookSource.hasReading = true;
     };
+
     window.addEventListener("deviceorientation", handleOrientation);
-
-    let last = performance.now();
-    let rafId = requestAnimationFrame(function tick(now) {
-      const delta = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      const t = 1 - Math.pow(0.001, delta * DAMPING);
-      smoothed.current.yaw = lerpAngle(smoothed.current.yaw, target.current.yaw, t);
-      smoothed.current.pitch += (target.current.pitch - smoothed.current.pitch) * t;
-      setVRLook({
-        yaw: smoothed.current.yaw,
-        pitch: Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, smoothed.current.pitch)),
-      });
-      rafId = requestAnimationFrame(tick);
-    });
-
-    return () => {
-      window.removeEventListener("deviceorientation", handleOrientation);
-      cancelAnimationFrame(rafId);
-    };
-  }, [isVRMode, setVRLook]);
+    return () => window.removeEventListener("deviceorientation", handleOrientation);
+  }, [isVRMode]);
 
   // "Kalibrasi Ulang Arah Depan" — dropping the baseline makes the very next
-  // orientation reading the new forward/level reference.
+  // orientation reading the new forward/level reference. The epoch bump that
+  // follows it lets PlayerRig hold the view perfectly still through the
+  // switch: recentering changes which way the PHONE means "forward", it must
+  // never move where the player is looking.
   useEffect(() => {
     if (vrRecenterSignal === 0) return;
     baseline.current = null;

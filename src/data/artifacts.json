@@ -191,7 +191,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -8.6,
-      "y": 0.83,
+      "y": 0.92,
       "z": -0.6
     },
     "rotasi_y": 1.57,
@@ -202,9 +202,9 @@
     "display_tier": "featured",
     "pedestal_height": 0.7,
     "real_world_size": {
-      "width": 0.52,
-      "height": 0.33,
-      "depth": 0.72
+      "width": 0.68,
+      "height": 0.43,
+      "depth": 0.94
     }
   },
   {
@@ -217,7 +217,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -6.6,
-      "y": 0.875,
+      "y": 0.99,
       "z": -3.0
     },
     "rotasi_y": -1.0,
@@ -228,9 +228,9 @@
     "display_tier": "featured",
     "pedestal_height": 0.7,
     "real_world_size": {
-      "width": 0.68,
-      "height": 0.44,
-      "depth": 0.5
+      "width": 0.88,
+      "height": 0.57,
+      "depth": 0.65
     }
   },
   {
@@ -522,14 +522,14 @@
   {
     "id": "r2-garudeya-emas",
     "nama": "Garudeya Emas 22 Karat",
-    "deskripsi": "Garudeya emas 22 karat yang ditemukan di Desa Plaosan (1989), satu-satunya artefak emas 22 karat di Indonesia. Aslinya dipajang dalam brankas kaca berjeruji untuk keamanan. Signature piece Museum Mpu Tantular — dipentaskan di titik klimaks zona, dikawal arca Dwarapala asli di kedua sisi jalur menuju vitrinenya.",
+    "deskripsi": "Garudeya emas 22 karat yang ditemukan di Desa Plaosan (1989), satu-satunya artefak emas 22 karat di Indonesia. Di museum aslinya artefak ini disimpan dalam brankas kaca berjeruji demi keamanan. Signature piece Museum Mpu Tantular — di ruang virtual ini sengaja dipentaskan terbuka tanpa pembatas dan diperbesar dari ukuran aslinya agar detail ukirannya terbaca jelas, berdiri di titik klimaks zona dan dikawal arca Dwarapala asli di kedua sisi jalur menuju plintnya.",
     "url_model_3d": "/models/garudeya.glb",
     "placeholder_shape": "torus",
     "url_audio": "",
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 10.0,
-      "y": 1.4,
+      "y": 1.7,
       "z": -2.0
     },
     "rotasi_y": -1.5708,
@@ -538,11 +538,11 @@
     "is_ikonik": true,
     "zoneId": "hindu-buddha",
     "display_tier": "signature",
-    "pedestal_height": 1.4,
+    "pedestal_height": 1.45,
     "real_world_size": {
-      "width": 0.13,
-      "height": 0.18,
-      "depth": 0.11
+      "width": 0.36,
+      "height": 0.5,
+      "depth": 0.31
     }
   },
   {
@@ -815,7 +815,7 @@
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 2.4,
-      "y": 0.91,
+      "y": 1.1,
       "z": 0.9
     },
     "rotasi_y": 0.3,
@@ -826,9 +826,9 @@
     "display_tier": "featured",
     "pedestal_height": 0.7,
     "real_world_size": {
-      "width": 0.45,
-      "height": 0.42,
-      "depth": 0.35
+      "width": 0.85,
+      "height": 0.79,
+      "depth": 0.66
     }
   }
 ]

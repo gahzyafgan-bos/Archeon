@@ -53,7 +53,7 @@ export function CenterInstallation({
       <Pillar height={3.2} radius={0.26} style="candi" accentColor={accentColor} position={[center.x + 1.8, 0, center.z]} />
 
       {/* Focal spotlight — the one extra dynamic light this installation
-          adds hall-wide; kept unconditional (like the Garudeya vitrine
+          adds hall-wide; kept unconditional (like the Garudeya key
           spotlight) since it's what makes the center actually read as a
           destination rather than empty floor. */}
       <spotLight
