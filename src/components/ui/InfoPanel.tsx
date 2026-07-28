@@ -28,13 +28,17 @@ export function InfoPanel() {
       <div className="absolute inset-0 backdrop-blur-sm bg-black/20 pointer-events-none transition-opacity duration-500" />
 
       <div
-        className={`absolute right-0 top-0 h-full w-full sm:w-[420px] flex flex-col justify-center p-4 sm:p-6 pointer-events-auto transition-all duration-500 ease-museum ${
+        className={`absolute right-0 top-0 h-full w-full sm:w-[420px] flex flex-col justify-center p-4 sm:p-6 short:p-2 pointer-events-auto transition-all duration-500 ease-museum ${
           isInfoPanelOpen ? "translate-x-0 opacity-100" : "translate-x-8 opacity-0"
         }`}
       >
-        <div className="glass-panel rounded-2xl overflow-hidden flex flex-col max-h-[85dvh] animate-slide-up-fade">
-          {/* Mini 360° model viewer */}
-          <div className="h-56 sm:h-64 bg-museum-charcoal/60 relative">
+        <div className="glass-panel rounded-2xl overflow-hidden flex flex-col max-h-[85dvh] short:max-h-[96dvh] animate-slide-up-fade">
+          {/* Mini 360° model viewer. `shrink-0` keeps it from being squeezed
+              into nothing, but it gets a much shorter slot on a phone in
+              landscape — at h-56 it alone ate two thirds of the ~390px the
+              panel has to work with there, leaving the description and the
+              buttons below it nowhere to go. */}
+          <div className="h-56 sm:h-64 short:h-32 shrink-0 bg-museum-charcoal/60 relative">
             <Canvas camera={{ position: [0, 0.4, 2.6], fov: settings.cameraFOV }}>
               <ambientLight intensity={0.6} />
               <directionalLight position={[3, 4, 2]} intensity={1.4} />
@@ -61,15 +65,28 @@ export function InfoPanel() {
             </button>
           </div>
 
-          {/* Info content */}
-          <div className="p-5 sm:p-6 flex flex-col gap-4 overflow-y-auto museum-scroll">
+          {/* Info content.
+              `flex-1 min-h-0` is what actually makes `overflow-y-auto` work
+              here. A flex item defaults to `min-height: auto`, i.e. it refuses
+              to shrink below its content — so this box grew past the parent's
+              max-height, the scrollbar never appeared, and the parent's
+              `overflow-hidden` simply clipped the tail off. That's the
+              "kepotong dan tidak bisa di-scroll" symptom: everything below the
+              fold, including the Audio Guide and "Kembali menjelajah" buttons,
+              was unreachable on any short viewport.
+              `touch-action: pan-y` tells the browser a vertical drag in here is
+              a scroll, so it never gets claimed as a 3D-view gesture. */}
+          <div
+            className="p-5 sm:p-6 short:p-4 flex-1 min-h-0 flex flex-col gap-4 short:gap-3 overflow-y-auto overscroll-contain museum-scroll"
+            style={{ touchAction: "pan-y" }}
+          >
             <div>
               {focusedArtifact.is_ikonik && (
                 <span className="text-[10px] tracking-[0.2em] uppercase text-museum-gold">
                   Koleksi Ikonik
                 </span>
               )}
-              <h2 className="font-display text-2xl text-museum-bone mt-1" style={{
+              <h2 className="font-display text-2xl short:text-xl text-museum-bone mt-1" style={{
                 fontSize: settings.textSize === "small" ? "1.5rem" : settings.textSize === "large" ? "2.5rem" : undefined
               }}>
                 {focusedArtifact.nama}

@@ -5,11 +5,20 @@ import { useAudioGuide } from "@/hooks/useAudioGuide";
 function EyeOverlay() {
   const nearbyArtifact = useMuseumStore((s) => s.nearbyArtifact);
   const focusedArtifact = useMuseumStore((s) => s.focusedArtifact);
+  const lensSeparationMm = useMuseumStore((s) => s.settings.vrLensSeparationMm);
 
   return (
     <div className="relative flex-1 h-full flex items-center justify-center">
       {/* Crosshair to help the eye focus while looking around */}
       <div className="w-3 h-3 rounded-full border border-museum-bone/60" />
+
+      {/* Control hints live inside each eye rather than once across the middle
+          of the screen: a single centred strip lands on the inner edge of both
+          viewports, which is exactly where a Cardboard lens shows least. */}
+      <div className="absolute bottom-2 left-0 right-0 text-center px-2 text-museum-mist/45 text-[8px] tracking-widest uppercase leading-relaxed">
+        <p>Start = keluar · Select = kalibrasi arah</p>
+        <p>D-pad ◀ ▶ = jarak lensa {lensSeparationMm}mm</p>
+      </div>
 
       {focusedArtifact ? (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-center px-3">
@@ -58,9 +67,6 @@ export function VRHud() {
       <EyeOverlay />
       <div className="w-px h-full bg-white/5" />
       <EyeOverlay />
-      <p className="fixed bottom-3 left-1/2 -translate-x-1/2 text-museum-mist/50 text-[9px] tracking-widest uppercase">
-        Start = Keluar Mode VR &nbsp;·&nbsp; Select/Back = Kalibrasi Ulang
-      </p>
     </div>
   );
 }

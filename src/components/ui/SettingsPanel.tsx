@@ -396,10 +396,35 @@ export function SettingsPanel() {
                 gambar kiri-kanan menyatu jadi satu dan terasa nyaman di mata.
               </p>
 
+              {/* Lens separation — the one that decides whether the two
+                  images can fuse at all. Adjustable because the browser cannot
+                  read a phone's physical screen size. */}
+              <div>
+                <div className="mb-2 flex justify-between">
+                  <label>Jarak Pusat Lensa</label>
+                  <span className="text-museum-gold">±{settings.vrLensSeparationMm} mm</span>
+                </div>
+                <input
+                  type="range"
+                  min="50"
+                  max="80"
+                  step="1"
+                  value={settings.vrLensSeparationMm}
+                  onChange={(e) => updateSettings({ vrLensSeparationMm: parseInt(e.target.value) })}
+                  className="w-full h-2 bg-museum-charcoal/50 rounded-lg appearance-none cursor-pointer accent-museum-gold"
+                />
+                <p className="text-museum-mist/70 text-[10px] mt-1">
+                  Ini setelan paling penting. Kalau gambar kiri-kanan terasa dobel dan tidak mau
+                  menyatu jadi satu, geser nilai ini sedikit demi sedikit sampai menyatu. Di dalam
+                  Mode VR bisa diatur langsung lewat D-pad kiri/kanan gamepad, tanpa keluar dulu.
+                  Nilai mm-nya perkiraan — layar tiap HP berbeda dan browser tidak bisa membacanya.
+                </p>
+              </div>
+
               {/* IPD (Interpupillary Distance) */}
               <div>
                 <div className="mb-2 flex justify-between">
-                  <label>Jarak Antar Mata (IPD)</label>
+                  <label>Kekuatan Efek 3D (IPD)</label>
                   <span className="text-museum-gold">{Math.round(settings.vrIPD * 1000)} mm</span>
                 </div>
                 <input
@@ -412,7 +437,8 @@ export function SettingsPanel() {
                   className="w-full h-2 bg-museum-charcoal/50 rounded-lg appearance-none cursor-pointer accent-museum-gold"
                 />
                 <p className="text-museum-mist/70 text-[10px] mt-1">
-                  Jika gambar terasa "kebelah" atau kedalaman 3D kurang terasa, coba ubah nilai ini.
+                  Mengatur seberapa kuat kesan kedalaman 3D-nya, bukan apakah gambarnya menyatu —
+                  untuk itu pakai "Jarak Pusat Lensa" di atas. Terlalu besar bikin mata cepat lelah.
                 </p>
               </div>
 

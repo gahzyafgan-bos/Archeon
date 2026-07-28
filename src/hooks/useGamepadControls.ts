@@ -10,6 +10,17 @@ const BUTTON_INTERACT = 0; // A / X — same action as the touch "X" / desktop "
 const BUTTON_BACK = 1; // B — step back out of a focused artifact
 const BUTTON_RECENTER = 8; // Back/Select — recenter the gyro's "forward"
 const BUTTON_EXIT_VR = 9; // Start — leave VR mode without touching the screen
+const BUTTON_DPAD_LEFT = 14; // narrow the gap between the two eye images
+const BUTTON_DPAD_RIGHT = 15; // widen it
+
+// Lens separation is the one calibration that can only be judged from inside
+// the headset, and the settings panel is unreachable there (the whole touch
+// HUD is hidden in VR). One step per press rather than a held ramp: the value
+// is persisted to localStorage on every change, and a 60Hz ramp would mean a
+// synchronous storage write every frame.
+const LENS_SEPARATION_STEP_MM = 1;
+const LENS_SEPARATION_MIN_MM = 50;
+const LENS_SEPARATION_MAX_MM = 80;
 
 /**
  * Axis indices per the Gamepad API "standard" mapping:
@@ -124,6 +135,15 @@ export function useGamepadControls() {
       lastLook.current = { x, y };
       setLookInput({ x, y });
     };
+    const nudgeLensSeparation = (deltaMm: number) => {
+      const s = useMuseumStore.getState();
+      const next = Math.max(
+        LENS_SEPARATION_MIN_MM,
+        Math.min(LENS_SEPARATION_MAX_MM, s.settings.vrLensSeparationMm + deltaMm)
+      );
+      if (next !== s.settings.vrLensSeparationMm) s.updateSettings({ vrLensSeparationMm: next });
+    };
+
     const resetVROffset = () => {
       if (vrOffset.current.yaw === 0 && vrOffset.current.pitch === 0) return;
       vrOffset.current = { yaw: 0, pitch: 0 };
@@ -201,6 +221,8 @@ export function useGamepadControls() {
             useMuseumStore.getState().requestVRRecenter();
           });
           firePress(pad, BUTTON_EXIT_VR, () => useMuseumStore.getState().setVRMode(false));
+          firePress(pad, BUTTON_DPAD_LEFT, () => nudgeLensSeparation(-LENS_SEPARATION_STEP_MM));
+          firePress(pad, BUTTON_DPAD_RIGHT, () => nudgeLensSeparation(LENS_SEPARATION_STEP_MM));
         }
       }
 

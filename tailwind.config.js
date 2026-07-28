@@ -3,6 +3,17 @@ export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      screens: {
+        /**
+         * "Short viewport" — a phone held in landscape (~390px tall), which is
+         * the ONLY orientation this app runs in on touch devices (LandscapeGate
+         * blocks portrait). Deliberately height-based rather than the built-in
+         * `landscape:` variant: every desktop window is landscape too, and
+         * panel layouts tuned for a 390px-tall phone must not follow the user
+         * onto a 900px-tall laptop.
+         */
+        short: { raw: "(max-height: 560px)" },
+      },
       colors: {
         museum: {
           void: "#0a0a0b",

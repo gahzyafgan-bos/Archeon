@@ -46,6 +46,19 @@ const TWO_PI = Math.PI * 2;
  */
 const VR_LOOK_DAMPING = 25;
 
+/**
+ * Vertical FOV (degrees) forced while VR mode is active, overriding the user's
+ * `cameraFOV` preference for the duration.
+ *
+ * In VR the field of view isn't a taste setting — it's fixed by the optics.
+ * Cardboard lenses present roughly 90° to each eye, and each eye here renders
+ * at half the canvas width (~1.08 aspect in landscape), so 80° vertical works
+ * out to ~84° horizontal: close enough that world scale reads correctly.
+ * Inheriting a 60-65° preference instead makes everything look magnified and
+ * too near, which fights fusion; a 90° one makes the room feel stretched.
+ */
+const VR_CAMERA_FOV = 80;
+
 // Cubic ease-in-out function
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -163,17 +176,24 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
   const focusedArtifact = useMuseumStore((s) => s.focusedArtifact);
   const settings = useMuseumStore((s) => s.settings);
 
-  // (Re)place the player at the room's spawn point whenever the room changes or FOV changes.
+  // Camera FOV, kept in one place so there is a single owner of the value.
+  // In VR it is dictated by the Cardboard optics rather than by preference
+  // (see VR_CAMERA_FOV), and it has to be re-asserted on every hall change too
+  // — otherwise walking through an archway mid-session would quietly hand the
+  // stereo view the user's flat-screen FOV back.
+  useEffect(() => {
+    if (!('fov' in camera)) return;
+    (camera as THREE.PerspectiveCamera).fov = isVRMode ? VR_CAMERA_FOV : settings.cameraFOV;
+    camera.updateProjectionMatrix();
+  }, [camera, isVRMode, settings.cameraFOV, room.id]);
+
+  // (Re)place the player at the room's spawn point whenever the room changes.
   useEffect(() => {
     // Use door-specific spawn point if available, otherwise fall back to room default
     const pending = useMuseumStore.getState().pendingSpawnPoint;
     const spawn = pending || room.spawn;
 
     camera.position.set(spawn.x, EYE_HEIGHT, spawn.z);
-    if ('fov' in camera) {
-      (camera as THREE.PerspectiveCamera).fov = settings.cameraFOV;
-      camera.updateProjectionMatrix();
-    }
     yaw.current = spawn.facingY;
     targetYaw.current = spawn.facingY;
     pitch.current = 0;
@@ -189,7 +209,7 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
     const t = setTimeout(() => (doorCooldown.current = false), 1500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room.id, camera, settings.cameraFOV]);
+  }, [room.id, camera]);
 
   /**
    * Re-anchors VR head-look so that the view does not move at this instant.

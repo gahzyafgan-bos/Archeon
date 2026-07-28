@@ -38,6 +38,25 @@ export interface Settings {
   // VR (Cardboard) lens calibration — different Cardboard viewers and faces
   // need different values to make the stereo image actually fuse comfortably.
   vrIPD: number; // world units between eyes; real-world average is ~0.063 (63mm), scene scale is 1 unit = 1 meter
+  /**
+   * Physical distance, in millimetres, between the two lens centres of the
+   * Cardboard viewer — i.e. how far apart the two images must sit ON THE GLASS.
+   *
+   * This is a completely separate quantity from vrIPD above, and conflating
+   * them is why a stereo pair fails to fuse. vrIPD is a distance in the 3D
+   * scene and only controls how strong the depth effect is. This one decides
+   * whether the eyes can merge the two images at all: each eye looks straight
+   * down its own lens axis, so the point of the screen that reads as "dead
+   * ahead" is the lens centre, and the two image centres therefore have to be
+   * exactly a lens-separation apart. Splitting the screen 50/50 instead puts
+   * them half a screen-width apart, which on any large phone is wider than a
+   * human face — the eyes would have to diverge, which they cannot do.
+   *
+   * User-adjustable because the web cannot read a device's physical screen
+   * size, so the mm -> pixel conversion is only ever an estimate (see
+   * MM_PER_CSS_PX in CardboardStereoView).
+   */
+  vrLensSeparationMm: number;
   vrDistortionK1: number; // barrel pre-distortion, 1st order radial coefficient
   vrDistortionK2: number; // barrel pre-distortion, 2nd order radial coefficient
   // Kualitas Grafis
@@ -61,6 +80,7 @@ const defaultSettings: Settings = {
   textSize: "medium",
   roomTransitionSpeed: 1,
   vrIPD: 0.063,
+  vrLensSeparationMm: 63, // Cardboard v2's fixed lens spacing / average adult IPD
   vrDistortionK1: 0.22,
   vrDistortionK2: 0.24,
   graphicsQuality: "rendah",

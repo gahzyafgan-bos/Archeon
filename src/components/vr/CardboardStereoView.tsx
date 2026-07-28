@@ -12,6 +12,19 @@ import { useMuseumStore } from "@/store/useMuseumStore";
  */
 const RENDER_SCALE = 0.9;
 
+/**
+ * Millimetres per CSS pixel, used to turn the user's lens-separation setting
+ * into a pixel offset. The web deliberately exposes no physical screen size,
+ * so this is an estimate: mobile browsers pick a devicePixelRatio that lands
+ * their CSS pixel density somewhere around 130-150 CSS-dpi (iPhone 14 Pro
+ * ~148, Pixel 7 ~148, Galaxy S21 ~128, iPad ~131), rather than the 96 dpi the
+ * CSS spec nominally anchors to. 140 sits in the middle of that spread, so the
+ * default lands within roughly 10% on most phones — and the settings slider
+ * exists precisely to absorb the rest, since only the person looking through
+ * the lenses can tell when the two images have actually fused.
+ */
+const MM_PER_CSS_PX = 25.4 / 140;
+
 const distortionVertexShader = /* glsl */ `
   varying vec2 vUv;
   void main() {
@@ -37,15 +50,24 @@ const distortionFragmentShader = /* glsl */ `
   uniform float k1;
   uniform float k2;
   uniform float aspect;
+  // Horizontal position of this eye's lens axis within its own viewport, in
+  // the same -1..1 space as "centered" below. Barrel distortion is a property
+  // of the lens, so it has to be measured from where the lens actually is —
+  // once the image centre is pushed inboard to match the viewer's lens
+  // spacing, distorting around the geometric middle of the viewport would
+  // warp the image about the wrong point and undo the alignment.
+  uniform float lensCenterX;
   varying vec2 vUv;
 
   void main() {
     vec2 centered = (vUv - 0.5) * 2.0;
+    centered.x -= lensCenterX;
     centered.x *= aspect; // keep the distortion radius circular, not elliptical, on a wide viewport
     float r2 = dot(centered, centered);
     float factor = 1.0 + k1 * r2 + k2 * r2 * r2;
     vec2 distorted = centered * factor;
     distorted.x /= aspect;
+    distorted.x += lensCenterX;
     vec2 sampleUv = distorted * 0.5 + 0.5;
 
     if (sampleUv.x < 0.0 || sampleUv.x > 1.0 || sampleUv.y < 0.0 || sampleUv.y > 1.0) {
@@ -85,6 +107,7 @@ function createEyeRenderTarget() {
 export function CardboardStereoView() {
   const { gl, scene, camera, size } = useThree();
   const vrIPD = useMuseumStore((s) => s.settings.vrIPD);
+  const vrLensSeparationMm = useMuseumStore((s) => s.settings.vrLensSeparationMm);
   const vrDistortionK1 = useMuseumStore((s) => s.settings.vrDistortionK1);
   const vrDistortionK2 = useMuseumStore((s) => s.settings.vrDistortionK2);
 
@@ -105,6 +128,7 @@ export function CardboardStereoView() {
           k1: { value: vrDistortionK1 },
           k2: { value: vrDistortionK2 },
           aspect: { value: 1 },
+          lensCenterX: { value: 0 },
         },
         vertexShader: distortionVertexShader,
         fragmentShader: distortionFragmentShader,
@@ -125,6 +149,14 @@ export function CardboardStereoView() {
   const distortionCamera = useMemo(() => new THREE.Camera(), []);
 
   const lastTargetSize = useRef({ width: 0, height: 0 });
+  // THREE.StereoCamera only rebuilds its two projection matrices when one of
+  // its own cached inputs changes; on every other frame it leaves them exactly
+  // as it last wrote them. Since we shift those matrices afterwards, we can't
+  // read them back as a baseline — a `+=` would compound frame after frame.
+  // So we mirror StereoCamera's cache key, and snapshot the pristine
+  // x-asymmetry term on precisely the frames it rebuilt.
+  const stereoKey = useRef("");
+  const baseSkew = useRef({ left: 0, right: 0 });
 
   useEffect(() => {
     return () => {
@@ -165,6 +197,35 @@ export function CardboardStereoView() {
     camera.updateMatrixWorld();
     stereoCamera.update(camera);
 
+    // --- Lens-centre alignment -------------------------------------------
+    // Where each eye's lens axis falls inside its own half of the screen,
+    // expressed in the -1..1 space that spans that half. A plain 50/50 split
+    // puts the two image centres half a screen-width apart; the viewer's
+    // lenses are a fixed ~63mm apart, so both images have to move inboard by
+    // the difference. At the point where a half-screen already equals the lens
+    // spacing this comes out as 0 and nothing moves.
+    const lensSeparationPx = vrLensSeparationMm / MM_PER_CSS_PX;
+    const lensShift = Math.max(-0.5, Math.min(0.9, 1 - lensSeparationPx / halfWidth));
+
+    // Push the shift into the projection matrices rather than sliding the
+    // finished image sideways: element 8 is the frustum's x-asymmetry term, so
+    // moving it re-aims each eye's optical axis while still filling the whole
+    // viewport. Shifting the blit instead would leave a black band along the
+    // outer edge of both eyes and throw away ~17% of the horizontal field.
+    // Mirrors exactly what StereoCamera.update() compares internally — note
+    // `focus` is the PerspectiveCamera's convergence distance, not a property
+    // of StereoCamera.
+    const key = `${camera.focus}|${camera.fov}|${camera.aspect}|${camera.near}|${camera.far}|${camera.zoom}|${stereoCamera.eyeSep}`;
+    if (key !== stereoKey.current) {
+      stereoKey.current = key;
+      baseSkew.current.left = stereoCamera.cameraL.projectionMatrix.elements[8];
+      baseSkew.current.right = stereoCamera.cameraR.projectionMatrix.elements[8];
+    }
+    stereoCamera.cameraL.projectionMatrix.elements[8] = baseSkew.current.left - lensShift;
+    stereoCamera.cameraR.projectionMatrix.elements[8] = baseSkew.current.right + lensShift;
+    stereoCamera.cameraL.projectionMatrixInverse.copy(stereoCamera.cameraL.projectionMatrix).invert();
+    stereoCamera.cameraR.projectionMatrixInverse.copy(stereoCamera.cameraR.projectionMatrix).invert();
+
     const distortionUniforms = distortionMaterial.uniforms;
     distortionUniforms.k1.value = vrDistortionK1;
     distortionUniforms.k2.value = vrDistortionK2;
@@ -184,14 +245,19 @@ export function CardboardStereoView() {
     // Pass 2: barrel-distort each render target onto its half of the screen.
     gl.setScissorTest(true);
 
+    // Both eyes share y = 0 and the same height, so the two halves stay
+    // pixel-for-pixel level with each other — even a few pixels of vertical
+    // disparity is enough to stop the pair fusing.
     gl.setViewport(0, 0, halfWidth, size.height);
     gl.setScissor(0, 0, halfWidth, size.height);
     distortionUniforms.map.value = targetL.texture;
+    distortionUniforms.lensCenterX.value = lensShift; // left eye's lens sits inboard, i.e. to the right
     gl.render(distortionScene, distortionCamera);
 
     gl.setViewport(halfWidth, 0, halfWidth, size.height);
     gl.setScissor(halfWidth, 0, halfWidth, size.height);
     distortionUniforms.map.value = targetR.texture;
+    distortionUniforms.lensCenterX.value = -lensShift;
     gl.render(distortionScene, distortionCamera);
 
     gl.setScissorTest(false);
