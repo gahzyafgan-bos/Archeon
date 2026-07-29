@@ -37,6 +37,18 @@ export interface ZoneConfig {
    * another grid item (design spec section 1/2c: framed view + terminating
    * vista). Zones with no artifacts (welcome) omit this. */
   heroFocus?: { x: number; z: number };
+  /** Wall-mounted zone introduction (see InterpretivePanel.tsx). Hand-placed
+   * rather than derived from the zone centre: it has to land on a wall the
+   * visitor actually faces, clear of the hero backdrop, the colonnade and the
+   * archway — none of which a formula can see. `y` is the board's centre
+   * height; 2.1 m puts the text block in the brightest part of the wall wash
+   * and above every pedestal in the room. */
+  wallPanel?: {
+    position: { x: number; y: number; z: number };
+    rotationY: number;
+    /** Indonesian, 2-3 sentences, describing what this zone actually holds. */
+    body: string;
+  };
 }
 
 export interface RoomConfig {
@@ -87,7 +99,11 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
     // (working) lobby spawn convention.
     spawn: { x: 0, z: 6, facingY: 0 },
     wallColor: "#F2E9D8",
-    floorColor: "#E4D5B7",
+    // Stepped down from #E4D5B7. A near-white floor is the brightest thing in
+    // the room, so every dark object standing on it — pedestals, statues, the
+    // colonnade — collapsed into a hard silhouette instead of showing its own
+    // form. Darker floor, same warmth; the artefacts get the light back.
+    floorColor: "#D2C3A2",
     accentColor: "#B08D3C",
     doors: [
       {
@@ -113,6 +129,15 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
         // Manusia-purba terminating vista (the configured Pithecanthropus hero
         // has no .glb, so the visible hero is manusia-purba at this spot).
         heroFocus: { x: -9.5, z: -5 },
+        // South-west wall (x -12..-3, z = -7.5): the single largest blank
+        // surface in the museum and the one a visitor walks straight at on
+        // the way to the archway. The manusia-purba backdrop is on the WEST
+        // wall, so this stretch carries no staging of its own.
+        wallPanel: {
+          position: { x: -6.4, y: 2.1, z: -7.3 },
+          rotationY: 0,
+          body: "Zona ini menghimpun jejak kehidupan paling awal di Jawa: fosil manusia purba, fosil kepala fauna, dan perkakas batu seperti kapak perimbas dan kapak persegi. Semuanya berasal dari masa sebelum manusia mengenal tulisan, ketika alat dibentuk langsung dari batu yang tersedia di sekitar. Perhatikan bagaimana bentuk alatnya berubah dari serpihan kasar menjadi bidang yang sengaja diasah.",
+        },
       },
       {
         id: "hindu-buddha",
@@ -126,6 +151,15 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
         // GarudeyaStage + ArtifactMesh showcase), so it is NOT the zone
         // heroFocus — that keeps the generic framing/backdrop off Garudeya.
         heroFocus: { x: 5.5, z: -4.5 },
+        // East wall, north of Garudeya. Garudeya's own indigo backdrop occupies
+        // z -3.7..-0.3 on this wall and the Durga backdrop sits on the south
+        // wall, so z = +2.2 is the only stretch here that stages nothing — and
+        // it sits between two colonnade pillars, which frames it.
+        wallPanel: {
+          position: { x: 11.78, y: 2.1, z: 2.2 },
+          rotationY: -Math.PI / 2,
+          body: "Arca dan benda upacara dari masa pengaruh Hindu-Buddha di Jawa Timur. Setiap arca dikenali dari atribut yang dibawanya — senjata, hewan tunggangan, atau sikap tangan — dan dari situlah tokoh yang digambarkan dapat dibedakan satu sama lain. Garudeya Emas di sisi ruang ini adalah koleksi paling dikenal dari kelompok tersebut.",
+        },
       },
     ],
     // Sits on the direct sightline from spawn, between the two side zones —
@@ -146,7 +180,8 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
     ceilingHeight: 5.5,
     spawn: { x: 0, z: 3.0, facingY: 0 },
     wallColor: "#F2E9D8",
-    floorColor: "#E4D5B7",
+    /** Kept identical to Hall 1's — see the note there. */
+    floorColor: "#D2C3A2",
     accentColor: "#1F7A6E",
     doors: [
       {
@@ -169,6 +204,14 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
         pathOrder: 3,
         radius: 6,
         heroFocus: { x: 0, z: -4.3 },
+        // South wall, west of the Sepeda Motor Uap backdrop (which spans
+        // x -1.5..1.5). The X walls here already carry the zone's two large
+        // signage boards, so this is the free surface.
+        wallPanel: {
+          position: { x: -5.0, y: 2.0, z: -5.8 },
+          rotationY: 0,
+          body: "Benda-benda dari masa peralihan menuju teknologi modern: alat transportasi, alat komunikasi, dan perangkat hiburan mekanis yang masuk ke Nusantara pada masa kolonial hingga awal kemerdekaan. Sepeda tinggi, sepeda motor uap, pesawat telepon, dan symphonion di ruang ini menandai pergeseran dari kerja tangan ke mesin.",
+        },
       },
     ],
   },

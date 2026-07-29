@@ -44,22 +44,31 @@ export function Hall({ hall, artifacts }: { hall: RoomConfig; artifacts: Artifac
 
       {welcomeZone && (
         <group position={[welcomeZone.center.x, 0, welcomeZone.center.z]}>
-          {/* Information counter, moved off the entry axis (it used to sit dead
-              centre, 0.8 m in front of the spawn point, blocking both the
-              walkway and the sightline into the hall). It reads as furniture at
-              the side of the lobby now; the greeting itself is done by the two
-              people flanking the aisle, not by the desk. */}
-          <group position={[-3.4, 0, 0.2]} rotation={[0, 0.42, 0]}>
-            <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
-              <boxGeometry args={[2.4, 1, 0.8]} />
-              <meshStandardMaterial color="#4a3020" roughness={0.7} />
-            </mesh>
-            {/* Counter top lip, brass, so it doesn't read as a plain crate. */}
-            <mesh position={[0, 1.02, 0]} receiveShadow>
-              <boxGeometry args={[2.5, 0.05, 0.9]} />
-              <meshStandardMaterial color="#B08D3C" metalness={0.5} roughness={0.45} />
-            </mesh>
-          </group>
+          {/* The "INFORMASI" counter used to stand here, at local (-3.4, 0.2):
+              a 2.4 x 1.0 x 0.8 m box in #4a3020 with a brass top lip and an
+              engraved plate on its front.
+
+              Removed rather than rescaled. Its dimensions were actually right
+              (1.05 m standing height, 2.4 m long — real reception desks are
+              1.05-1.10 x 1.8-2.4 m); what was wrong was everything else:
+
+               1. It did nothing. A counter is useful in a physical museum
+                  because someone stands behind it. Here there was no attendant,
+                  no click handler, no raycast entry — it promised "informasi"
+                  and never delivered any, which is the whole reason it read as
+                  useless.
+               2. Its jobs were already taken. The onboarding panel, the two
+                  greeters flanking this aisle and the MiniMap all answer
+                  "where am I and what is this", and they do it better.
+               3. It had no collider — PlayerRig only collides with artifacts,
+                  greeters and the room bounds — so a solid-looking desk was
+                  something you walked straight through.
+               4. Near-black on a near-white floor made it the highest-contrast
+                  object in the arrival view. The first thing a visitor saw was
+                  an empty brown box rather than the two people greeting them.
+
+              Nothing replaces it. The floor space is the point: it is what lets
+              the greeters and the vista down the aisle read. */}
 
           {/* Single shared key light for the welcome group, hung in front of and
               above the two greeters so faces and photo boards are lit from the

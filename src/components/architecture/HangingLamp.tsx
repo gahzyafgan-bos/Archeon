@@ -8,6 +8,15 @@ interface HangingLampProps {
 }
 
 /**
+ * How far above `position.y` the fixture reaches — the cord's top end, i.e.
+ * the point that has to meet a ceiling beam. Exported because the caller is
+ * the one that knows where the beam grid is (utils/hallGeometry.ts); a lamp
+ * that positions itself from a guessed ceiling height is exactly how the cord
+ * ended up poking out through the roof.
+ */
+export const LAMP_CORD_TOP = 0.8;
+
+/**
  * Purely decorative pendant lamp — a visual "reason" for the room's warm
  * ambient light rather than an actual light source. Adding a real light per
  * lamp on top of the per-artifact spotlights (see ArtifactMesh) would push
@@ -30,8 +39,8 @@ export function HangingLamp({ position, accentColor, scale = 1 }: HangingLampPro
   return (
     <group position={position} scale={scale}>
       {/* Suspension cord */}
-      <mesh position={[0, 0.4, 0]}>
-        <cylinderGeometry args={[0.02, 0.02, 0.8, 6]} />
+      <mesh position={[0, LAMP_CORD_TOP / 2, 0]}>
+        <cylinderGeometry args={[0.02, 0.02, LAMP_CORD_TOP, 6]} />
         <meshStandardMaterial color="#3a2e20" roughness={0.8} />
       </mesh>
       {/* Canopy where the cord meets the shade — no cast: it's a small ceiling

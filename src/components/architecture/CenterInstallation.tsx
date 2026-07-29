@@ -1,8 +1,13 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Pillar } from "./Pillar";
-import { createBatikPattern } from "@/utils/batikPatterns";
+import { applyBatikWorldScale, createBatikPattern } from "@/utils/batikPatterns";
 
 const BRASS = "#B08D3C";
+const MEDALLION_RADIUS = 1.6;
+/** A shade stronger than the zone inlays: this one is a deliberate focal
+ * point with a brass ring around it, not a background wash. Still well under
+ * full strength — it sits directly under the museum's own centre spotlight. */
+const MEDALLION_STRENGTH = 0.45;
 
 /**
  * Non-artifact centerpiece for a hall's otherwise-empty geometric middle
@@ -33,17 +38,25 @@ export function CenterInstallation({
   shadowsEnabled: boolean;
   shadowMapSize: number;
 }) {
-  const medallionTexture = useMemo(() => createBatikPattern("kawung", "#EDE0C4", accentColor, 128), [accentColor]);
+  const medallionTexture = useMemo(
+    () =>
+      applyBatikWorldScale(
+        createBatikPattern("kawung", "#EDE0C4", accentColor, 128, MEDALLION_STRENGTH),
+        MEDALLION_RADIUS * 2
+      ),
+    [accentColor]
+  );
+  useEffect(() => () => medallionTexture.dispose(), [medallionTexture]);
 
   return (
     <group>
       {/* Floor medallion */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[center.x, 0.016, center.z]} receiveShadow>
-        <circleGeometry args={[1.6, 48]} />
+        <circleGeometry args={[MEDALLION_RADIUS, 48]} />
         <meshStandardMaterial map={medallionTexture} roughness={0.85} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[center.x, 0.017, center.z]}>
-        <ringGeometry args={[1.55, 1.62, 48]} />
+        <ringGeometry args={[MEDALLION_RADIUS - 0.05, MEDALLION_RADIUS + 0.02, 48]} />
         <meshStandardMaterial color={BRASS} roughness={0.5} metalness={0.4} />
       </mesh>
 

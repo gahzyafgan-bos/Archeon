@@ -41,7 +41,6 @@ export const FOOTPRINT = {
   dwarapala: 0.8,
   stoneCluster: 0.6,
   pillar: 0.5, // colonnade / hero-framing candi pillars
-  bench: 0.9,
   pottedPlant: 0.45,
   signboardPost: 0.15,
 } as const;
@@ -168,18 +167,9 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
     ci++;
   }
 
-  // Benches (HallEdgeDecor.tsx) — offset away from the zone's own
-  // hero/signature side, not always +x (mirrors HallBenches' offsetDir).
-  for (const zone of room.zones) {
-    if (zone.id === "welcome") continue;
-    const offsetDir = zone.heroFocus ? -Math.sign(zone.heroFocus.x - zone.center.x) || 1 : 1;
-    objects.push({
-      id: `decor-bench-${zone.id}`,
-      x: zone.center.x + offsetDir * zone.radius * 0.45,
-      z: zone.center.z - zone.radius * 0.55 - 1.2,
-      radius: FOOTPRINT.bench,
-    });
-  }
+  // Benches were removed from HallEdgeDecor.tsx — the per-zone "resting bench"
+  // rendered as a featureless brown slab and can't be sat on anyway (see the
+  // note where HallBenches used to be). Nothing to place for them.
 
   // Zone-specific set dressing (RoomShell.tsx) — prasejarah's flavor-rock
   // clusters are hand-placed (not formula-derived from zone center) to clear

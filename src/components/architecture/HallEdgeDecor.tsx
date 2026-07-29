@@ -1,11 +1,14 @@
 import { useMemo } from "react";
 import { Instances, Instance } from "@react-three/drei";
 import type { RoomConfig } from "@/data/roomConfig";
+import { colonnadeShaftHeight, DEFAULT_CEILING_HEIGHT } from "@/utils/hallGeometry";
 
 const WOOD_COLOR = "#7A5230";
-const PILLAR_HEIGHT = 5.4;
 const PILLAR_SPACING = 4.5;
 const PILLAR_INSET = 1.4;
+/** Capital block sitting on top of the shaft, and the base ring under it. */
+const CAPITAL_H = 0.28;
+const BASE_H = 0.3;
 
 /** Hero/signature focus points and wall-flush niche artifacts read as
  * clutter if a colonnade pillar lands right on top of them — this was
@@ -27,6 +30,12 @@ export interface ColonnadeExclusion {
  */
 export function HallColonnade({ room, exclude = [] }: { room: RoomConfig; exclude?: ColonnadeExclusion[] }) {
   const { minX, maxX, minZ, maxZ } = room.bounds;
+
+  // Derived per hall instead of the fixed 5.4 m this used to carry. That
+  // constant was authored against the original 7 m ceiling; once Hall 2 was
+  // right-sized to 5.5 m the capital's top sat at 5.68 m, i.e. through the
+  // ceiling plane. See utils/hallGeometry.ts.
+  const shaftHeight = colonnadeShaftHeight(room.ceilingHeight ?? DEFAULT_CEILING_HEIGHT, CAPITAL_H);
 
   const positions = useMemo(() => {
     const pts: Array<[number, number]> = [];
@@ -53,85 +62,52 @@ export function HallColonnade({ room, exclude = [] }: { room: RoomConfig; exclud
           see spec: don't do this for small/numerous props. frames=1 stops the
           otherwise-continuous per-frame matrix rebuild for props that never move. */}
       <Instances limit={positions.length} castShadow frustumCulled={false} frames={1}>
-        <cylinderGeometry args={[0.26, 0.32, PILLAR_HEIGHT, 12]} />
+        <cylinderGeometry args={[0.26, 0.32, shaftHeight, 12]} />
         <meshStandardMaterial color={WOOD_COLOR} roughness={0.85} />
         {positions.map(([x, z], i) => (
-          <Instance key={i} position={[x, PILLAR_HEIGHT / 2, z]} />
+          <Instance key={i} position={[x, shaftHeight / 2, z]} />
         ))}
       </Instances>
       <Instances limit={positions.length} castShadow frustumCulled={false} frames={1}>
-        <cylinderGeometry args={[0.42, 0.48, 0.28, 12]} />
+        <cylinderGeometry args={[0.42, 0.48, CAPITAL_H, 12]} />
         <meshStandardMaterial color={room.accentColor} roughness={0.55} metalness={0.25} />
         {positions.map(([x, z], i) => (
-          <Instance key={i} position={[x, PILLAR_HEIGHT + 0.14, z]} />
+          <Instance key={i} position={[x, shaftHeight + CAPITAL_H / 2, z]} />
         ))}
       </Instances>
       <Instances limit={positions.length} frustumCulled={false} frames={1}>
-        <cylinderGeometry args={[0.36, 0.4, 0.3, 12]} />
+        <cylinderGeometry args={[0.36, 0.4, BASE_H, 12]} />
         <meshStandardMaterial color="#4a3020" roughness={0.9} />
         {positions.map(([x, z], i) => (
-          <Instance key={i} position={[x, 0.15, z]} />
+          <Instance key={i} position={[x, BASE_H / 2, z]} />
         ))}
       </Instances>
     </group>
   );
 }
-
-const BENCH_COLOR = "#7A5230";
 
 /**
- * One simple resting bench per non-welcome zone, off to the side of the
- * zone's floor motif so it never sits in the walking path. Instanced for
- * consistency with the rest of this file even though counts are small here —
- * the geometry/material are already defined, so it's free.
+ * `HallBenches` used to live here: one "resting bench" per non-welcome zone,
+ * placed at `zone.center + radius*0.45` across and `radius*0.55 + 1.2` back,
+ * which in Hall 1's prehistoric zone put it at (-4.16, -6.06) — alone, 1.4 m
+ * off the blank south wall.
+ *
+ * It was removed rather than restyled. Two reasons, and the first is the one
+ * that matters:
+ *
+ *  1. It never read as a bench. The seat was a single 1.6 x 0.5 x 0.45 m box
+ *     in flat `#7A5230`, and the two "legs" (0.1 x 0.4 x 0.4) sat at y 0-0.4,
+ *     i.e. INSIDE the seat box, which spans y 0.175-0.625 and is deeper than
+ *     they are. Only the bottom 17 cm of each leg was ever visible, hidden
+ *     behind the seat's own overhang. What actually rendered was a featureless
+ *     brown slab floating just off the floor — with no back, no armrest, no
+ *     slats, no label, and nothing on it.
+ *  2. Nothing in this museum can be sat on. It was decor pretending to be
+ *     furniture, taking up floor area in front of the wall.
+ *
+ * There is deliberately no replacement object. The emptiness it stood in was
+ * the wall's problem, not the floor's — see the baked wall system in
+ * utils/wallTexture.ts. No collider was ever registered for it (PlayerRig only
+ * collides with artifacts, greeters and the room bounds), so nothing invisible
+ * is left behind; the mirror entry in utils/placementValidator.ts is gone too.
  */
-export function HallBenches({ room }: { room: RoomConfig }) {
-  const benches = useMemo(
-    () =>
-      room.zones
-        .filter((z) => z.id !== "welcome")
-        .map((z) => {
-          // Offset sideways off the zone's own centerline: some zones (e.g.
-          // hindu-buddha) have a deep-set artifact sitting right on that
-          // centerline near the back wall, which an on-centerline bench
-          // position would clip straight through. Direction points away
-          // from the zone's own hero/signature side — a zone whose hero
-          // sits on the +x corner would otherwise put the bench right back
-          // in the hero's staging cluster.
-          const offsetDir = z.heroFocus ? -Math.sign(z.heroFocus.x - z.center.x) || 1 : 1;
-          return {
-            // Back edge of the zone's own floor motif (away from the entrance
-            // signboard, which sits on the +Z side) — clear of both the
-            // colonnade (that lines the X walls) and neighboring zones.
-            x: z.center.x + offsetDir * z.radius * 0.45,
-            z: z.center.z - z.radius * 0.55 - 1.2,
-            rotationY: 0,
-          };
-        }),
-    [room.zones]
-  );
-
-  if (benches.length === 0) return null;
-
-  return (
-    <group>
-      {/* Same frustum-culling fix as HallColonnade above — benches are large
-          enough and few enough per hall that always-render is the safe call. */}
-      <Instances limit={benches.length} castShadow receiveShadow frustumCulled={false} frames={1}>
-        <boxGeometry args={[1.6, 0.45, 0.5]} />
-        <meshStandardMaterial color={BENCH_COLOR} roughness={0.8} />
-        {benches.map((b, i) => (
-          <Instance key={i} position={[b.x, 0.4, b.z]} rotation={[0, b.rotationY, 0]} />
-        ))}
-      </Instances>
-      <Instances limit={benches.length * 2} frustumCulled={false} frames={1}>
-        <boxGeometry args={[0.1, 0.4, 0.4]} />
-        <meshStandardMaterial color="#3a2818" roughness={0.85} />
-        {benches.flatMap((b, i) => [
-          <Instance key={`${i}-a`} position={[b.x - 0.65, 0.2, b.z]} rotation={[0, b.rotationY, 0]} />,
-          <Instance key={`${i}-b`} position={[b.x + 0.65, 0.2, b.z]} rotation={[0, b.rotationY, 0]} />,
-        ])}
-      </Instances>
-    </group>
-  );
-}
