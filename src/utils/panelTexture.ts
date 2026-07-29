@@ -239,14 +239,152 @@ export function createStoneReliefTexture(): THREE.CanvasTexture {
 }
 
 /*
- * `createSignPlateTexture` used to live here: gold serif capitals engraved on
- * a plain brass plate, used for the "INFORMASI" plate on the welcome counter.
- * It went with the counter (see Hall.tsx).
+ * An older `createSignPlateTexture` used to live here: gold serif capitals
+ * engraved on a plain brass plate, used for the "INFORMASI" plate on the
+ * welcome counter. It went with the counter (see Hall.tsx).
  *
- * It is not coming back in this form. Large serif capitals on bare brass read
- * as a memorial plaque, not as museum signage, and the museum already has a
- * signage system that works: the zone signboards and the wall-mounted
- * interpretive panels above, both of which sit in the wall system rather than
- * being screwed onto a piece of furniture. Anything that needs a label should
- * join that system instead of reintroducing this one.
+ * That exact form is not coming back — large serif capitals on bare brass read
+ * as a memorial plaque, not as museum signage. What follows is the museum's
+ * actual signage system: painted plates that mount on the wall/lintel/post
+ * system, in the same warm palette as the interpretive panels above.
  */
+
+/** Canvas pixels per metre of plate. 320 px/m gives ~32 px of glyph height for
+ * a 10 cm cap — crisp at the 2-4 m a visitor actually reads signage from,
+ * without paying for a texture nobody can resolve. */
+const SIGN_PX_PER_M = 320;
+/** Georgia's cap height is close to 0.7 em, so this converts a real-world cap
+ * height (the thing signage is actually specified in) into a font size. */
+const CAP_HEIGHT_RATIO = 0.7;
+
+function trackedWidth(ctx: CanvasRenderingContext2D, text: string, tracking: number): number {
+  return ctx.measureText(text).width + tracking * Math.max(0, text.length - 1);
+}
+
+/** Draws `text` centred on `cx` with letter tracking (canvas has no tracking of
+ * its own in every engine we target, so it is applied glyph by glyph). */
+function fillTextTracked(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  cx: number,
+  y: number,
+  tracking: number
+) {
+  let x = cx - trackedWidth(ctx, text, tracking) / 2;
+  for (const ch of Array.from(text)) {
+    ctx.fillText(ch, x, y);
+    x += ctx.measureText(ch).width + tracking;
+  }
+}
+
+export interface SignPlateOptions {
+  title: string;
+  subtitle?: string;
+  /** Plate size in metres — the canvas matches its aspect so glyphs never stretch. */
+  widthM: number;
+  heightM: number;
+  /** Plate ground: warm wood #7A5230 or indigo #2E4A7D. */
+  ground: string;
+  /** Letter colour: ivory #F2E9D8 or brass #B08D3C. */
+  ink: string;
+  /** Hairline rule/border colour — usually the zone accent. */
+  accent: string;
+  /**
+   * Cap height of the title IN METRES. Signage is specified in physical letter
+   * height, not in screen size: 8-15 cm for a zone name is the museum norm and
+   * is what makes a sign read as a plate on a wall instead of as a tooltip.
+   * Nothing here ever scales with camera distance.
+   */
+  titleCapM: number;
+}
+
+/**
+ * Painted signage plate, drawn into a canvas texture for use as an ordinary
+ * mesh material.
+ *
+ * This deliberately replaces the drei <Html> labels the zone signboards, the
+ * archway destination labels and the hall welcome banner used to be. <Html> is
+ * DOM: it is positioned once, from the main camera, and composited over the
+ * whole canvas. In Mode VR the scene is drawn twice into two half-width eye
+ * viewports, so a single DOM label lands straddling the seam between them —
+ * the left eye sees the left half of the words and the right eye the right
+ * half. That is not a cosmetic bug: the two eyes get images that cannot fuse,
+ * which is binocular rivalry, and it makes people ill within seconds. A
+ * textured mesh is drawn by each eye pass like everything else, occludes
+ * behind walls, and holds a fixed real-world size.
+ */
+export function createSignPlateTexture(opts: SignPlateOptions): THREE.CanvasTexture {
+  const { title, subtitle, widthM, heightM, ground, ink, accent, titleCapM } = opts;
+  const canvas = document.createElement("canvas");
+  const W = Math.round(widthM * SIGN_PX_PER_M);
+  const H = Math.round(heightM * SIGN_PX_PER_M);
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    const empty = new THREE.CanvasTexture(canvas);
+    empty.colorSpace = THREE.SRGBColorSpace;
+    return empty;
+  }
+
+  // Ground, very slightly graded top-to-bottom so the plate catches the hall's
+  // overhead light the way a real painted board does.
+  ctx.fillStyle = ground;
+  ctx.fillRect(0, 0, W, H);
+  const shade = ctx.createLinearGradient(0, 0, 0, H);
+  shade.addColorStop(0, "rgba(255, 246, 226, 0.10)");
+  shade.addColorStop(0.55, "rgba(255, 246, 226, 0.0)");
+  shade.addColorStop(1, "rgba(20, 12, 4, 0.18)");
+  ctx.fillStyle = shade;
+  ctx.fillRect(0, 0, W, H);
+
+  // Inset hairline border — the detail that reads "made object" rather than
+  // "rounded rectangle from a UI kit".
+  const inset = Math.round(H * 0.09);
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = Math.max(1, Math.round(H * 0.018));
+  ctx.strokeRect(inset, inset, W - inset * 2, H - inset * 2);
+
+  const pad = inset * 2.4;
+  const maxTextW = W - pad * 2;
+  const hasSub = !!subtitle;
+
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  ctx.fillStyle = ink;
+
+  let titlePx = (titleCapM * SIGN_PX_PER_M) / CAP_HEIGHT_RATIO;
+  const tracking = () => titlePx * 0.09;
+  const setTitleFont = () => (ctx.font = `600 ${Math.round(titlePx)}px Georgia, 'Times New Roman', serif`);
+  setTitleFont();
+  // Long zone names must not overflow the plate; shrink to fit rather than
+  // clip or wrap, since these are one-line names by design.
+  while (titlePx > 8 && trackedWidth(ctx, title, tracking()) > maxTextW) {
+    titlePx *= 0.94;
+    setTitleFont();
+  }
+
+  const titleY = hasSub ? H * 0.4 : H * 0.5;
+  fillTextTracked(ctx, title, W / 2, titleY, tracking());
+
+  if (subtitle) {
+    let subPx = titlePx * 0.44;
+    const setSubFont = () => (ctx.font = `400 ${Math.round(subPx)}px Georgia, 'Times New Roman', serif`);
+    setSubFont();
+    while (subPx > 6 && trackedWidth(ctx, subtitle, subPx * 0.04) > maxTextW) {
+      subPx *= 0.94;
+      setSubFont();
+    }
+    ctx.fillStyle = ink;
+    ctx.globalAlpha = 0.78;
+    fillTextTracked(ctx, subtitle, W / 2, H * 0.72, subPx * 0.04);
+    ctx.globalAlpha = 1;
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.anisotropy = 4;
+  return texture;
+}

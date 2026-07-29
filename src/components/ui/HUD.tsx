@@ -55,8 +55,13 @@ export function HUD() {
     }
     // Kick off fullscreen synchronously (before any await) so it stays inside
     // this click's user-gesture window — Safari in particular revokes that
-    // window after the first await.
-    const fullscreenPromise = document.documentElement.requestFullscreen?.().catch(() => {});
+    // window after the first await. Routed through the hook rather than
+    // calling requestFullscreen() directly so the webkit-prefixed fallback and
+    // the iOS exclusion both apply here too; on an iPhone this is a no-op by
+    // design (see useFullscreen), and VREntryOverlay says so out loud instead
+    // of dropping the visitor into a stereo view with the address bar eating a
+    // quarter of the screen.
+    const fullscreenPromise = isFullscreenSupported ? enterFullscreen() : Promise.resolve();
     const granted = await requestPermission();
     if (!granted) {
       setVrError("denied");
@@ -80,6 +85,7 @@ export function HUD() {
     <>
       {isEnteringVR && (
         <VREntryOverlay
+          canHideBrowserChrome={isFullscreenSupported}
           onContinue={() => {
             setIsEnteringVR(false);
             setVRMode(true);

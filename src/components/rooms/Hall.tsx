@@ -1,14 +1,75 @@
-import { useState } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
-import { Html } from "@react-three/drei";
+import { useEffect, useMemo } from "react";
 import { RoomShell } from "./RoomShell";
 import { Greeter } from "@/components/architecture/Greeter";
 import { getGreetersForRoom } from "@/data/greeters";
 import type { RoomConfig } from "@/data/roomConfig";
 import type { Artifact } from "@/types/artifact";
-import { useIsOverlayActive } from "@/hooks/useIsOverlayActive";
+import { createSignPlateTexture } from "@/utils/panelTexture";
+import { DEFAULT_CEILING_HEIGHT } from "@/utils/hallGeometry";
 
-const WELCOME_TRIGGER_RADIUS = 5;
+/** Hanging cloth banner, in metres. A hall banner carries larger letters than a
+ * zone post — it is read from the far end of the aisle, not from arm's length —
+ * but it is still a fixed physical size at every distance. */
+const BANNER_W = 2.8;
+const BANNER_H = 0.74;
+const BANNER_CENTER_Y = 3.5;
+const BANNER_CAP_M = 0.13;
+const CORD_X = 1.2;
+
+function WelcomeBanner({ ceilingHeight, localZ }: { ceilingHeight: number; localZ: number }) {
+  const texture = useMemo(
+    () =>
+      createSignPlateTexture({
+        title: "SELAMAT DATANG",
+        subtitle: "Museum Mpu Tantular · ikuti jalur di lantai menuju Koleksi Prasejarah & Galeri Hindu-Buddha",
+        widthM: BANNER_W,
+        heightM: BANNER_H,
+        ground: "#2E4A7D",
+        ink: "#F2E9D8",
+        accent: "#B08D3C",
+        titleCapM: BANNER_CAP_M,
+      }),
+    []
+  );
+  useEffect(() => () => texture.dispose(), [texture]);
+
+  const bannerTop = BANNER_CENTER_Y + BANNER_H / 2;
+  const cordLength = Math.max(0.2, ceilingHeight - bannerTop);
+
+  return (
+    <group position={[0, 0, localZ]}>
+      {/* Two cords running from the banner's top rail to the ceiling. The beam
+          grid for this hall runs at x = -9.5/-4.5/0.5/5.5 and z = -5/0/5 (see
+          hallGeometry), so neither cord passes through a beam on its way up —
+          a cord that ends in mid-air or crosses structure is exactly what makes
+          a hanging prop read as a bug. */}
+      {[-CORD_X, CORD_X].map((x) => (
+        <mesh key={x} position={[x, bannerTop + cordLength / 2, 0]}>
+          <cylinderGeometry args={[0.012, 0.012, cordLength, 6]} />
+          <meshStandardMaterial color="#4A3A28" roughness={0.9} />
+        </mesh>
+      ))}
+      {/* Top rail the cloth hangs from. */}
+      <mesh position={[0, bannerTop + 0.03, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+        <cylinderGeometry args={[0.035, 0.035, BANNER_W + 0.18, 8]} />
+        <meshStandardMaterial color="#7A5230" roughness={0.75} />
+      </mesh>
+      {/* Printed face toward the entrance (a plane's default normal is +Z, and
+          the spawn point is at +Z of this banner), with a plain cloth back so
+          the banner isn't an invisible hole when seen from the far side —
+          rather than a double-sided material, which would show the lettering
+          mirrored. */}
+      <mesh position={[0, BANNER_CENTER_Y, 0.006]}>
+        <planeGeometry args={[BANNER_W, BANNER_H]} />
+        <meshStandardMaterial map={texture} roughness={0.85} />
+      </mesh>
+      <mesh position={[0, BANNER_CENTER_Y, 0]} rotation={[0, Math.PI, 0]}>
+        <planeGeometry args={[BANNER_W, BANNER_H]} />
+        <meshStandardMaterial color="#24395F" roughness={0.9} />
+      </mesh>
+    </group>
+  );
+}
 
 /**
  * Renders one hall's geometry + artifacts (via RoomShell) plus any
@@ -24,17 +85,6 @@ const WELCOME_TRIGGER_RADIUS = 5;
 export function Hall({ hall, artifacts }: { hall: RoomConfig; artifacts: Artifact[] }) {
   const welcomeZone = hall.zones.find((z) => z.id === "welcome");
   const greeters = getGreetersForRoom(hall.id);
-  const { camera } = useThree();
-  const [showWelcome, setShowWelcome] = useState(false);
-  const isOverlayActive = useIsOverlayActive();
-
-  useFrame(() => {
-    if (!welcomeZone) return;
-    const dx = camera.position.x - welcomeZone.center.x;
-    const dz = camera.position.z - welcomeZone.center.z;
-    const near = dx * dx + dz * dz < WELCOME_TRIGGER_RADIUS * WELCOME_TRIGGER_RADIUS;
-    if (near !== showWelcome) setShowWelcome(near);
-  });
 
   return (
     <RoomShell room={hall} artifacts={artifacts}>
@@ -86,21 +136,17 @@ export function Hall({ hall, artifacts }: { hall: RoomConfig; artifacts: Artifac
 
           {/* Greeting banner, hung above the aisle just past the two greeters.
               It used to sit at z +1.5 — i.e. behind the spawn point, where an
-              arriving visitor never saw it. distanceFactor dropped from 8 to 3
-              to match: at 3.7 m from the eye, 8 rendered it several times
-              screen-width and clipped off the top of the viewport. */}
-          {showWelcome && !isOverlayActive && (
-            <Html position={[0, 3.2, -2.6]} center distanceFactor={3} zIndexRange={[1, 0]}>
-              <div className="glass-panel rounded-lg px-5 py-3 text-center animate-fade-in whitespace-nowrap pointer-events-none">
-                <p className="font-display text-museum-bone text-lg tracking-wide">
-                  Selamat Datang di Museum Mpu Tantular Virtual
-                </p>
-                <p className="text-museum-mist text-xs mt-1">
-                  Ikuti jalur di lantai menuju Koleksi Prasejarah &amp; Galeri Hindu-Buddha
-                </p>
-              </div>
-            </Html>
-          )}
+              arriving visitor never saw it.
+
+              It also used to be a drei <Html> panel that faded in on proximity
+              and grew as you walked toward it. Both had to go: a DOM overlay is
+              drawn once across the whole canvas, so in Mode VR it straddled the
+              seam between the two eye viewports (see panelTexture.ts), and a
+              banner that appears when you get close and swells as you approach
+              is behaving like a tooltip, not like a piece of cloth hanging from
+              a ceiling. It is now geometry at a fixed real-world size, present
+              the whole time, carried by two visible cords. */}
+          <WelcomeBanner ceilingHeight={hall.ceilingHeight ?? DEFAULT_CEILING_HEIGHT} localZ={-3.4} />
         </group>
       )}
     </RoomShell>

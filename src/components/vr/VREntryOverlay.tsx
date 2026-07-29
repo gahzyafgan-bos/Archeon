@@ -6,6 +6,15 @@ const CONTINUE_DELAY_SECONDS = 4;
 interface VREntryOverlayProps {
   onContinue: () => void;
   onCancel: () => void;
+  /**
+   * False when the browser cannot take an ordinary element fullscreen — iOS
+   * Safari on iPhone being the case that matters, since it implements the
+   * Fullscreen API for `<video>` only. Entering stereo mode there leaves the
+   * address bar and tab bar covering roughly the top quarter of the screen,
+   * which pushes both eye viewports off the Cardboard lens centres. We say so
+   * before the visitor puts the phone in the viewer rather than after.
+   */
+  canHideBrowserChrome: boolean;
 }
 
 /**
@@ -14,7 +23,7 @@ interface VREntryOverlayProps {
  * actually activates — gives them a few seconds to physically slot the
  * phone into the Cardboard viewer first.
  */
-export function VREntryOverlay({ onContinue, onCancel }: VREntryOverlayProps) {
+export function VREntryOverlay({ onContinue, onCancel, canHideBrowserChrome }: VREntryOverlayProps) {
   const [secondsLeft, setSecondsLeft] = useState(CONTINUE_DELAY_SECONDS);
   // Many browsers don't fire `gamepadconnected` (or return the pad from
   // navigator.getGamepads()) until the user presses a button first, so we
@@ -38,6 +47,19 @@ export function VREntryOverlay({ onContinue, onCancel }: VREntryOverlayProps) {
           ulang arah pandang, dan tombol <span className="text-museum-gold">Start</span> untuk keluar
           dari Mode VR kapan saja.
         </p>
+
+        {!canHideBrowserChrome && (
+          <div className="mb-5 rounded-xl border border-museum-gold/30 bg-museum-gold/5 px-4 py-3 text-left text-xs leading-relaxed text-museum-mist">
+            <p className="text-museum-gold font-semibold mb-1">Bilah alamat masih akan terlihat</p>
+            <p>
+              Browser di perangkat ini tidak bisa disembunyikan sepenuhnya, jadi bilah alamat akan
+              menutupi bagian atas layar dan kedua lensa jadi tidak sejajar. Untuk layar penuh:
+              buka menu <span className="text-museum-bone">Bagikan</span> →{" "}
+              <span className="text-museum-bone">Tambahkan ke Layar Utama</span>, lalu jalankan
+              museum dari ikon itu.
+            </p>
+          </div>
+        )}
 
         {/* Live gamepad detection — press any button to make the browser see it. */}
         <div

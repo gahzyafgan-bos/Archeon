@@ -62,7 +62,17 @@ export function VRHud() {
   if (!isVRMode) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex pointer-events-none">
+    // Height comes from --app-height (visualViewport) with a 100dvh fallback,
+    // NOT from `inset-0`. On a mobile browser that can't be taken fullscreen,
+    // the layout viewport is taller than the visible area, so `inset-0` would
+    // size this overlay to a box that runs under the address bar — the two eye
+    // halves would then be centred on a different mid-line than the canvas's,
+    // and the reticle/control text would drift off each lens axis. Same source
+    // of truth as #root and the <Canvas> wrapper (see useViewportHeight).
+    <div
+      className="fixed left-0 top-0 w-full z-40 flex pointer-events-none"
+      style={{ height: "var(--app-height, 100dvh)" }}
+    >
       <EyeOverlay />
       <div className="w-px h-full bg-white/5" />
       <EyeOverlay />

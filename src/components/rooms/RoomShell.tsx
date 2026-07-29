@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, Environment, Instances, Instance, Html } from "@react-three/drei";
+import { ContactShadows, Environment, Instances, Instance } from "@react-three/drei";
 import * as THREE from "three";
 import type { RoomConfig, RoomBounds, Door, ZoneConfig } from "@/data/roomConfig";
 import { ARCHWAY_WIDTH, ARCHWAY_HEIGHT, ROOM_CONFIGS, getNearestZone } from "@/data/roomConfig";
@@ -15,7 +15,7 @@ import { ZoneFloorMotif } from "@/components/architecture/ZoneFloorMotif";
 import { ZoneSignboard } from "@/components/architecture/ZoneSignboard";
 import { InterpretivePanel, WALL_FURNITURE_MAT } from "@/components/architecture/InterpretivePanel";
 import { applyBatikWorldScale, createBatikPattern } from "@/utils/batikPatterns";
-import { createStoneReliefTexture } from "@/utils/panelTexture";
+import { createSignPlateTexture, createStoneReliefTexture } from "@/utils/panelTexture";
 import {
   createWallTexture,
   pilasterOffsets,
@@ -40,9 +40,16 @@ import {
   beamUnderside,
 } from "@/utils/hallGeometry";
 import { objectFootprintRadius } from "@/utils/artifactSize";
-import { useIsOverlayActive } from "@/hooks/useIsOverlayActive";
 
 const WOOD_COLOR = "#7A5230";
+/** Destination plate on an archway lintel. Sized to sit inside the 0.5 m-deep
+ * lintel beam that carries it, with 9 cm capitals — the low end of the museum
+ * signage band, because an overhead plate is read from further back and the
+ * lintel is only so tall. Fixed, like every sign in here: nothing scales with
+ * how close the visitor is standing. */
+const LINTEL_SIGN_W = ARCHWAY_WIDTH - 0.6;
+const LINTEL_SIGN_H = 0.34;
+const LINTEL_SIGN_CAP = 0.09;
 /** Depth of the batik trim strip running along each short wall. */
 const FLOOR_BORDER_WIDTH = 1.6;
 /** Ink strength for batik on the floor — the quietest surface in the room.
@@ -312,11 +319,28 @@ function GarudeyaStage({ pos, bounds }: { pos: { x: number; z: number }; bounds:
  * hall), plus a small destination label above the lintel.
  */
 function ArchwayGlimpse({ door, wallZ, outwardSign }: { door: Door; wallZ: number; outwardSign: 1 | -1 }) {
-  const isOverlayActive = useIsOverlayActive();
   const target = ROOM_CONFIGS[door.targetRoom];
   const targetLabel = target.zones[0]?.label ?? target.name;
   const peekDepth = 2.4;
   const peekZ = wallZ + outwardSign * (peekDepth / 2 + 0.05);
+
+  const signTexture = useMemo(
+    () =>
+      createSignPlateTexture({
+        title: `MENUJU ${targetLabel.toUpperCase()}`,
+        widthM: LINTEL_SIGN_W,
+        heightM: LINTEL_SIGN_H,
+        // Indigo ground with brass letters: the "you are leaving this room"
+        // half of the signage palette, distinct at a glance from the wooden
+        // zone posts inside the room.
+        ground: "#2E4A7D",
+        ink: "#F2E9D8",
+        accent: target.accentColor,
+        titleCapM: LINTEL_SIGN_CAP,
+      }),
+    [targetLabel, target.accentColor]
+  );
+  useEffect(() => () => signTexture.dispose(), [signTexture]);
 
   return (
     <group>
@@ -336,29 +360,22 @@ function ArchwayGlimpse({ door, wallZ, outwardSign }: { door: Door; wallZ: numbe
         decay={2}
         color={target.accentColor}
       />
-      {!isOverlayActive && (
-        <Html
-          position={[door.position.x, ARCHWAY_HEIGHT + 0.55, wallZ]}
-          center
-          distanceFactor={10}
-          occlude={false}
-          zIndexRange={[1, 0]}
-        >
-          <div
-            className="rounded-full px-3 py-1 text-center whitespace-nowrap pointer-events-none"
-            style={{
-              background: "rgba(30, 24, 16, 0.68)",
-              border: `1px solid ${target.accentColor}`,
-              color: "#F2E9D8",
-              fontSize: "11px",
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-            }}
-          >
-            Menuju {targetLabel} →
-          </div>
-        </Html>
-      )}
+      {/* Destination plate, bolted flat to the room-facing face of the lintel
+          beam (a box of depth 0.5 centred on wallZ, see the Archway above), so
+          it is visibly carried by the structure rather than hovering over it.
+          A plane's default normal is +Z; `outwardSign` points away from this
+          room, so the plate is turned to face back into it. Was a drei <Html>
+          pill — see ZoneSignboard for why every one of these had to stop being
+          DOM. It is also what kept it from overlapping the zone signboards:
+          two DOM labels have no depth to sort by and simply stacked, whereas
+          these are metres apart in the scene and sort correctly. */}
+      <mesh
+        position={[door.position.x, ARCHWAY_HEIGHT + 0.25, wallZ - outwardSign * 0.27]}
+        rotation={[0, outwardSign === 1 ? Math.PI : 0, 0]}
+      >
+        <planeGeometry args={[LINTEL_SIGN_W, LINTEL_SIGN_H]} />
+        <meshStandardMaterial map={signTexture} roughness={0.65} metalness={0.05} />
+      </mesh>
     </group>
   );
 }

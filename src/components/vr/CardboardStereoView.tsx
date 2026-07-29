@@ -57,45 +57,7 @@ const distortionFragmentShader = /* glsl */ `
   // spacing, distorting around the geometric middle of the viewport would
   // warp the image about the wrong point and undo the alignment.
   uniform float lensCenterX;
-  uniform float toneMappingExposure;
   varying vec2 vUv;
-
-  // ---- Display transform -------------------------------------------------
-  // Rendering to a render target makes three skip both of these, so this pass
-  // has to perform them itself — exactly once, on the way to the screen. Both
-  // functions are copied verbatim from three's own tonemapping_pars_fragment
-  // and colorspace_pars_fragment chunks rather than approximated, because the
-  // whole point is for VR to match normal mode pixel for pixel; a "close
-  // enough" curve would leave a tint of its own.
-  vec3 RRTAndODTFit( vec3 v ) {
-    vec3 a = v * ( v + 0.0245786 ) - 0.000090537;
-    vec3 b = v * ( 0.983729 * v + 0.4329510 ) + 0.238081;
-    return a / b;
-  }
-
-  vec3 ACESFilmicToneMapping( vec3 color ) {
-    const mat3 ACESInputMat = mat3(
-      vec3( 0.59719, 0.07600, 0.02840 ), vec3( 0.35458, 0.90834, 0.13383 ),
-      vec3( 0.04823, 0.01566, 0.83777 )
-    );
-    const mat3 ACESOutputMat = mat3(
-      vec3(  1.60475, -0.10208, -0.00327 ), vec3( -0.53108,  1.10813, -0.07276 ),
-      vec3( -0.07367, -0.00605,  1.07602 )
-    );
-    color *= toneMappingExposure / 0.6;
-    color = ACESInputMat * color;
-    color = RRTAndODTFit( color );
-    color = ACESOutputMat * color;
-    return clamp( color, 0.0, 1.0 );
-  }
-
-  vec3 sRGBTransferOETF( vec3 value ) {
-    return mix(
-      pow( value, vec3( 0.41666 ) ) * 1.055 - vec3( 0.055 ),
-      value * 12.92,
-      vec3( lessThanEqual( value, vec3( 0.0031308 ) ) )
-    );
-  }
 
   void main() {
     vec2 centered = (vUv - 0.5) * 2.0;
@@ -108,12 +70,33 @@ const distortionFragmentShader = /* glsl */ `
     distorted.x += lensCenterX;
     vec2 sampleUv = distorted * 0.5 + 0.5;
 
-    if (sampleUv.x < 0.0 || sampleUv.x > 1.0 || sampleUv.y < 0.0 || sampleUv.y > 1.0) {
-      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    } else {
-      vec3 linearColor = texture2D(map, sampleUv).rgb;
-      gl_FragColor = vec4(sRGBTransferOETF(ACESFilmicToneMapping(linearColor)), 1.0);
+    // Sample coordinates outside the source stay black, matching the soft
+    // circular vignette a Cardboard viewer imposes physically anyway.
+    vec3 linearColor = vec3(0.0);
+    if (sampleUv.x >= 0.0 && sampleUv.x <= 1.0 && sampleUv.y >= 0.0 && sampleUv.y <= 1.0) {
+      linearColor = texture2D(map, sampleUv).rgb;
     }
+    gl_FragColor = vec4(linearColor, 1.0);
+
+    // ---- Display transform: THE ONE AND ONLY PLACE it happens -------------
+    // The eye render targets hold raw linear radiance (three switches tone
+    // mapping off and forces linear output whenever it draws into a non-XR
+    // render target), so the whole display transform has to happen here, on
+    // the way to the screen — exactly once, for both eyes.
+    //
+    // These are three's OWN chunks, not a hand-copy of them. That matters
+    // twice over. First, correctness: they read renderer.toneMapping,
+    // renderer.toneMappingExposure and renderer.outputColorSpace directly, so
+    // VR cannot drift away from normal mode — there is nothing VR-specific
+    // left to drift. Second, they must not be duplicated: three already
+    // injects tonemapping_pars_fragment and colorspace_pars_fragment into
+    // every ShaderMaterial, so re-declaring ACESFilmicToneMapping /
+    // RRTAndODTFit / uniform float toneMappingExposure here is a GLSL
+    // redefinition error. That silently fails to link, the composite quad is
+    // never drawn, and Mode VR goes pure black while the DOM HUD keeps
+    // working — which is precisely the bug this replaced.
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
   }
 `;
 
@@ -180,7 +163,6 @@ export function CardboardStereoView() {
           k2: { value: vrDistortionK2 },
           aspect: { value: 1 },
           lensCenterX: { value: 0 },
-          toneMappingExposure: { value: 1 },
         },
         vertexShader: distortionVertexShader,
         fragmentShader: distortionFragmentShader,
@@ -282,10 +264,9 @@ export function CardboardStereoView() {
     distortionUniforms.k1.value = vrDistortionK1;
     distortionUniforms.k2.value = vrDistortionK2;
     distortionUniforms.aspect.value = halfWidth / size.height;
-    // Read the exposure off the renderer rather than the graphics preset, so
-    // this pass reproduces whatever normal mode would have applied — including
-    // any later change to how exposure is chosen.
-    distortionUniforms.toneMappingExposure.value = gl.toneMappingExposure;
+    // No exposure/colour-space uniform is pushed here on purpose: the shader
+    // uses three's own tonemapping/colorspace chunks, which three feeds from
+    // renderer.toneMappingExposure itself. See A.4 — one source of truth.
 
     gl.setScissorTest(false);
 
