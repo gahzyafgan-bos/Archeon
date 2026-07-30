@@ -15,23 +15,37 @@ const SAND = "#E4D5B7";
  * past legibility on a half-width eye viewport. */
 const PANEL_DISTANCE = 1.45;
 const PANEL_WIDTH = 1.05;
-const PANEL_HEIGHT = 0.62;
 const PANEL_EYE_DROP = 0.12; // sit slightly below the horizon, like a lectern
 
+const TEXT_WIDTH = PANEL_WIDTH - 0.12;
+const TITLE_SIZE = 0.055;
+const BODY_SIZE = 0.032;
+const FACT_LABEL_SIZE = 0.022;
+const FACT_SIZE = 0.027;
+const FOOTER_SIZE = 0.026;
+
+const PAD_TOP = 0.06;
+const PAD_BOTTOM = 0.05;
+const GAP = 0.035;
+
 /**
- * Trims the full description down to something readable inside a headset.
- * Long-form text belongs to the flat-screen panel, which can scroll; here the
- * visitor is standing in front of the actual object and only needs enough to
- * know what they're looking at.
+ * Rough line count for a `<Text>` block, used to size the panel to its content.
+ *
+ * The panel used to be a fixed 0.62m tall, which worked only because every
+ * description was chopped to the same two sentences. Now that a "Tahukah Anda?"
+ * fact can sit under the body — and only for some artifacts — a fixed height
+ * either clips the tail or leaves a dead band of indigo under short entries.
+ *
+ * Estimating rather than measuring is deliberate: troika's real extents arrive
+ * asynchronously via onSync, one frame *after* the panel has already been drawn
+ * and parked in world space, so laying out from them would visibly reflow the
+ * panel in the headset. The 0.52 factor is the average advance width of this
+ * font relative to its size, and the 0.92 slack accounts for wrapping at word
+ * boundaries rather than mid-word.
  */
-function shortDescription(full: string, maxSentences = 2, maxChars = 240): string {
-  const sentences = full.replace(/\s+/g, " ").trim().split(/(?<=\.)\s+/);
-  let out = "";
-  for (const sentence of sentences.slice(0, maxSentences)) {
-    if (out.length + sentence.length > maxChars) break;
-    out = out ? `${out} ${sentence}` : sentence;
-  }
-  return out || full.slice(0, maxChars);
+function estimateLines(text: string, fontSize: number): number {
+  const charsPerLine = (TEXT_WIDTH / (fontSize * 0.52)) * 0.92;
+  return Math.max(1, Math.ceil(text.length / charsPerLine));
 }
 
 /**
@@ -87,12 +101,43 @@ export function VRInfoPanel() {
     placed.current = true;
   });
 
-  const body = useMemo(
-    () => (focusedArtifact ? shortDescription(focusedArtifact.deskripsi) : ""),
-    [focusedArtifact]
-  );
+  /**
+   * Layout is derived from the text, top-down, so the ground plane, the fact
+   * block and the footer all agree on one height.
+   *
+   * The body is `deskripsi_singkat` — a sentence written to stand alone —
+   * rather than the old sentence-count trim of `deskripsi`. That trim took
+   * whatever the first two sentences happened to be, which after the curator
+   * rewrite is often pure visual description ("Tulangnya telah membatu…") with
+   * the identifying fact stranded in paragraph two.
+   */
+  const layout = useMemo(() => {
+    if (!focusedArtifact) return null;
+    const body = focusedArtifact.deskripsi_singkat;
+    const fact = focusedArtifact.fakta_menarik;
 
-  if (!isOpen || !focusedArtifact) return null;
+    const titleH = estimateLines(focusedArtifact.nama, TITLE_SIZE) * TITLE_SIZE * 1.15;
+    const bodyH = estimateLines(body, BODY_SIZE) * BODY_SIZE * 1.35;
+    const factLabelH = FACT_LABEL_SIZE * 1.5;
+    const factH = fact ? factLabelH + estimateLines(fact, FACT_SIZE) * FACT_SIZE * 1.3 : 0;
+    const footerH = FOOTER_SIZE * 1.2;
+
+    const height =
+      PAD_TOP + titleH + GAP + bodyH + (fact ? GAP + factH : 0) + GAP + footerH + PAD_BOTTOM;
+
+    let cursor = height / 2 - PAD_TOP;
+    const titleY = cursor;
+    cursor -= titleH + GAP;
+    const bodyY = cursor;
+    cursor -= bodyH + GAP;
+    const factY = cursor;
+
+    return { body, fact, height, titleY, bodyY, factY, factH, factLabelH };
+  }, [focusedArtifact]);
+
+  if (!isOpen || !focusedArtifact || !layout) return null;
+
+  const { body, fact, height, titleY, bodyY, factY, factH, factLabelH } = layout;
 
   return (
     <group ref={groupRef}>
@@ -100,23 +145,23 @@ export function VRInfoPanel() {
           overdraw and, worse, let the scene behind bleed through the text at
           exactly the moment it needs contrast most. */}
       <mesh>
-        <planeGeometry args={[PANEL_WIDTH, PANEL_HEIGHT]} />
+        <planeGeometry args={[PANEL_WIDTH, height]} />
         <meshBasicMaterial color={INDIGO} toneMapped={false} />
       </mesh>
       {/* Brass frame — one slightly larger plane behind, no extra transparency. */}
       <mesh position={[0, 0, -0.002]}>
-        <planeGeometry args={[PANEL_WIDTH + 0.02, PANEL_HEIGHT + 0.02]} />
+        <planeGeometry args={[PANEL_WIDTH + 0.02, height + 0.02]} />
         <meshBasicMaterial color={BRASS} toneMapped={false} />
       </mesh>
 
       <Text
-        position={[-PANEL_WIDTH / 2 + 0.06, PANEL_HEIGHT / 2 - 0.09, 0.001]}
+        position={[-PANEL_WIDTH / 2 + 0.06, titleY, 0.001]}
         anchorX="left"
         anchorY="top"
         // ~0.055m tall at 1.45m ≈ 2.2° of arc — comfortably above the ~2%
         // of viewport height that stays legible on a half-width eye view.
-        fontSize={0.055}
-        maxWidth={PANEL_WIDTH - 0.12}
+        fontSize={TITLE_SIZE}
+        maxWidth={TEXT_WIDTH}
         lineHeight={1.15}
         color={IVORY}
         outlineWidth={0.002}
@@ -126,22 +171,54 @@ export function VRInfoPanel() {
       </Text>
 
       <Text
-        position={[-PANEL_WIDTH / 2 + 0.06, PANEL_HEIGHT / 2 - 0.2, 0.001]}
+        position={[-PANEL_WIDTH / 2 + 0.06, bodyY, 0.001]}
         anchorX="left"
         anchorY="top"
-        fontSize={0.032}
-        maxWidth={PANEL_WIDTH - 0.12}
+        fontSize={BODY_SIZE}
+        maxWidth={TEXT_WIDTH}
         lineHeight={1.35}
         color={SAND}
       >
         {body}
       </Text>
 
+      {/* "Tahukah Anda?" — same brass rule as the flat panel, as a thin quad.
+          Absent entirely (rule included) for artifacts with no sourced fact. */}
+      {fact && (
+        <>
+          <mesh position={[-PANEL_WIDTH / 2 + 0.042, factY - factH / 2, 0.001]}>
+            <planeGeometry args={[0.005, factH]} />
+            <meshBasicMaterial color={BRASS} toneMapped={false} />
+          </mesh>
+          <Text
+            position={[-PANEL_WIDTH / 2 + 0.06, factY, 0.001]}
+            anchorX="left"
+            anchorY="top"
+            fontSize={FACT_LABEL_SIZE}
+            maxWidth={TEXT_WIDTH}
+            color={BRASS}
+          >
+            TAHUKAH ANDA?
+          </Text>
+          <Text
+            position={[-PANEL_WIDTH / 2 + 0.06, factY - factLabelH, 0.001]}
+            anchorX="left"
+            anchorY="top"
+            fontSize={FACT_SIZE}
+            maxWidth={TEXT_WIDTH}
+            lineHeight={1.3}
+            color={IVORY}
+          >
+            {fact}
+          </Text>
+        </>
+      )}
+
       <Text
-        position={[0, -PANEL_HEIGHT / 2 + 0.05, 0.001]}
+        position={[0, -height / 2 + PAD_BOTTOM, 0.001]}
         anchorX="center"
         anchorY="bottom"
-        fontSize={0.026}
+        fontSize={FOOTER_SIZE}
         color={BRASS}
       >
         Tombol B pada gamepad untuk kembali menjelajah

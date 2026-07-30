@@ -16,7 +16,33 @@ export type ZoneId = "welcome" | "prasejarah" | "hindu-buddha" | "transisi-iptek
 export interface Artifact {
   id: string;
   nama: string;
+  /**
+   * One self-contained sentence (15–25 words) summarising the piece — the
+   * label a visitor reads when there is no room for the full text. The VR
+   * panel uses it instead of chopping `deskripsi` mid-sentence, which is what
+   * it used to do.
+   *
+   * Written to stand alone: it is never the opening of `deskripsi` truncated,
+   * so the two can be shown together without reading as a stutter.
+   */
+  deskripsi_singkat: string;
+  /** Long-form label text. Two paragraphs separated by a blank line: what the
+   * object is, then why it matters. Renderers must split on `\n\n` — a single
+   * `<p>` collapses the break and runs both paragraphs together. */
   deskripsi: string;
+  /**
+   * One verifiable "Tahukah Anda?" fact, 1–2 sentences, shown in its own
+   * accented block.
+   *
+   * Optional on purpose, and **omitted entirely** rather than set to `""` or
+   * `null` when there is nothing sourced to say. Not every artifact has one and
+   * that is the correct outcome: a museum is judged on accuracy, not on filling
+   * every column. Every value here has a recorded source in
+   * `docs/sumber-fakta-menarik.md`; anything that cannot be sourced does not
+   * get written. Renderers must drop the whole block — label, box, and divider
+   * — when the field is absent.
+   */
+  fakta_menarik?: string;
   /** Path to a .glb/.gltf model. Leave empty string to use a placeholder primitive. */
   url_model_3d: string;
   /** Placeholder shape used while there's no real model yet. */

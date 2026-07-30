@@ -94,11 +94,39 @@ export function InfoPanel() {
               </h2>
             </div>
 
-            <p className="text-museum-mist text-sm leading-relaxed" style={{
-              fontSize: settings.textSize === "small" ? "0.875rem" : settings.textSize === "large" ? "1.25rem" : undefined
-            }}>
-              {focusedArtifact.deskripsi}
-            </p>
+            {/* One <p> per paragraph. The data stores `deskripsi` as two
+                paragraphs joined by a blank line, and HTML collapses that into
+                a single space — so a lone <p> ran "apa benda ini" straight into
+                "kenapa benda ini penting" as one grey wall of text. */}
+            <div className="flex flex-col gap-3 short:gap-2">
+              {focusedArtifact.deskripsi.split(/\n\s*\n/).map((paragraph, i) => (
+                <p key={i} className="text-museum-mist text-sm leading-relaxed" style={{
+                  fontSize: settings.textSize === "small" ? "0.875rem" : settings.textSize === "large" ? "1.25rem" : undefined
+                }}>
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+
+            {/* "Tahukah Anda?" — only rendered when the artifact actually has a
+                sourced fact. No placeholder heading, no empty box, no dangling
+                divider for the ones that don't; see `fakta_menarik` in
+                types/artifact.ts for why most artifacts have none.
+                A brass rule on the left rather than the sand-on-ivory of the
+                spec: this panel's ground is charcoal, and sand fill here would
+                read as a warning banner instead of an aside. */}
+            {focusedArtifact.fakta_menarik && (
+              <div className="border-l-2 border-museum-gold/70 pl-3 py-1 bg-museum-gold/[0.06] rounded-r">
+                <p className="text-[10px] tracking-[0.2em] uppercase text-museum-gold mb-1">
+                  Tahukah Anda?
+                </p>
+                <p className="text-museum-bone/90 text-sm leading-relaxed" style={{
+                  fontSize: settings.textSize === "small" ? "0.8125rem" : settings.textSize === "large" ? "1.125rem" : undefined
+                }}>
+                  {focusedArtifact.fakta_menarik}
+                </p>
+              </div>
+            )}
 
             {/* Subtitle section */}
             {settings.showSubtitles && focusedArtifact.transkrip_audio && (
