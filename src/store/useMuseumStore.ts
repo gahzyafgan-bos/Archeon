@@ -2,6 +2,17 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Artifact, RoomId, ZoneId } from "@/types/artifact";
 import type { GraphicsQuality } from "@/utils/graphicsPresets";
+import {
+  IPD_DEFAULT_M,
+  IPD_MAX_M,
+  IPD_MIN_M,
+  LENS_SEPARATION_DEFAULT_MM,
+  LENS_SEPARATION_MAX_MM,
+  LENS_SEPARATION_MIN_MM,
+  SCREEN_WIDTH_DEFAULT_MM,
+  SCREEN_WIDTH_MAX_MM,
+  SCREEN_WIDTH_MIN_MM,
+} from "@/utils/vrOptics";
 
 // Re-exported so existing `import type { RoomId } from "@/store/useMuseumStore"`
 // call sites across the app don't need to change — canonical definition now
@@ -52,11 +63,29 @@ export interface Settings {
    * them half a screen-width apart, which on any large phone is wider than a
    * human face — the eyes would have to diverge, which they cannot do.
    *
-   * User-adjustable because the web cannot read a device's physical screen
-   * size, so the mm -> pixel conversion is only ever an estimate (see
-   * MM_PER_CSS_PX in CardboardStereoView).
+   * User-adjustable because cheap viewers vary and some have sliding lenses.
+   * Range and default live in utils/vrOptics.ts with the geometry they belong
+   * to; nothing here or in the UI may invent its own bounds.
    */
   vrLensSeparationMm: number;
+  /**
+   * The phone's physical screen width along its LONG edge, in millimetres —
+   * the width the two eye viewports are cut out of when the phone is landscape
+   * in a headset.
+   *
+   * The stereo framing needs a real length here and the web exposes none, so
+   * this is the one number that must be measured or calibrated. It used to be
+   * a hardcoded `25.4 / 140` CSS-dpi guess buried in CardboardStereoView, which
+   * was 10-15% off on most phones; since the lens-centre shift is a difference
+   * of two similar lengths, that became a ~100% error in the shift and left
+   * each eye's image ~4mm too far inboard — far past the ~1-2° of vergence a
+   * fixed-focus viewer allows, so the pair simply could not be fused. That is
+   * the "double" everyone was seeing.
+   *
+   * Measure the glass once with a ruler and it is correct on that phone
+   * forever. See eyeLensCenterShift in utils/vrOptics.ts.
+   */
+  vrScreenWidthMm: number;
   vrDistortionK1: number; // barrel pre-distortion, 1st order radial coefficient
   vrDistortionK2: number; // barrel pre-distortion, 2nd order radial coefficient
   // Kualitas Grafis
@@ -79,12 +108,40 @@ const defaultSettings: Settings = {
   highContrast: false,
   textSize: "medium",
   roomTransitionSpeed: 1,
-  vrIPD: 0.063,
-  vrLensSeparationMm: 63, // Cardboard v2's fixed lens spacing / average adult IPD
+  vrIPD: IPD_DEFAULT_M,
+  vrLensSeparationMm: LENS_SEPARATION_DEFAULT_MM,
+  vrScreenWidthMm: SCREEN_WIDTH_DEFAULT_MM,
   vrDistortionK1: 0.22,
   vrDistortionK2: 0.24,
   graphicsQuality: "rendah",
 };
+
+const clampNumber = (value: unknown, min: number, max: number, fallback: number) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? Math.min(max, Math.max(min, value))
+    : fallback;
+
+/** Keeps the VR optics settings inside the physically meaningful ranges declared
+ *  in utils/vrOptics.ts — see the note on `merge` below for why rehydration
+ *  needs this and not just the sliders. */
+function sanitizeVROptics(settings: Settings): Settings {
+  return {
+    ...settings,
+    vrIPD: clampNumber(settings.vrIPD, IPD_MIN_M, IPD_MAX_M, IPD_DEFAULT_M),
+    vrLensSeparationMm: clampNumber(
+      settings.vrLensSeparationMm,
+      LENS_SEPARATION_MIN_MM,
+      LENS_SEPARATION_MAX_MM,
+      LENS_SEPARATION_DEFAULT_MM
+    ),
+    vrScreenWidthMm: clampNumber(
+      settings.vrScreenWidthMm,
+      SCREEN_WIDTH_MIN_MM,
+      SCREEN_WIDTH_MAX_MM,
+      SCREEN_WIDTH_DEFAULT_MM
+    ),
+  };
+}
 
 interface MuseumState {
   // --- App / loading ---
@@ -280,10 +337,17 @@ export const useMuseumStore = create<MuseumState>()(
       merge: (persistedState: any, currentState) => ({
         ...currentState,
         ...persistedState,
-        settings: {
+        // Clamped on the way out of storage, not just on the way in from the
+        // UI. A visitor who calibrated before the VR framing fix has a
+        // vrLensSeparationMm of up to 80mm saved — that value was them
+        // compensating by hand for a mis-estimated screen width, and now that
+        // the screen width is a real setting, replaying it would re-break the
+        // alignment it was working around. Every VR optics value therefore gets
+        // pulled back into the range vrOptics.ts says is physically meaningful.
+        settings: sanitizeVROptics({
           ...currentState.settings,
           ...(persistedState?.settings || {}),
-        },
+        }),
       }),
     }
   )

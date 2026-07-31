@@ -1,14 +1,35 @@
 import { useEffect } from "react";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { useAudioGuide } from "@/hooks/useAudioGuide";
+import { eyeLensCenterShift } from "@/utils/vrOptics";
 
-function EyeOverlay() {
+function EyeOverlay({ eye }: { eye: "left" | "right" }) {
   const nearbyArtifact = useMuseumStore((s) => s.nearbyArtifact);
   const focusedArtifact = useMuseumStore((s) => s.focusedArtifact);
   const lensSeparationMm = useMuseumStore((s) => s.settings.vrLensSeparationMm);
+  const screenWidthMm = useMuseumStore((s) => s.settings.vrScreenWidthMm);
+
+  // Sit on the lens axis, not in the middle of this half of the screen.
+  //
+  // The rendered world already does — CardboardStereoView shifts each eye's
+  // frustum and distortion centre inboard by eyeLensCenterShift. This overlay
+  // is DOM drawn on top of the canvas, so it does not go through any of that,
+  // and a plain 50/50 flex split left the crosshair off-axis by the same shift
+  // in each eye, mirrored. The two crosshairs therefore sat ~9mm FURTHER apart
+  // than the lenses, and the crosshair is the one thing the visitor is asked to
+  // look at: the eyes have to diverge to fuse it, which is impossible, so
+  // either the reticle doubles or fusing it pulls the whole world apart.
+  //
+  // shift is a fraction of this half-viewport's HALF-width, and one half of the
+  // screen is 50vw wide, so its half-width is 25vw.
+  const shift = eyeLensCenterShift(screenWidthMm, lensSeparationMm);
+  const inboard = eye === "left" ? shift : -shift;
 
   return (
-    <div className="relative flex-1 h-full flex items-center justify-center">
+    <div
+      className="relative flex-1 h-full flex items-center justify-center"
+      style={{ transform: `translateX(calc(${inboard} * 25vw))` }}
+    >
       {/* Crosshair to help the eye focus while looking around */}
       <div className="w-3 h-3 rounded-full border border-museum-bone/60" />
 
@@ -73,9 +94,9 @@ export function VRHud() {
       className="fixed left-0 top-0 w-full z-40 flex pointer-events-none"
       style={{ height: "var(--app-height, 100dvh)" }}
     >
-      <EyeOverlay />
+      <EyeOverlay eye="left" />
       <div className="w-px h-full bg-white/5" />
-      <EyeOverlay />
+      <EyeOverlay eye="right" />
     </div>
   );
 }

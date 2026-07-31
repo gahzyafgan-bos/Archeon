@@ -1,5 +1,10 @@
 import { useEffect, useRef } from "react";
 import { useMuseumStore } from "@/store/useMuseumStore";
+import {
+  LENS_SEPARATION_MAX_MM,
+  LENS_SEPARATION_MIN_MM,
+  LENS_SEPARATION_STEP_MM,
+} from "@/utils/vrOptics";
 
 /**
  * Button indices per the Gamepad API "standard" layout (Xbox-style pad,
@@ -18,9 +23,11 @@ const BUTTON_DPAD_RIGHT = 15; // widen it
 // HUD is hidden in VR). One step per press rather than a held ramp: the value
 // is persisted to localStorage on every change, and a 60Hz ramp would mean a
 // synchronous storage write every frame.
-const LENS_SEPARATION_STEP_MM = 1;
-const LENS_SEPARATION_MIN_MM = 50;
-const LENS_SEPARATION_MAX_MM = 80;
+// Range and step come from vrOptics, where the geometry that justifies them
+// lives. They used to be redeclared here as 50-80mm, which let the D-pad walk
+// the value out past any real viewer — and it did: the 80mm in the bug report
+// was the visitor pushing this to its stop trying to compensate by hand for a
+// screen width the code was guessing wrong elsewhere.
 
 /**
  * Axis indices per the Gamepad API "standard" mapping:

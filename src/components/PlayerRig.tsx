@@ -8,6 +8,7 @@ import type { RoomConfig } from "@/data/roomConfig";
 import type { Artifact } from "@/types/artifact";
 import { objectFootprintRadius } from "@/utils/artifactSize";
 import { lerpAngle, wrapAngle } from "@/utils/angle";
+import { verticalFovForEyeAspect } from "@/utils/vrOptics";
 
 // Shared immutable zero vector — Vector3.lerp() only READS its target, never
 // mutates it, so a single frozen instance is safe to reuse as the decelerate
@@ -48,17 +49,13 @@ const TWO_PI = Math.PI * 2;
 const VR_LOOK_DAMPING = 25;
 
 /**
- * Vertical FOV (degrees) forced while VR mode is active, overriding the user's
- * `cameraFOV` preference for the duration.
- *
- * In VR the field of view isn't a taste setting — it's fixed by the optics.
- * Cardboard lenses present roughly 90° to each eye, and each eye here renders
- * at half the canvas width (~1.08 aspect in landscape), so 80° vertical works
- * out to ~84° horizontal: close enough that world scale reads correctly.
- * Inheriting a 60-65° preference instead makes everything look magnified and
- * too near, which fights fusion; a 90° one makes the room feel stretched.
+ * Each eye's viewport is half the canvas wide and the full canvas tall, so its
+ * aspect is half the canvas aspect. This is the same 0.5 that
+ * CardboardStereoView hands THREE.StereoCamera, and three multiplies
+ * `camera.aspect` by it internally — the two must agree or the eye render and
+ * the eye viewport are framed differently.
  */
-const VR_CAMERA_FOV = 80;
+const STEREO_EYE_ASPECT_MULTIPLIER = 0.5;
 
 // Cubic ease-in-out function
 function easeInOutCubic(t: number): number {
@@ -100,7 +97,7 @@ interface PlayerRigProps {
  * per-frame logic reads the camera's authoritative position exactly once.
  */
 export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const yaw = useRef(room.spawn.facingY);
   const targetYaw = useRef(room.spawn.facingY);
   const pitch = useRef(0);
@@ -190,16 +187,30 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
   const focusedArtifact = useMuseumStore((s) => s.focusedArtifact);
   const settings = useMuseumStore((s) => s.settings);
 
-  // Camera FOV, kept in one place so there is a single owner of the value.
-  // In VR it is dictated by the Cardboard optics rather than by preference
-  // (see VR_CAMERA_FOV), and it has to be re-asserted on every hall change too
-  // — otherwise walking through an archway mid-session would quietly hand the
-  // stereo view the user's flat-screen FOV back.
+  // Camera FOV, kept in one place so there is a single owner of the value —
+  // this effect is the ONLY thing in the app that writes camera.fov. It has to
+  // be re-asserted on every hall change too, otherwise walking through an
+  // archway mid-session would quietly hand the stereo view the user's
+  // flat-screen FOV back.
+  //
+  // Mono and VR are allowed to differ here, and only here. In VR the field of
+  // view is not a taste setting: the Cardboard lens shows each eye a fixed
+  // ~90° and the render has to match it or the world is the wrong size. What
+  // is deliberate is which axis is pinned — the HORIZONTAL field is the
+  // constant and the vertical is derived from the eye viewport's real aspect
+  // (see vrOptics). Pinning the vertical instead, as a bare `fov = 80` did,
+  // hands every phone a different horizontal field and so a different apparent
+  // world scale, because the eye viewport's shape follows the handset's.
   useEffect(() => {
     if (!('fov' in camera)) return;
-    (camera as THREE.PerspectiveCamera).fov = isVRMode ? VR_CAMERA_FOV : settings.cameraFOV;
+    const eyeAspect = (size.width / size.height) * STEREO_EYE_ASPECT_MULTIPLIER;
+    (camera as THREE.PerspectiveCamera).fov = isVRMode
+      ? verticalFovForEyeAspect(eyeAspect)
+      : settings.cameraFOV;
+    // Changing fov without this does nothing at all — the projection matrix is
+    // only rebuilt on demand.
     camera.updateProjectionMatrix();
-  }, [camera, isVRMode, settings.cameraFOV, room.id]);
+  }, [camera, isVRMode, settings.cameraFOV, room.id, size.width, size.height]);
 
   // (Re)place the player at the room's spawn point whenever the room changes.
   useEffect(() => {
