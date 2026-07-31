@@ -20,6 +20,40 @@ const BRASS = "#B08D3C";
 const STONE_FEATURED = "#6b5f4e";
 const STONE_REGULAR = "#8a7d68";
 
+/**
+ * The brass cap that finishes each pedestal profile sits ON TOP of the shaft,
+ * so the surface an artifact actually rests on is the cap's top face —
+ * `pedestal_height + offset + thickness / 2` — not `pedestal_height` itself.
+ *
+ * Getting this wrong is invisible on a 1.5 m arca and fatal on a small piece.
+ * Kapak Persegi is 6.2 cm tall after auto-fit and its source pivot is centred,
+ * so placed at the shaft top its highest point landed at y=1.2296 while this
+ * cap's top face is at y=1.24 — the entire artifact was inside the brass disc.
+ * That is what "pedestal kosong tapi hotspot hidup" actually was: the model
+ * loaded and rendered correctly every time, just underneath its own stand.
+ *
+ * Both numbers are shared with the cap meshes below so the geometry and the
+ * resting surface can never drift apart again.
+ */
+const PEDESTAL_CAP = {
+  hero: { offset: 0.03, thickness: 0.06 },
+  featured: { offset: 0.025, thickness: 0.05 },
+  eyeColumn: { offset: 0.02, thickness: 0.04 },
+} as const;
+
+/** Top face of a brass cap sitting on a shaft of height `pedestalH`. */
+function capTopY(pedestalH: number, cap: { offset: number; thickness: number }): number {
+  return pedestalH + cap.offset + cap.thickness / 2;
+}
+
+/** Wood base of the vitrine case: box centred at y=0.15, 0.3 tall — its lid is
+ * what a piece inside the case stands on. */
+const VITRINE_SURFACE_Y = 0.3;
+
+/** Niche shelf ledge: box centred at `y - 0.3`, 0.1 thick, so its top face is
+ * 0.05 above that. Kept next to the mesh that draws it (see the niche branch). */
+const NICHE_SHELF_DROP = 0.25;
+
 // DRACO_DECODER_PATH now lives in utils/modelLoader.ts (shared with the
 // cross-hall preloader) so every load site keys drei's cache identically —
 // see that file. Re-exported locally is unnecessary; import it directly.
@@ -114,6 +148,25 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
   // via a taller pedestal_height in the data — render those as a slender
   // museum plinth instead of the squat drum lower pieces use.
   const isEyeLevelColumn = tier === "regular" && pedestalH >= 1.0;
+
+  // World-space Y of the face this artifact's underside rests on. Mirrors the
+  // stand branches in the JSX below one-for-one and reads the same PEDESTAL_CAP
+  // constants they do, so there is exactly one definition of "the top of this
+  // stand" — see PEDESTAL_CAP for why placing a model at `pedestalH` instead
+  // buried the small pieces inside their own brass cap.
+  const surfaceY =
+    displayMode === "niche"
+      ? y - NICHE_SHELF_DROP
+      : displayMode === "vitrine"
+        ? VITRINE_SURFACE_Y
+        : isHeroTier
+          ? capTopY(pedestalH, PEDESTAL_CAP.hero)
+          : tier === "featured"
+            ? capTopY(pedestalH, PEDESTAL_CAP.featured)
+            : isEyeLevelColumn
+              ? capTopY(pedestalH, PEDESTAL_CAP.eyeColumn)
+              : // plain box / cylinder regular tier carries no cap
+                pedestalH;
 
   // Grow the pedestal's own footprint when the real object (per real_world_size,
   // spec: "fix skala objek") is physically wider than the tier's default stand —
@@ -218,8 +271,8 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
                 <cylinderGeometry args={[0.5 * s, 0.55 * s, Math.max(0.1, pedestalH - 0.44), 24]} />
                 <meshStandardMaterial color={WOOD} roughness={0.75} />
               </mesh>
-              <mesh position={[0, pedestalH + 0.03, 0]} castShadow>
-                <cylinderGeometry args={[0.58 * s, 0.58 * s, 0.06, 24]} />
+              <mesh position={[0, pedestalH + PEDESTAL_CAP.hero.offset, 0]} castShadow>
+                <cylinderGeometry args={[0.58 * s, 0.58 * s, PEDESTAL_CAP.hero.thickness, 24]} />
                 <meshStandardMaterial color={BRASS} roughness={0.4} metalness={0.6} />
               </mesh>
             </group>
@@ -234,8 +287,8 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
                 <cylinderGeometry args={[0.58 * s, 0.63 * s, pedestalH, 20]} />
                 <meshStandardMaterial color={STONE_FEATURED} roughness={0.82} />
               </mesh>
-              <mesh position={[0, pedestalH + 0.025, 0]} castShadow>
-                <cylinderGeometry args={[0.6 * s, 0.6 * s, 0.05, 20]} />
+              <mesh position={[0, pedestalH + PEDESTAL_CAP.featured.offset, 0]} castShadow>
+                <cylinderGeometry args={[0.6 * s, 0.6 * s, PEDESTAL_CAP.featured.thickness, 20]} />
                 <meshStandardMaterial color={BRASS} roughness={0.45} metalness={0.5} />
               </mesh>
             </group>
@@ -250,8 +303,8 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
                 <cylinderGeometry args={[0.28 * s, 0.34 * s, pedestalH, 16]} />
                 <meshStandardMaterial color={regularStoneColor} roughness={0.85} />
               </mesh>
-              <mesh position={[0, pedestalH + 0.02, 0]} castShadow>
-                <cylinderGeometry args={[0.32 * s, 0.32 * s, 0.04, 16]} />
+              <mesh position={[0, pedestalH + PEDESTAL_CAP.eyeColumn.offset, 0]} castShadow>
+                <cylinderGeometry args={[0.32 * s, 0.32 * s, PEDESTAL_CAP.eyeColumn.thickness, 16]} />
                 <meshStandardMaterial color={BRASS} roughness={0.45} metalness={0.5} />
               </mesh>
             </group>
@@ -376,7 +429,7 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
             >
               <RealArtifactModel
                 url={artifact.url_model_3d}
-                pedestalHeight={pedestalH}
+                surfaceY={surfaceY}
                 targetSize={artifact.real_world_size}
                 scale={artifact.model_scale}
                 yOffset={artifact.model_y_offset}
@@ -498,7 +551,7 @@ class ModelErrorBoundary extends Component<
  * top of that auto-fit, for assets that still need fine-tuning. */
 function RealArtifactModel({
   url,
-  pedestalHeight,
+  surfaceY,
   targetSize,
   scale = 1,
   yOffset = 0,
@@ -506,7 +559,9 @@ function RealArtifactModel({
   materialOverride,
 }: {
   url: string;
-  pedestalHeight: number;
+  /** World Y of the face the model's base rests on — the top of the brass cap,
+   * vitrine lid or niche ledge, not the pedestal shaft height. See PEDESTAL_CAP. */
+  surfaceY: number;
   targetSize?: { width: number; height: number; depth: number };
   scale?: number;
   yOffset?: number;
@@ -563,7 +618,7 @@ function RealArtifactModel({
   return (
     <primitive
       object={model}
-      position={[0, pedestalHeight + yOffset, 0]}
+      position={[0, surfaceY + yOffset, 0]}
       rotation={[0, rotationY, 0]}
       scale={fitScale * scale}
     />
