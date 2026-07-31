@@ -3,6 +3,15 @@ import { useMuseumStore } from "@/store/useMuseumStore";
 import { GRAPHICS_QUALITY_LABELS, type GraphicsQuality } from "@/utils/graphicsPresets";
 import { APP_NAME, APP_TAGLINE, APP_VERSION, MUSEUM_NAME, TEAM_NAME } from "@/constants/credits";
 import { CreditLine } from "./CreditLine";
+import {
+  IPD_MAX_M,
+  IPD_MIN_M,
+  LENS_SEPARATION_MAX_MM,
+  LENS_SEPARATION_MIN_MM,
+  LENS_SEPARATION_STEP_MM,
+  SCREEN_WIDTH_MAX_MM,
+  SCREEN_WIDTH_MIN_MM,
+} from "@/utils/vrOptics";
 
 export function SettingsPanel() {
   const [activeTab, setActiveTab] = useState<"controls" | "audio" | "visual" | "vr" | "about">(
@@ -417,9 +426,32 @@ export function SettingsPanel() {
                 gambar kiri-kanan menyatu jadi satu dan terasa nyaman di mata.
               </p>
 
-              {/* Lens separation — the one that decides whether the two
-                  images can fuse at all. Adjustable because the browser cannot
-                  read a phone's physical screen size. */}
+              {/* Physical screen width — the one measurement the browser
+                  refuses to expose, and the one the stereo framing genuinely
+                  needs. Ranked first because getting it right makes the two
+                  sliders below barely need touching. */}
+              <div>
+                <div className="mb-2 flex justify-between">
+                  <label>Lebar Layar HP</label>
+                  <span className="text-museum-gold">{settings.vrScreenWidthMm} mm</span>
+                </div>
+                <input
+                  type="range"
+                  min={SCREEN_WIDTH_MIN_MM}
+                  max={SCREEN_WIDTH_MAX_MM}
+                  step="1"
+                  value={settings.vrScreenWidthMm}
+                  onChange={(e) => updateSettings({ vrScreenWidthMm: parseInt(e.target.value) })}
+                  className="w-full h-2 bg-museum-charcoal/50 rounded-lg appearance-none cursor-pointer accent-museum-gold"
+                />
+                <p className="text-museum-mist/70 text-[10px] mt-1">
+                  Ukur sisi panjang layar HP kamu pakai penggaris, lalu isi di sini. Cukup sekali —
+                  setelah benar, semua perhitungan VR ikut benar. Browser tidak bisa membaca ukuran
+                  layar sendiri, jadi ini satu-satunya angka yang harus kamu beri tahu.
+                </p>
+              </div>
+
+              {/* Lens separation — a property of the viewer, not the phone. */}
               <div>
                 <div className="mb-2 flex justify-between">
                   <label>Jarak Pusat Lensa</label>
@@ -427,18 +459,17 @@ export function SettingsPanel() {
                 </div>
                 <input
                   type="range"
-                  min="50"
-                  max="80"
-                  step="1"
+                  min={LENS_SEPARATION_MIN_MM}
+                  max={LENS_SEPARATION_MAX_MM}
+                  step={LENS_SEPARATION_STEP_MM}
                   value={settings.vrLensSeparationMm}
                   onChange={(e) => updateSettings({ vrLensSeparationMm: parseInt(e.target.value) })}
                   className="w-full h-2 bg-museum-charcoal/50 rounded-lg appearance-none cursor-pointer accent-museum-gold"
                 />
                 <p className="text-museum-mist/70 text-[10px] mt-1">
-                  Ini setelan paling penting. Kalau gambar kiri-kanan terasa dobel dan tidak mau
-                  menyatu jadi satu, geser nilai ini sedikit demi sedikit sampai menyatu. Di dalam
-                  Mode VR bisa diatur langsung lewat D-pad kiri/kanan gamepad, tanpa keluar dulu.
-                  Nilai mm-nya perkiraan — layar tiap HP berbeda dan browser tidak bisa membacanya.
+                  Jarak antara dua lensa di Cardboard-mu — biasanya 63 mm. Kalau gambar kiri-kanan
+                  masih terasa dobel setelah "Lebar Layar HP" benar, geser ini sedikit demi sedikit
+                  sampai menyatu. Di dalam Mode VR bisa diatur lewat D-pad kiri/kanan gamepad.
                 </p>
               </div>
 
@@ -450,16 +481,17 @@ export function SettingsPanel() {
                 </div>
                 <input
                   type="range"
-                  min="0.05"
-                  max="0.075"
+                  min={IPD_MIN_M}
+                  max={IPD_MAX_M}
                   step="0.001"
                   value={settings.vrIPD}
                   onChange={(e) => updateSettings({ vrIPD: parseFloat(e.target.value) })}
                   className="w-full h-2 bg-museum-charcoal/50 rounded-lg appearance-none cursor-pointer accent-museum-gold"
                 />
                 <p className="text-museum-mist/70 text-[10px] mt-1">
-                  Mengatur seberapa kuat kesan kedalaman 3D-nya, bukan apakah gambarnya menyatu —
-                  untuk itu pakai "Jarak Pusat Lensa" di atas. Terlalu besar bikin mata cepat lelah.
+                  Jarak antara dua mata kamu (rata-rata dewasa 63 mm). Mengatur seberapa kuat kesan
+                  kedalaman 3D-nya, bukan apakah gambarnya menyatu — untuk itu pakai dua setelan di
+                  atas. Terlalu besar bikin mata cepat lelah.
                 </p>
               </div>
 

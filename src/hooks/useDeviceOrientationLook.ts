@@ -46,6 +46,32 @@ function degToRad(d: number) {
   return d * (Math.PI / 180);
 }
 
+/**
+ * How still the phone has to be held, and for how long, before its current
+ * orientation is adopted as "facing forward, level".
+ *
+ * The baseline used to be the very first sample after VR was switched on —
+ * which is the moment the visitor is still holding the phone in their hand,
+ * about to slide it into the headset. Everything that happens next (turning it
+ * landscape, pushing it into the tray, lifting the whole thing to their face)
+ * is then read as head movement, and the tilt from "held in front of me" to
+ * "strapped to my face" is easily 40-60° of pitch. The world ends up
+ * permanently pitched up, so pillars are seen from below and pedestals tower
+ * over the visitor — reported as the room looking gigantic, though the camera
+ * never moved. Note the asymmetry that hid it: PlayerRig re-anchors YAW on
+ * every epoch (vrYawBase) but pitch has no equivalent, so only pitch stuck.
+ *
+ * Waiting for the reading to settle puts the reference where the visitor
+ * actually is. Until then no reading is published at all, so the view simply
+ * holds the heading it had on entry — level and still, which is the right thing
+ * to be looking at while you put a headset on.
+ */
+const BASELINE_STABLE_RAD = 0.05; // ~3°, comfortably above gyro noise
+const BASELINE_STABLE_MS = 400;
+/** Adopt regardless after this long, so a visitor who genuinely cannot hold
+ *  still (walking, on a bus) still gets head tracking rather than none. */
+const BASELINE_TIMEOUT_MS = 3000;
+
 function getScreenOrientationAngle(): number {
   if (typeof screen !== "undefined" && screen.orientation) return screen.orientation.angle;
   return 0;
@@ -83,12 +109,18 @@ export function useDeviceOrientationLook() {
   const vrRecenterSignal = useMuseumStore((s) => s.vrRecenterSignal);
 
   const baseline = useRef<{ yaw: number; pitch: number } | null>(null);
+  // Candidate baseline waiting to prove the phone is being held still — see
+  // BASELINE_STABLE_MS.
+  const pendingBaseline = useRef<{ yaw: number; pitch: number; since: number } | null>(null);
+  const baselineWaitStart = useRef(0);
 
   useEffect(() => {
     // Entering or leaving VR both start from a clean slate: no baseline, no
     // stale reading, and an epoch bump so PlayerRig re-anchors to whatever
     // heading is on screen right now instead of snapping to the gyro's zero.
     baseline.current = null;
+    pendingBaseline.current = null;
+    baselineWaitStart.current = 0;
     vrLookSource.yaw = 0;
     vrLookSource.pitch = 0;
     vrLookSource.hasReading = false;
@@ -100,12 +132,38 @@ export function useDeviceOrientationLook() {
     const handleOrientation = (e: DeviceOrientationEvent) => {
       if (e.alpha === null || e.beta === null || e.gamma === null) return;
       const { yaw, pitch } = computeYawPitch(e.alpha, e.beta, e.gamma, getScreenOrientationAngle());
-      // First reading (or the one right after a recenter request) becomes the
-      // new "facing forward, level" baseline.
+
+      // Adopt a new "facing forward, level" reference only once the phone has
+      // been held still for a moment — i.e. once it is in the headset on the
+      // visitor's face, not while it is still being carried there. Applies to
+      // VR entry and to every recenter alike.
       if (!baseline.current) {
-        baseline.current = { yaw, pitch };
+        const now = performance.now();
+        if (baselineWaitStart.current === 0) baselineWaitStart.current = now;
+        const candidate = pendingBaseline.current;
+        const moved =
+          !candidate ||
+          Math.abs(wrapAngle(yaw - candidate.yaw)) > BASELINE_STABLE_RAD ||
+          Math.abs(pitch - candidate.pitch) > BASELINE_STABLE_RAD;
+
+        if (moved) {
+          pendingBaseline.current = { yaw, pitch, since: now };
+        }
+        const settled =
+          !moved && candidate !== null && now - candidate.since >= BASELINE_STABLE_MS;
+        const timedOut = now - baselineWaitStart.current >= BASELINE_TIMEOUT_MS;
+        if (!settled && !timedOut) {
+          // Publish nothing yet: PlayerRig keeps the heading it entered VR with,
+          // which is level and steady.
+          return;
+        }
+        baseline.current = pendingBaseline.current ?? { yaw, pitch };
+        pendingBaseline.current = null;
+        baselineWaitStart.current = 0;
+        // Tells PlayerRig to re-anchor rather than interpolate across the jump.
         vrLookSource.epoch += 1;
       }
+
       vrLookSource.yaw = wrapAngle(yaw - baseline.current.yaw);
       vrLookSource.pitch = pitch - baseline.current.pitch;
       vrLookSource.hasReading = true;
@@ -123,6 +181,8 @@ export function useDeviceOrientationLook() {
   useEffect(() => {
     if (vrRecenterSignal === 0) return;
     baseline.current = null;
+    pendingBaseline.current = null;
+    baselineWaitStart.current = 0;
   }, [vrRecenterSignal]);
 
   const isSupported = typeof window !== "undefined" && typeof window.DeviceOrientationEvent !== "undefined";

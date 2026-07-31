@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
+import { barrelNormalizer, eyeLensCenterShift } from "@/utils/vrOptics";
 
 /**
  * Render-target resolution relative to each eye's actual on-screen pixel
@@ -11,19 +12,6 @@ import { useMuseumStore } from "@/store/useMuseumStore";
  * spec section 5: barrel distortion via render targets adds cost).
  */
 const RENDER_SCALE = 0.9;
-
-/**
- * Millimetres per CSS pixel, used to turn the user's lens-separation setting
- * into a pixel offset. The web deliberately exposes no physical screen size,
- * so this is an estimate: mobile browsers pick a devicePixelRatio that lands
- * their CSS pixel density somewhere around 130-150 CSS-dpi (iPhone 14 Pro
- * ~148, Pixel 7 ~148, Galaxy S21 ~128, iPad ~131), rather than the 96 dpi the
- * CSS spec nominally anchors to. 140 sits in the middle of that spread, so the
- * default lands within roughly 10% on most phones — and the settings slider
- * exists precisely to absorb the rest, since only the person looking through
- * the lenses can tell when the two images have actually fused.
- */
-const MM_PER_CSS_PX = 25.4 / 140;
 
 const distortionVertexShader = /* glsl */ `
   varying vec2 vUv;
@@ -57,6 +45,15 @@ const distortionFragmentShader = /* glsl */ `
   // spacing, distorting around the geometric middle of the viewport would
   // warp the image about the wrong point and undo the alignment.
   uniform float lensCenterX;
+  // (1 + k1 + k2): the distortion factor evaluated at the top/bottom edge of
+  // the viewport. Dividing by it pins the source image's edge to the viewport's
+  // edge. Without it the factor is > 1 everywhere, the source edge lands at
+  // output radius ~0.79, and everything past that samples off the texture:
+  // measured 44% of every eye viewport rendered black, in a rounded-corner box
+  // with wide margins. The visitor was looking down a tube at a world drawn
+  // ~0.8x life-size. Derived once on the CPU in vrOptics.barrelNormalizer so
+  // this shader and the FOV maths cannot disagree about it.
+  uniform float distortionScale;
   varying vec2 vUv;
 
   void main() {
@@ -65,7 +62,7 @@ const distortionFragmentShader = /* glsl */ `
     centered.x *= aspect; // keep the distortion radius circular, not elliptical, on a wide viewport
     float r2 = dot(centered, centered);
     float factor = 1.0 + k1 * r2 + k2 * r2 * r2;
-    vec2 distorted = centered * factor;
+    vec2 distorted = centered * (factor / distortionScale);
     distorted.x /= aspect;
     distorted.x += lensCenterX;
     vec2 sampleUv = distorted * 0.5 + 0.5;
@@ -139,11 +136,15 @@ function createEyeRenderTarget() {
  * custom/multi-viewport rendering in R3F.
  */
 export function CardboardStereoView() {
-  const { gl, scene, camera, size } = useThree();
+  const { gl, scene, camera } = useThree();
   const vrIPD = useMuseumStore((s) => s.settings.vrIPD);
   const vrLensSeparationMm = useMuseumStore((s) => s.settings.vrLensSeparationMm);
+  const vrScreenWidthMm = useMuseumStore((s) => s.settings.vrScreenWidthMm);
   const vrDistortionK1 = useMuseumStore((s) => s.settings.vrDistortionK1);
   const vrDistortionK2 = useMuseumStore((s) => s.settings.vrDistortionK2);
+  // Scratch vector for getDrawingBufferSize — allocating one per frame is the
+  // per-frame GC pattern this project already went through PlayerRig to remove.
+  const bufferSize = useRef(new THREE.Vector2());
 
   const stereoCamera = useMemo(() => {
     const cam = new THREE.StereoCamera();
@@ -163,6 +164,7 @@ export function CardboardStereoView() {
           k2: { value: vrDistortionK2 },
           aspect: { value: 1 },
           lensCenterX: { value: 0 },
+          distortionScale: { value: 1 },
         },
         vertexShader: distortionVertexShader,
         fragmentShader: distortionFragmentShader,
@@ -217,9 +219,31 @@ export function CardboardStereoView() {
   useFrame(() => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
 
-    const halfWidth = size.width / 2;
-    const eyeWidth = Math.max(2, Math.round(halfWidth * gl.getPixelRatio() * RENDER_SCALE));
-    const eyeHeight = Math.max(2, Math.round(size.height * gl.getPixelRatio() * RENDER_SCALE));
+    // --- Everything below is measured in DRAWING BUFFER pixels ---------------
+    // Not clientWidth, not window.innerWidth, not the `size` r3f reports: those
+    // are CSS pixels, and on a phone with devicePixelRatio 2-3 they are a
+    // different number from the buffer actually being rasterised into. VR
+    // currently pins dpr to 1 for performance, which makes them coincide today
+    // and would hide the bug the day that changes.
+    const buffer = gl.getDrawingBufferSize(bufferSize.current);
+    const pixelRatio = gl.getPixelRatio() || 1;
+
+    // Integer split, and the right eye gets the remainder. An odd buffer width
+    // (e.g. 915) divided by two is 457.5; three floors viewport rectangles, so
+    // a naive halfWidth left column 914 in neither eye's scissor — never drawn,
+    // never cleared, a stale stripe down the edge of the screen.
+    const eyeBufferW = Math.floor(buffer.x / 2);
+    const rightEyeBufferW = buffer.x - eyeBufferW;
+    const eyeBufferH = buffer.y;
+
+    // setViewport/setScissor take CSS pixels and multiply by the pixel ratio
+    // internally, so convert back at the boundary rather than mixing units.
+    const halfWidth = eyeBufferW / pixelRatio;
+    const rightHalfWidth = rightEyeBufferW / pixelRatio;
+    const viewHeight = eyeBufferH / pixelRatio;
+
+    const eyeWidth = Math.max(2, Math.round(eyeBufferW * RENDER_SCALE));
+    const eyeHeight = Math.max(2, Math.round(eyeBufferH * RENDER_SCALE));
 
     if (lastTargetSize.current.width !== eyeWidth || lastTargetSize.current.height !== eyeHeight) {
       targetL.setSize(eyeWidth, eyeHeight);
@@ -227,19 +251,32 @@ export function CardboardStereoView() {
       lastTargetSize.current = { width: eyeWidth, height: eyeHeight };
     }
 
+    // The eye cameras are PARALLEL: StereoCamera gives cameraL/cameraR the head
+    // camera's matrixWorld post-multiplied by a pure ±eyeSep/2 translation on
+    // the camera's own local X, so their rotations are identical to the head's
+    // and to each other. Convergence is done with an asymmetric frustum
+    // (element 8), never by toeing the cameras in — rotating them would put a
+    // VERTICAL offset between the two images, and the eyes cannot fuse vertical
+    // disparity at all. Verify with a screenshot any time this is touched: the
+    // pixel Y of a horizontal edge must be identical in both halves.
     stereoCamera.eyeSep = vrIPD;
     camera.updateMatrixWorld();
     stereoCamera.update(camera);
 
     // --- Lens-centre alignment -------------------------------------------
-    // Where each eye's lens axis falls inside its own half of the screen,
-    // expressed in the -1..1 space that spans that half. A plain 50/50 split
-    // puts the two image centres half a screen-width apart; the viewer's
-    // lenses are a fixed ~63mm apart, so both images have to move inboard by
-    // the difference. At the point where a half-screen already equals the lens
-    // spacing this comes out as 0 and nothing moves.
-    const lensSeparationPx = vrLensSeparationMm / MM_PER_CSS_PX;
-    const lensShift = Math.max(-0.5, Math.min(0.9, 1 - lensSeparationPx / halfWidth));
+    // Where each eye's lens axis falls inside its own half of the screen, in
+    // the -1..1 space that spans that half. A plain 50/50 split puts the two
+    // image centres half a screen-width apart; the viewer's lenses are a fixed
+    // ~63mm apart, so both images have to move inboard by the difference.
+    //
+    // Derived from two physical lengths in vrOptics (screen width and lens
+    // separation) and deliberately NOT from a pixel density. The version this
+    // replaced went through a hardcoded `25.4 / 140` CSS-dpi guess; because
+    // this shift is a difference of two similar lengths, that guess being 10-15%
+    // off turned into a ~100% error here, leaving each eye's image ~4mm too far
+    // inboard — roughly 11° of vergence error where a fixed-focus viewer allows
+    // 1-2°. That is what "double-double" was.
+    const lensShift = eyeLensCenterShift(vrScreenWidthMm, vrLensSeparationMm);
 
     // Push the shift into the projection matrices rather than sliding the
     // finished image sideways: element 8 is the frustum's x-asymmetry term, so
@@ -263,7 +300,8 @@ export function CardboardStereoView() {
     const distortionUniforms = distortionMaterial.uniforms;
     distortionUniforms.k1.value = vrDistortionK1;
     distortionUniforms.k2.value = vrDistortionK2;
-    distortionUniforms.aspect.value = halfWidth / size.height;
+    distortionUniforms.aspect.value = eyeBufferW / eyeBufferH;
+    distortionUniforms.distortionScale.value = barrelNormalizer(vrDistortionK1, vrDistortionK2);
     // No exposure/colour-space uniform is pushed here on purpose: the shader
     // uses three's own tonemapping/colorspace chunks, which three feeds from
     // renderer.toneMappingExposure itself. See A.4 — one source of truth.
@@ -285,14 +323,22 @@ export function CardboardStereoView() {
     // Both eyes share y = 0 and the same height, so the two halves stay
     // pixel-for-pixel level with each other — even a few pixels of vertical
     // disparity is enough to stop the pair fusing.
-    gl.setViewport(0, 0, halfWidth, size.height);
-    gl.setScissor(0, 0, halfWidth, size.height);
+    //
+    // LEFT EYE = LEFT HALF OF THE SCREEN, and that is not an assumption:
+    // StereoCamera puts cameraL at -eyeSep/2 on the camera's local X, so
+    // targetL genuinely holds the left-eye view, and it is blitted at x = 0.
+    // If a future change ever makes the pair impossible to fuse while every
+    // other number checks out, swapping these two blocks is the 30-second test
+    // — render a big "L" to targetL only and confirm through the viewer that
+    // the left eye sees it.
+    gl.setViewport(0, 0, halfWidth, viewHeight);
+    gl.setScissor(0, 0, halfWidth, viewHeight);
     distortionUniforms.map.value = targetL.texture;
     distortionUniforms.lensCenterX.value = lensShift; // left eye's lens sits inboard, i.e. to the right
     gl.render(distortionScene, distortionCamera);
 
-    gl.setViewport(halfWidth, 0, halfWidth, size.height);
-    gl.setScissor(halfWidth, 0, halfWidth, size.height);
+    gl.setViewport(halfWidth, 0, rightHalfWidth, viewHeight);
+    gl.setScissor(halfWidth, 0, rightHalfWidth, viewHeight);
     distortionUniforms.map.value = targetR.texture;
     distortionUniforms.lensCenterX.value = -lensShift;
     gl.render(distortionScene, distortionCamera);
