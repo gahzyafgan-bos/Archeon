@@ -1,7 +1,58 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { useAudioGuide } from "@/hooks/useAudioGuide";
 import { eyeLensCenterShift } from "@/utils/vrOptics";
+import { VR_DIAG_ENABLED, vrDiag } from "@/utils/vrDiagnostics";
+
+/**
+ * Dev-only numbers, on screen, inside each eye.
+ *
+ * The console is not reachable from inside a headset without a USB cable and
+ * chrome://inspect, and the whole point of the audit is to read these while the
+ * head is actually moving — so the measurements are drawn where they can simply
+ * be screenshotted. Mirrored per eye like everything else here: an overlay that
+ * appears in one eye only is a binocular-rivalry source, which is the opposite
+ * of what we are trying to measure.
+ *
+ * Sampled at 4Hz from the mutable diagnostic singleton rather than subscribed
+ * per frame — a React render per frame would distort the frame time on screen.
+ */
+function VrDiagReadout() {
+  const [frame, setFrame] = useState(vrDiag.frame);
+
+  useEffect(() => {
+    if (!VR_DIAG_ENABLED) return;
+    const id = setInterval(() => setFrame({ ...(vrDiag.frame ?? ({} as never)) }), 250);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!VR_DIAG_ENABLED || !frame || !frame.bufferWidth) return null;
+
+  return (
+    <div className="absolute top-6 left-0 right-0 text-center text-[7px] leading-tight font-mono text-museum-gold/70">
+      <p>
+        {frame.fps.toFixed(0)}fps {frame.frameMs.toFixed(1)}ms · putar{" "}
+        {frame.yawVelDegPerSec.toFixed(0)}°/s
+      </p>
+      <p>
+        px/mata {frame.pxPerEyeRatio.toFixed(2)} · di pusat{" "}
+        {frame.pxPerEyeRatioAtCenter.toFixed(2)} · msaa {frame.rtSamples}
+      </p>
+      <p>
+        rt {frame.rtWidth}×{frame.rtHeight} · layar/mata{" "}
+        {Math.round((frame.cssWidth * frame.devicePixelRatio) / 2)}px
+      </p>
+      <p>
+        Δyaw {frame.yawDeltaDeg.toFixed(4)}° · Δvert{" "}
+        {(frame.measuredEyeVerticalOffsetM * 1000).toFixed(3)}mm
+      </p>
+      <p>
+        {frame.drawCalls} calls · {(frame.triangles / 1000).toFixed(0)}k tris ·{" "}
+        {frame.shadowPassesPerFrame}× shadow
+      </p>
+    </div>
+  );
+}
 
 function EyeOverlay({ eye }: { eye: "left" | "right" }) {
   const nearbyArtifact = useMuseumStore((s) => s.nearbyArtifact);
@@ -32,6 +83,8 @@ function EyeOverlay({ eye }: { eye: "left" | "right" }) {
     >
       {/* Crosshair to help the eye focus while looking around */}
       <div className="w-3 h-3 rounded-full border border-museum-bone/60" />
+
+      <VrDiagReadout />
 
       {/* Control hints live inside each eye rather than once across the middle
           of the screen: a single centred strip lands on the inner edge of both
