@@ -157,10 +157,16 @@ export function MuseumExperience() {
         // culling a tighter volume to reject geometry against, on top of
         // fog's purely visual falloff.
         camera={{ fov: 68, near: 0.1, far: graphicsPreset.cameraFar }}
-        // Stereo mode renders the scene twice per frame — halve the pixel
-        // ratio while it's active so mid-range phones keep a usable frame rate.
-        // Otherwise follow the user's graphics-quality DPR cap.
-        dpr={isVRMode ? [1, 1] : graphicsPreset.dpr}
+        // Both branches come from the SAME preset table — VR has its own row
+        // (vrDpr), it does not have its own rule. What used to be here was
+        // `isVRMode ? [1, 1] : ...`, which threw devicePixelRatio away: on a
+        // DPR 2.6-3 phone the canvas was rasterised at roughly a third of the
+        // panel's resolution and then stretched back over it, at EVERY quality
+        // tier, so picking Tinggi changed the cost of a VR frame without
+        // changing a single pixel of its resolution. This one is the final
+        // image's grid; the expensive per-eye scene resolution is vrEyeScale,
+        // applied in CardboardStereoView. See graphicsPresets.ts.
+        dpr={isVRMode ? graphicsPreset.vrDpr : graphicsPreset.dpr}
         // R3F defaults to ACESFilmicToneMapping, which rolls off highlights
         // naturally instead of clipping to white. Exposure follows the active
         // preset — Rendah runs slightly hotter to compensate for its
