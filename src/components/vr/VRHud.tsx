@@ -29,7 +29,10 @@ function VrDiagReadout() {
   if (!VR_DIAG_ENABLED || !frame || !frame.bufferWidth) return null;
 
   return (
-    <div className="absolute top-6 left-0 right-0 text-center text-[7px] leading-tight font-mono text-museum-gold/70">
+    // Inside the lens circle like everything else here — a readout pinned to
+    // the top edge is unreadable through the viewer, which defeats the point of
+    // putting it on screen instead of in the console.
+    <div className="absolute top-[16%] left-0 right-0 text-center text-[8px] leading-tight font-mono text-museum-gold/75">
       <p>
         {frame.fps.toFixed(0)}fps {frame.frameMs.toFixed(1)}ms · putar{" "}
         {frame.yawVelDegPerSec.toFixed(0)}°/s
@@ -88,10 +91,27 @@ function EyeOverlay({ eye }: { eye: "left" | "right" }) {
 
       {/* Control hints live inside each eye rather than once across the middle
           of the screen: a single centred strip lands on the inner edge of both
-          viewports, which is exactly where a Cardboard lens shows least. */}
-      <div className="absolute bottom-2 left-0 right-0 text-center px-2 text-museum-mist/45 text-[8px] tracking-widest uppercase leading-relaxed">
-        <p>Start = keluar · Select = kalibrasi arah</p>
-        <p>D-pad ◀ ▶ = jarak lensa {lensSeparationMm}mm</p>
+          viewports, which is exactly where a Cardboard lens shows least.
+
+          Position is a percentage DOWN FROM THE LENS AXIS, not `bottom-0`. A
+          Cardboard lens only shows a circle roughly as wide as the viewport is
+          tall, centred on that axis; the bottom edge of the viewport falls
+          outside it, where the lens is at its most distorted and dimmest. Text
+          pinned to the bottom was therefore being read through the worst part
+          of the optic — which is why it looked curved, low-contrast and cut off
+          even though nothing warps it (this is DOM, drawn over the canvas, not
+          through the distortion shader).
+
+          72% keeps it inside the circle with margin. Size and contrast are up
+          too: 8px of 45%-opacity text is legible held at arm's length and not
+          through a magnifier 40mm from the eye. The backing plate does more for
+          readability here than any font-size change — a lens scatters light
+          from the bright scene behind the glyphs. */}
+      <div className="absolute top-[72%] left-0 right-0 flex justify-center px-2">
+        <div className="rounded-lg bg-black/45 px-2.5 py-1 text-center text-museum-bone/85 text-[10px] tracking-wider uppercase leading-relaxed">
+          <p>Start = keluar · Select = kalibrasi arah</p>
+          <p>D-pad ◀ ▶ = jarak lensa {lensSeparationMm}mm</p>
+        </div>
       </div>
 
       {/* Nothing is drawn while an artifact is focused: VRInfoPanel now shows
@@ -100,9 +120,16 @@ function EyeOverlay({ eye }: { eye: "left" | "right" }) {
           text and put one copy across the seam between the viewports. */}
       {focusedArtifact ? null : (
         nearbyArtifact && (
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-center px-3 animate-slide-up-fade">
-            <p className="text-museum-gold text-[10px] tracking-widest uppercase">Tekan A untuk melihat</p>
-            <p className="text-museum-bone text-xs mt-0.5">{nearbyArtifact.nama}</p>
+          // Also inside the lens circle, and sitting above the control hints
+          // rather than near the bottom edge. `left-1/2 -translate-x-1/2` would
+          // centre it on the VIEWPORT; this parent is already translated onto
+          // the lens axis, so centring within the parent is what keeps it on
+          // the axis the eye is actually pointed down.
+          <div className="absolute top-[60%] left-0 right-0 flex justify-center px-3 animate-slide-up-fade">
+            <div className="rounded-lg bg-black/45 px-3 py-1 text-center">
+              <p className="text-museum-gold text-[11px] tracking-widest uppercase">Tekan A untuk melihat</p>
+              <p className="text-museum-bone text-sm mt-0.5">{nearbyArtifact.nama}</p>
+            </div>
           </div>
         )
       )}
