@@ -479,6 +479,10 @@ export function CardboardStereoView() {
 
     // Hand the renderer back exactly what it had. Mono must be untouched by
     // anything in this file, including on the frame VR is switched off.
+    //
+    // Safe to restore here rather than after the composite: the two distortion
+    // passes below render distortionScene, which has no lights in it, and
+    // WebGLShadowMap.render returns immediately on an empty light list.
     gl.shadowMap.autoUpdate = shadowsWereAuto;
 
     // Pass 2: barrel-distort each render target onto its half of the screen.
