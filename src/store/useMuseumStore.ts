@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Artifact, RoomId, ZoneId } from "@/types/artifact";
-import type { GraphicsQuality } from "@/utils/graphicsPresets";
+import { GRAPHICS_QUALITIES, type GraphicsQuality } from "@/utils/graphicsPresets";
 import {
   IPD_DEFAULT_M,
   IPD_MAX_M,
@@ -23,9 +23,23 @@ export type { RoomId, ZoneId };
 export type MoveVector = { x: number; y: number }; // -1..1, from left joystick
 export type LookVector = { x: number; y: number }; // -1..1, from right joystick
 
-export type ControlMode = "auto" | "keyboard" | "joystick";
-export type TextSize = "small" | "medium" | "large";
-export type DeadzoneSize = "small" | "medium" | "large";
+/**
+ * Union-typed settings are declared as arrays first and the type is derived
+ * from the array, not the other way round.
+ *
+ * The reason is sanitizeSettings below: it has to check a value read from
+ * `localStorage` against the members this build accepts, and a bare `type`
+ * union does not exist at runtime to check against. Deriving the type from the
+ * list means the list can never fall out of step with the type — add a member
+ * in one place and both the compiler and the storage validator learn about it.
+ */
+export const CONTROL_MODES = ["auto", "keyboard", "joystick"] as const;
+export const TEXT_SIZES = ["small", "medium", "large"] as const;
+export const DEADZONE_SIZES = ["small", "medium", "large"] as const;
+
+export type ControlMode = (typeof CONTROL_MODES)[number];
+export type TextSize = (typeof TEXT_SIZES)[number];
+export type DeadzoneSize = (typeof DEADZONE_SIZES)[number];
 
 export interface Settings {
   // Kontrol & Sensitivitas
@@ -121,25 +135,79 @@ const clampNumber = (value: unknown, min: number, max: number, fallback: number)
     ? Math.min(max, Math.max(min, value))
     : fallback;
 
-/** Keeps the VR optics settings inside the physically meaningful ranges declared
- *  in utils/vrOptics.ts — see the note on `merge` below for why rehydration
- *  needs this and not just the sliders. */
-function sanitizeVROptics(settings: Settings): Settings {
+/** Falls back to `fallback` unless the stored value is one of `allowed`. Used
+ *  for every union-typed setting, because a union is exactly the kind of value
+ *  that survives in storage after the code stopped accepting it. */
+function pickOneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof value === "string" && (allowed as readonly string[]).includes(value)
+    ? (value as T)
+    : fallback;
+}
+
+const asBoolean = (value: unknown, fallback: boolean) =>
+  typeof value === "boolean" ? value : fallback;
+
+/**
+ * Pulls EVERY persisted setting back into a value the app can actually render.
+ *
+ * This used to clamp the three VR optics numbers and nothing else, on the
+ * reasoning that they were the only ones a visitor could push out of range by
+ * hand. That reasoning missed where bad values really come from: not from the
+ * sliders, but from an OLDER BUILD. `localStorage` outlives the code that wrote
+ * it. The moment a union member is renamed or dropped — a graphics tier, a
+ * deadzone size, a control mode — every returning visitor rehydrates a value
+ * this build has never heard of.
+ *
+ * The measured consequence (audit 2026-08-05, P0-3) was not a wrong setting but
+ * a white screen: `graphicsQuality: "ultra"` made `GRAPHICS_PRESETS[quality]`
+ * undefined, and the first read of `.shadowsEnabled` threw before React
+ * committed a single frame. There is no way for a visitor to recover from that,
+ * because nothing on a blank page can tell them to clear their site data.
+ *
+ * So the rule here is: storage is untrusted input. Every field is validated
+ * against the same ranges and unions the UI offers, and anything that fails
+ * falls back to its default instead of reaching a renderer.
+ */
+function sanitizeSettings(settings: Partial<Settings> | undefined): Settings {
+  const s = settings ?? {};
   return {
-    ...settings,
-    vrIPD: clampNumber(settings.vrIPD, IPD_MIN_M, IPD_MAX_M, IPD_DEFAULT_M),
+    // Kontrol & sensitivitas — ranges mirror SettingsPanel's slider bounds.
+    lookSensitivity: clampNumber(s.lookSensitivity, 0.5, 2, defaultSettings.lookSensitivity),
+    moveSensitivity: clampNumber(s.moveSensitivity, 0.5, 1.5, defaultSettings.moveSensitivity),
+    deadzone: pickOneOf(s.deadzone, DEADZONE_SIZES, defaultSettings.deadzone),
+    invertY: asBoolean(s.invertY, defaultSettings.invertY),
+    controlMode: pickOneOf(s.controlMode, CONTROL_MODES, defaultSettings.controlMode),
+    // Audio
+    volumeAmbience: clampNumber(s.volumeAmbience, 0, 100, defaultSettings.volumeAmbience),
+    volumeGuide: clampNumber(s.volumeGuide, 0, 100, defaultSettings.volumeGuide),
+    volumeUI: clampNumber(s.volumeUI, 0, 100, defaultSettings.volumeUI),
+    masterMuted: asBoolean(s.masterMuted, defaultSettings.masterMuted),
+    showSubtitles: asBoolean(s.showSubtitles, defaultSettings.showSubtitles),
+    // Visual & kenyamanan
+    reduceMotion: asBoolean(s.reduceMotion, defaultSettings.reduceMotion),
+    cameraFOV: clampNumber(s.cameraFOV, 60, 85, defaultSettings.cameraFOV),
+    highContrast: asBoolean(s.highContrast, defaultSettings.highContrast),
+    textSize: pickOneOf(s.textSize, TEXT_SIZES, defaultSettings.textSize),
+    roomTransitionSpeed: clampNumber(s.roomTransitionSpeed, 0.5, 2, defaultSettings.roomTransitionSpeed),
+    // VR optics — ranges live in utils/vrOptics.ts with the geometry that
+    // justifies them; nothing here may invent its own bounds.
+    vrIPD: clampNumber(s.vrIPD, IPD_MIN_M, IPD_MAX_M, IPD_DEFAULT_M),
     vrLensSeparationMm: clampNumber(
-      settings.vrLensSeparationMm,
+      s.vrLensSeparationMm,
       LENS_SEPARATION_MIN_MM,
       LENS_SEPARATION_MAX_MM,
       LENS_SEPARATION_DEFAULT_MM
     ),
     vrScreenWidthMm: clampNumber(
-      settings.vrScreenWidthMm,
+      s.vrScreenWidthMm,
       SCREEN_WIDTH_MIN_MM,
       SCREEN_WIDTH_MAX_MM,
       SCREEN_WIDTH_DEFAULT_MM
     ),
+    vrDistortionK1: clampNumber(s.vrDistortionK1, 0, 0.5, defaultSettings.vrDistortionK1),
+    vrDistortionK2: clampNumber(s.vrDistortionK2, 0, 0.5, defaultSettings.vrDistortionK2),
+    // The one that actually caused the white screen.
+    graphicsQuality: pickOneOf(s.graphicsQuality, GRAPHICS_QUALITIES, defaultSettings.graphicsQuality),
   };
 }
 
@@ -149,6 +217,29 @@ interface MuseumState {
   loadProgress: number; // 0-100
   setLoadProgress: (v: number) => void;
   finishLoading: () => void;
+  /**
+   * True while the GPU has taken its rendering context away from us.
+   *
+   * Not a cosmetic flag: without it the canvas simply goes black and the DOM
+   * HUD keeps floating over the void, which is what the audit found. A phone
+   * that runs out of VRAM, a tab left in the background too long, or a driver
+   * reset all land here — routinely, on exactly the low-end devices this app
+   * targets. See WebGLContextGuard.
+   */
+  isRendererLost: boolean;
+  setRendererLost: (v: boolean) => void;
+  /**
+   * Set when loading has stopped being able to finish on its own — either an
+   * asset request failed outright, or the progress bar has not moved for long
+   * enough that no amount of further waiting will help.
+   *
+   * Needed because the loading gate is `dataReady && !glActive`, and a request
+   * that never settles keeps `glActive` true forever. The audit measured that
+   * as a progress bar frozen at 94% with no message, no timeout and no button —
+   * a visitor whose Wi-Fi dropped for two seconds was simply stuck there.
+   */
+  loadError: null | "failed" | "stalled";
+  setLoadError: (v: null | "failed" | "stalled") => void;
 
   // --- Hall navigation ---
   activeRoom: RoomId;
@@ -161,6 +252,28 @@ interface MuseumState {
    * (minimap highlight, signage, per-zone ambience), doesn't gate anything. */
   activeZoneId: ZoneId;
   setActiveZoneId: (zone: ZoneId) => void;
+  /**
+   * Label of the archway the player is currently standing in, or null.
+   *
+   * Crossing used to happen the instant the trigger radius was touched. That
+   * turned the single most common thing a first-time visitor does — walk
+   * forward — into "leave the exhibition", and the audit measured the full
+   * consequence: from the spawn point, straight ahead, not one artifact in
+   * Hall 1 ever comes within interaction range before the archway takes you
+   * out of it. The nearest miss is 1.30 m.
+   *
+   * So the archway now announces itself and waits, using the same prompt
+   * vocabulary artifacts already use. The visual design is untouched — it is
+   * still an open walk-through, not a door, and there is still no fade or name
+   * card between halls. What changed is only that crossing is now something
+   * the visitor chooses.
+   */
+  nearbyDoorLabel: string | null;
+  setNearbyDoorLabel: (v: string | null) => void;
+  /** Bumped by any "confirm" input (E / touch prompt / gamepad A). PlayerRig
+   *  owns the actual transition and watches this from its frame loop. */
+  doorConfirmSignal: number;
+  confirmDoor: () => void;
 
   // --- Player movement (driven by joystick/keyboard hooks) ---
   moveInput: MoveVector;
@@ -243,6 +356,10 @@ export const useMuseumStore = create<MuseumState>()(
     (set, get) => ({
       isLoading: true,
       loadProgress: 0,
+      isRendererLost: false,
+      setRendererLost: (v) => set({ isRendererLost: v }),
+      loadError: null,
+      setLoadError: (v) => set({ loadError: v }),
       setLoadProgress: (v) => set({ loadProgress: v }),
       finishLoading: () => set((state) => ({ isLoading: false, isMovementLocked: !state.hasCompletedOnboarding })),
 
@@ -253,6 +370,10 @@ export const useMuseumStore = create<MuseumState>()(
       setActiveRoom: (room) => set({ activeRoom: room }),
       activeZoneId: "welcome",
       setActiveZoneId: (zone) => set({ activeZoneId: zone }),
+      nearbyDoorLabel: null,
+      setNearbyDoorLabel: (v) => set({ nearbyDoorLabel: v }),
+      doorConfirmSignal: 0,
+      confirmDoor: () => set((state) => ({ doorConfirmSignal: state.doorConfirmSignal + 1 })),
       isTransitioning: false,
       setTransitioning: (v) => set({ isTransitioning: v }),
       pendingSpawnPoint: null,
@@ -337,17 +458,16 @@ export const useMuseumStore = create<MuseumState>()(
       merge: (persistedState: any, currentState) => ({
         ...currentState,
         ...persistedState,
-        // Clamped on the way out of storage, not just on the way in from the
-        // UI. A visitor who calibrated before the VR framing fix has a
-        // vrLensSeparationMm of up to 80mm saved — that value was them
-        // compensating by hand for a mis-estimated screen width, and now that
-        // the screen width is a real setting, replaying it would re-break the
-        // alignment it was working around. Every VR optics value therefore gets
-        // pulled back into the range vrOptics.ts says is physically meaningful.
-        settings: sanitizeVROptics({
+        // Validated on the way OUT of storage, not just on the way in from the
+        // UI — storage is untrusted input written by a build that no longer
+        // exists. See sanitizeSettings for the full reasoning; the short
+        // version is that one unknown graphics tier used to be a white screen.
+        settings: sanitizeSettings({
           ...currentState.settings,
           ...(persistedState?.settings || {}),
         }),
+        // Persisted alongside settings, and equally capable of being garbage.
+        graphicsQualityCustomized: persistedState?.graphicsQualityCustomized === true,
       }),
     }
   )

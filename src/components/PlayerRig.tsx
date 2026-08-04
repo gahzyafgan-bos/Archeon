@@ -19,6 +19,38 @@ const ZERO_VEC = new THREE.Vector3(0, 0, 0);
 const BASE_MOVE_SPEED = 4.2; // world units / second
 const BASE_LOOK_SPEED = 2.2; // radians / second at full joystick deflection
 const PLAYER_RADIUS = 0.5; // simple circular collision radius
+
+/**
+ * Hard ceiling on how much time a single frame is allowed to advance the world.
+ *
+ * Collision here is resolved as ONE discrete step per frame: the next position
+ * is computed, then pushed back out of whatever it landed inside. That is fine
+ * as long as a single step is small compared to the things it has to collide
+ * with — and catastrophic the moment it isn't, because a step longer than an
+ * obstacle is wide simply starts and ends on opposite sides of it, with nothing
+ * in between for the push-out to react to.
+ *
+ * The audit measured this happening for real, not in theory. Frame gaps of
+ * 1353 ms and 2190 ms were recorded — from model decoding, from the tab being
+ * backgrounded, from a screen lock — and at 4.2 m/s the longer one moved the
+ * player 9.2 metres in a single collision step. Hall 1 is 15 m deep and the
+ * archway trigger is 5 m across, so one hitch could carry a visitor clean over
+ * the trigger, or dump them on the far side of the room. Walking straight from
+ * the spawn point reached Hall 2 in 1047 ms, a journey of 10.5 m that should
+ * take 2.5 seconds.
+ *
+ * 1/15 s caps one step at 4.2 / 15 = 0.28 m — comfortably inside PLAYER_RADIUS
+ * (0.5 m), so the player can never step past their own collision circle no
+ * matter how long the browser was away. The cost of clamping is that time
+ * "stops" during a hitch instead of jumping: after a 2-second freeze the
+ * visitor is where they were, not somewhere across the hall. That is the
+ * correct trade — nobody expects to keep walking while the screen is off.
+ *
+ * Applied to the whole frame, not just movement: an exponential smoother fed a
+ * 2-second delta snaps to its target anyway, so every consumer below wants the
+ * same clamp.
+ */
+const MAX_FRAME_DELTA = 1 / 15;
 const PROXIMITY_RADIUS = 2.6; // distance at which an artifact becomes "nearby"
 const EYE_HEIGHT = 1.7;
 const BASE_FOCUS_LERP = 4.5; // higher = snappier ease into/out of the artifact zoom
@@ -103,6 +135,11 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
   const pitch = useRef(0);
   const targetPitch = useRef(0);
   const doorCooldown = useRef(false);
+  // Last archway label pushed to the store — kept so the store is written only
+  // when it actually changes rather than on every frame — and the last confirm
+  // signal already consumed.
+  const lastPublishedDoorLabel = useRef<string | null>(null);
+  const doorConfirmSeen = useRef(useMuseumStore.getState().doorConfirmSignal);
   const savedPose = useRef<{ position: THREE.Vector3; yaw: number; pitch: number } | null>(null);
   const currentVelocity = useRef(new THREE.Vector3(0, 0, 0));
   const walkTime = useRef(0);
@@ -225,6 +262,10 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
     targetPitch.current = 0;
     currentVelocity.current.set(0, 0, 0);
     doorCooldown.current = true;
+    // The archway prompt belongs to the hall the player just left; carrying it
+    // across would offer to cross a doorway that is no longer under their feet.
+    lastPublishedDoorLabel.current = null;
+    useMuseumStore.getState().setNearbyDoorLabel(null);
 
     // Clear pending spawn point after use
     if (pending) {
@@ -253,7 +294,10 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
     vrYawBase.current = wrapAngle(yaw.current - vrLookSource.yaw - offset.yaw);
   };
 
-  useFrame((_, delta) => {
+  useFrame((_, rawDelta) => {
+    // Every use of `delta` below this line is the clamped one — see
+    // MAX_FRAME_DELTA for why a raw frame delta is not safe to integrate.
+    const delta = Math.min(rawDelta, MAX_FRAME_DELTA);
     const { moveInput, lookInput, vrLookOffset } = useMuseumStore.getState();
 
     // --- Smooth zoom-in/out when an artifact is focused/unfocused ---
@@ -552,17 +596,38 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
     }
 
     // --- Doorway detection ---
-    if (!doorCooldown.current && !isMovementLocked) {
+    // Standing in the archway no longer crosses it. The trigger geometry is
+    // unchanged; what it produces now is a prompt, and the crossing itself
+    // waits for `doorConfirmSignal`. See the store's nearbyDoorLabel for the
+    // measurement that motivated this.
+    let doorInRange: (typeof room.doors)[number] | null = null;
+    if (!doorCooldown.current && !isMovementLocked && !focusedArtifact) {
       for (const door of room.doors) {
         const dx = camera.position.x - door.position.x;
         const dz = camera.position.z - door.position.z;
         if (dx * dx + dz * dz < door.radius * door.radius) {
-          doorCooldown.current = true;
-          onEnterDoor(door);
-          // Longer cooldown to prevent accidental double-transitions
-          setTimeout(() => (doorCooldown.current = false), 1500);
+          doorInRange = door;
           break;
         }
+      }
+    }
+    const doorLabel = doorInRange?.label ?? null;
+    if (doorLabel !== lastPublishedDoorLabel.current) {
+      lastPublishedDoorLabel.current = doorLabel;
+      useMuseumStore.getState().setNearbyDoorLabel(doorLabel);
+    }
+
+    const confirmSignal = useMuseumStore.getState().doorConfirmSignal;
+    if (confirmSignal !== doorConfirmSeen.current) {
+      doorConfirmSeen.current = confirmSignal;
+      if (doorInRange) {
+        doorCooldown.current = true;
+        lastPublishedDoorLabel.current = null;
+        useMuseumStore.getState().setNearbyDoorLabel(null);
+        onEnterDoor(doorInRange);
+        // Keeps the arrival point from immediately re-prompting for the
+        // archway the visitor just came out of.
+        setTimeout(() => (doorCooldown.current = false), 1500);
       }
     }
 

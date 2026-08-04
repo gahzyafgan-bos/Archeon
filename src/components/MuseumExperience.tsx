@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
+import * as THREE from "three";
 import { Canvas, useThree } from "@react-three/fiber";
 import { Stats, PerformanceMonitor, AdaptiveDpr, AdaptiveEvents, Preload, useProgress } from "@react-three/drei";
 import { useMuseumStore, type RoomId } from "@/store/useMuseumStore";
@@ -16,6 +17,7 @@ import { MiniMapFrame, MiniMapTracker } from "./ui/MiniMap";
 import { PostProcessing } from "./PostProcessing";
 import { CardboardStereoView } from "./vr/CardboardStereoView";
 import { VRInfoPanel } from "./vr/VRInfoPanel";
+import { WebGLContextGuard } from "./WebGLContextGuard";
 
 /**
  * Keeps only the artifacts that actually have a real 3D model to show, so
@@ -25,6 +27,17 @@ import { VRInfoPanel } from "./vr/VRInfoPanel";
  * ids are still waiting on a model so pending asset work stays trackable
  * (console only, never surfaced to end users).
  */
+/**
+ * How long the loading progress may sit completely still before the app admits
+ * something is wrong and offers the visitor a way out.
+ *
+ * Generous on purpose: Hall 1 ships ~38 MB of models, and on a slow connection
+ * a single large `.glb` can legitimately take a while between progress ticks.
+ * The number this has to beat is not "slow", it is "never" — a request that has
+ * stopped delivering bytes entirely.
+ */
+const LOAD_STALL_TIMEOUT_MS = 20000;
+
 function renderableArtifacts(data: Artifact[]): Artifact[] {
   const shown = data.filter(hasRealModel);
   if (import.meta.env.DEV) {
@@ -70,6 +83,8 @@ export function MuseumExperience() {
   const setPendingSpawnPoint = useMuseumStore((s) => s.setPendingSpawnPoint);
   const finishLoading = useMuseumStore((s) => s.finishLoading);
   const setLoadProgress = useMuseumStore((s) => s.setLoadProgress);
+  const setLoadError = useMuseumStore((s) => s.setLoadError);
+  const isLoading = useMuseumStore((s) => s.isLoading);
 
   const isVRMode = useMuseumStore((s) => s.isVRMode);
   const graphicsPreset = useGraphicsPreset();
@@ -120,6 +135,42 @@ export function MuseumExperience() {
     }, 200);
     return () => clearTimeout(t);
   }, [dataReady, glActive, finishLoading, setLoadProgress]);
+
+  /**
+   * Watchdog for a load that can no longer finish by itself.
+   *
+   * The gate above is `dataReady && !glActive`. `glActive` only clears when
+   * every request three's loading manager knows about has settled — so a single
+   * request that neither succeeds nor fails (the exact behaviour of a dropped
+   * mobile connection) holds the loading screen open forever. That is not a
+   * hypothetical: switching the network off mid-load left the bar frozen at 94%
+   * with nothing on screen to explain it and nothing to press.
+   *
+   * Two independent signals, because they fail differently:
+   *  - `onError` fires when a request is refused outright (404, blocked, CORS).
+   *  - the stall timer covers the case with no event at all — the socket simply
+   *    stops delivering bytes. Reset on every progress change, so a slow-but-
+   *    moving connection is never mistaken for a dead one.
+   */
+  useEffect(() => {
+    const manager = THREE.DefaultLoadingManager;
+    const previousOnError = manager.onError;
+    manager.onError = (url) => {
+      previousOnError?.(url);
+      setLoadError("failed");
+    };
+    return () => {
+      manager.onError = previousOnError;
+    };
+  }, [setLoadError]);
+
+  useEffect(() => {
+    if (!isLoading) return;
+    const timer = setTimeout(() => setLoadError("stalled"), LOAD_STALL_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+    // Re-armed on every progress change: the timeout measures time since the
+    // last byte of progress, not time since the page opened.
+  }, [isLoading, glProgress, dataReady, setLoadError]);
 
   // Brief crossfade whenever the active hall changes — the archway is an
   // open walk-through now, so this only needs to be long enough to hide the
@@ -181,6 +232,10 @@ export function MuseumExperience() {
             CardboardStereoView already manages its own eye-texture
             resolution and is already locked to the Rendah preset floor. */}
         <KTX2Support />
+        {/* Sits outside <Suspense> on purpose: a lost context has to be caught
+            even while models are still streaming in, which is exactly when a
+            low-memory phone is most likely to lose one. */}
+        <WebGLContextGuard />
         <PerformanceMonitor>
           <Suspense fallback={null}>
             <Hall hall={room} artifacts={artifacts} />

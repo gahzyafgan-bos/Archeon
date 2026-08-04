@@ -16,6 +16,8 @@ export function HUD() {
   const nearbyArtifact = useMuseumStore((s) => s.nearbyArtifact);
   const focusedArtifact = useMuseumStore((s) => s.focusedArtifact);
   const focusArtifact = useMuseumStore((s) => s.focusArtifact);
+  const nearbyDoorLabel = useMuseumStore((s) => s.nearbyDoorLabel);
+  const confirmDoor = useMuseumStore((s) => s.confirmDoor);
   const isAmbienceMuted = useMuseumStore((s) => s.isAmbienceMuted);
   const toggleAmbience = useMuseumStore((s) => s.toggleAmbience);
   const activeRoom = useMuseumStore((s) => s.activeRoom);
@@ -182,6 +184,24 @@ export function HUD() {
               {showTouchControls ? "X" : "E"}
             </span>
             <span className="text-sm tracking-wide">Lihat {nearbyArtifact.nama}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Archway prompt — same shape and same position as the artifact prompt
+          above, because to the visitor it is the same gesture: "there is
+          something here, press this to use it". Only shown when no artifact is
+          competing for the prompt, so the two can never stack. */}
+      {nearbyDoorLabel && !nearbyArtifact && !focusedArtifact && (
+        <div className="fixed bottom-40 left-1/2 -translate-x-1/2 z-20 animate-slide-up-fade">
+          <button
+            onClick={confirmDoor}
+            className="glass-panel rounded-full pl-2 pr-5 py-2 flex items-center gap-3 text-museum-bone hover:border-museum-gold/50 transition-colors"
+          >
+            <span className="w-7 h-7 rounded-full border border-museum-gold/70 flex items-center justify-center text-museum-gold text-xs font-semibold">
+              {showTouchControls ? "X" : "E"}
+            </span>
+            <span className="text-sm tracking-wide">{nearbyDoorLabel}</span>
           </button>
         </div>
       )}

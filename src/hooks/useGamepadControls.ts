@@ -216,7 +216,11 @@ export function useGamepadControls() {
         // --- Buttons ---
         firePress(pad, BUTTON_INTERACT, () => {
           const s = useMuseumStore.getState();
-          if (!s.focusedArtifact && s.nearbyArtifact) s.focusArtifact(s.nearbyArtifact);
+          if (s.focusedArtifact) return;
+          // Same precedence as the keyboard and touch paths: artifact first,
+          // archway second — see useInteractionKeys.
+          if (s.nearbyArtifact) s.focusArtifact(s.nearbyArtifact);
+          else if (s.nearbyDoorLabel) s.confirmDoor();
         });
         firePress(pad, BUTTON_BACK, () => {
           const s = useMuseumStore.getState();

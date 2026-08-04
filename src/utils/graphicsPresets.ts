@@ -154,6 +154,18 @@ export const GRAPHICS_PRESETS: Record<GraphicsQuality, GraphicsPreset> = {
   },
 };
 
+/**
+ * The tiers that actually exist, as a runtime list.
+ *
+ * Derived from GRAPHICS_PRESETS rather than retyped, so it cannot name a tier
+ * the table doesn't have. Consumed by the store's storage sanitiser: a
+ * `graphicsQuality` rehydrated from an older build ("ultra") has to be caught
+ * here, because GRAPHICS_PRESETS[unknown] is undefined and the first
+ * `.shadowsEnabled` read on it throws before React commits a frame — a white
+ * screen with no way back for the visitor (audit 2026-08-05, P0-3).
+ */
+export const GRAPHICS_QUALITIES = Object.keys(GRAPHICS_PRESETS) as GraphicsQuality[];
+
 export const GRAPHICS_QUALITY_LABELS: Record<GraphicsQuality, { title: string; desc: string }> = {
   rendah: { title: "Rendah", desc: "Ringan — tanpa bayangan/AO, untuk HP kentang." },
   sedang: { title: "Sedang", desc: "Seimbang — bayangan nyala, AO mati. Cocok untuk mobile." },

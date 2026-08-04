@@ -60,6 +60,7 @@ function VrDiagReadout() {
 function EyeOverlay({ eye }: { eye: "left" | "right" }) {
   const nearbyArtifact = useMuseumStore((s) => s.nearbyArtifact);
   const focusedArtifact = useMuseumStore((s) => s.focusedArtifact);
+  const nearbyDoorLabel = useMuseumStore((s) => s.nearbyDoorLabel);
   const lensSeparationMm = useMuseumStore((s) => s.settings.vrLensSeparationMm);
   const screenWidthMm = useMuseumStore((s) => s.settings.vrScreenWidthMm);
 
@@ -119,7 +120,7 @@ function EyeOverlay({ eye }: { eye: "left" | "right" }) {
           stereo camera reaches both eyes. Repeating it here would double the
           text and put one copy across the seam between the viewports. */}
       {focusedArtifact ? null : (
-        nearbyArtifact && (
+        nearbyArtifact ? (
           // Also inside the lens circle, and sitting above the control hints
           // rather than near the bottom edge. `left-1/2 -translate-x-1/2` would
           // centre it on the VIEWPORT; this parent is already translated onto
@@ -131,6 +132,19 @@ function EyeOverlay({ eye }: { eye: "left" | "right" }) {
               <p className="text-museum-bone text-sm mt-0.5">{nearbyArtifact.nama}</p>
             </div>
           </div>
+        ) : (
+          // The archway waits for a deliberate press here too. Inside a headset
+          // this matters more than on a flat screen, not less: a visitor who
+          // drifts through an opening they never saw coming has no map, no
+          // minimap (it is hidden in VR) and no way to work out what happened.
+          nearbyDoorLabel && (
+            <div className="absolute top-[60%] left-0 right-0 flex justify-center px-3 animate-slide-up-fade">
+              <div className="rounded-lg bg-black/45 px-3 py-1 text-center">
+                <p className="text-museum-gold text-[11px] tracking-widest uppercase">Tekan A untuk lanjut</p>
+                <p className="text-museum-bone text-sm mt-0.5">{nearbyDoorLabel}</p>
+              </div>
+            </div>
+          )
         )
       )}
     </div>
