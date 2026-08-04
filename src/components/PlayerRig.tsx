@@ -7,6 +7,7 @@ import { GREETER_COLLIDER_RADIUS, getGreetersForRoom } from "@/data/greeters";
 import type { RoomConfig } from "@/data/roomConfig";
 import type { Artifact } from "@/types/artifact";
 import { objectFootprintRadius } from "@/utils/artifactSize";
+import { buildDecorColliders } from "@/utils/placementValidator";
 import { lerpAngle, wrapAngle } from "@/utils/angle";
 import { verticalFovForEyeAspect } from "@/utils/vrOptics";
 
@@ -51,6 +52,22 @@ const PLAYER_RADIUS = 0.5; // simple circular collision radius
  * same clamp.
  */
 const MAX_FRAME_DELTA = 1 / 15;
+
+/**
+ * How much of a decor object's *placement* footprint is solid.
+ *
+ * placementValidator's radii answer a different question than collision does:
+ * they say how much clear floor a piece is entitled to so the room doesn't read
+ * as cluttered, which is deliberately wider than the object. A colonnade pillar
+ * is listed at 0.50 m but its shaft is nearer 0.26 m. Using the placement number
+ * as-is would stop the visitor a hand's width short of every column — an
+ * invisible wall, which reads as a bug even though nothing is wrong.
+ *
+ * 0.6 lands the collider just outside the visible geometry: solid enough that
+ * nobody walks through a pillar, close enough that the stop always has
+ * something in front of it to explain itself.
+ */
+const DECOR_COLLIDER_SCALE = 0.6;
 const PROXIMITY_RADIUS = 2.6; // distance at which an artifact becomes "nearby"
 const EYE_HEIGHT = 1.7;
 const BASE_FOCUS_LERP = 4.5; // higher = snappier ease into/out of the artifact zoom
@@ -206,6 +223,24 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
         collisionRadius: GREETER_COLLIDER_RADIUS,
       })),
     [room.id]
+  );
+
+  // Pillars, signboards, the Dwarapala pair, the centre installation, the
+  // stone clusters. Taken from the placement validator so the collider set and
+  // the rendered set are the same list — see buildDecorColliders.
+  //
+  // The validator's radius is a *placement* footprint: how much clear floor the
+  // piece is entitled to, which is deliberately more generous than the object
+  // itself. Walking into an invisible wall half a metre from a pillar feels
+  // like a bug, so the collider is pulled in to the geometry it represents.
+  const decorColliders = useMemo(
+    () =>
+      buildDecorColliders(room, artifacts).map((o) => ({
+        x: o.x,
+        z: o.z,
+        collisionRadius: Math.max(0.2, o.radius * DECOR_COLLIDER_SCALE),
+      })),
+    [room, artifacts]
   );
 
   // `moveInput` / `lookInput` / `vrLookOffset` are deliberately NOT subscribed
@@ -499,8 +534,8 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
       // Apply deadzone to move input
       const deadzoneVal =
         settings.deadzone === "small" ? 0.05 : settings.deadzone === "medium" ? 0.1 : 0.2;
-      let moveX = Math.abs(moveInput.x) > deadzoneVal ? moveInput.x : 0;
-      let moveY = Math.abs(moveInput.y) > deadzoneVal ? moveInput.y : 0;
+      const moveX = Math.abs(moveInput.x) > deadzoneVal ? moveInput.x : 0;
+      const moveY = Math.abs(moveInput.y) > deadzoneVal ? moveInput.y : 0;
 
       if (moveX !== 0 || moveY !== 0) {
         forward.current.set(
@@ -574,6 +609,21 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
           const angle = Math.atan2(dz, dx);
           nextX = g.x + Math.cos(angle) * minDist;
           nextZ = g.z + Math.sin(angle) * minDist;
+        }
+      }
+
+      // 4. Collision with the hall's own architecture and set dressing.
+      // Same response again, same reason for a separate loop.
+      for (const d of decorColliders) {
+        const dx = nextX - d.x;
+        const dz = nextZ - d.z;
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        const minDist = PLAYER_RADIUS + d.collisionRadius;
+
+        if (distance < minDist) {
+          const angle = Math.atan2(dz, dx);
+          nextX = d.x + Math.cos(angle) * minDist;
+          nextZ = d.z + Math.sin(angle) * minDist;
         }
       }
 

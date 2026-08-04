@@ -1,5 +1,5 @@
-import { useRef, useMemo, useState } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useRef, useMemo } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 interface DustParticlesProps {
@@ -16,7 +16,6 @@ export function DustParticles({
   height = 4,
 }: DustParticlesProps) {
   const meshRef = useRef<THREE.Points>(null);
-  const { viewport } = useThree();
 
   const { particles, geometry } = useMemo(() => {
     const tempParticles: { pos: THREE.Vector3; vel: THREE.Vector3; phase: number }[] = [];

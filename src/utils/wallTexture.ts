@@ -221,7 +221,6 @@ export function createWallTexture({
   }
 
   const safeBands: WallBand[] = bands.length ? bands : [{ from: 0, to: lengthM, style: "netral" }];
-  const styleAt = (m: number) => STYLES[safeBands.find((b) => m >= b.from && m <= b.to)?.style ?? "netral"];
 
   // --- 1. Base field + dado, per zone, with a soft blend at every zone seam so
   //        the wall reads as one continuous surface that shifts, not as tiles. ---

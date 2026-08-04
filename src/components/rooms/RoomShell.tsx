@@ -1,8 +1,8 @@
-import { ReactNode, useEffect, useMemo, useRef } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { ReactNode, useEffect, useMemo } from "react";
+import { useThree } from "@react-three/fiber";
 import { ContactShadows, Environment, Instances, Instance } from "@react-three/drei";
 import * as THREE from "three";
-import type { RoomConfig, RoomBounds, Door, ZoneConfig } from "@/data/roomConfig";
+import type { RoomConfig, RoomBounds, Door } from "@/data/roomConfig";
 import { ARCHWAY_WIDTH, ARCHWAY_HEIGHT, ROOM_CONFIGS, getNearestZone } from "@/data/roomConfig";
 import type { Artifact, ZoneId } from "@/types/artifact";
 import { ArtifactMesh } from "@/components/artifacts/ArtifactMesh";

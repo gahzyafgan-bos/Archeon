@@ -353,7 +353,7 @@ interface MuseumState {
 
 export const useMuseumStore = create<MuseumState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       isLoading: true,
       loadProgress: 0,
       isRendererLost: false,
@@ -422,10 +422,7 @@ export const useMuseumStore = create<MuseumState>()(
         set((state) => ({
           settings: { ...state.settings, ...newSettings },
         })),
-      resetSettings: () =>
-        set((state) => ({
-          settings: defaultSettings,
-        })),
+      resetSettings: () => set({ settings: defaultSettings }),
 
       graphicsQualityCustomized: false,
       setGraphicsQuality: (quality) =>

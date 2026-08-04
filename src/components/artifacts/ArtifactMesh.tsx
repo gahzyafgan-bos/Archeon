@@ -570,7 +570,16 @@ function RealArtifactModel({
 }) {
   const { scene } = useGLTF(url, DRACO_DECODER_PATH, true, extendModelLoader);
   useEffect(() => {
-    console.info(`[ArtifactModel] ✓ termuat & ter-decode: ${url}`);
+    // Dev only. This shipped ungated and produced 35 console entries per
+    // session in the production build (audit 2026-08-05, P2-1) — noise that
+    // buries the messages that actually matter, in the one place a museum
+    // technician would look when something is wrong. The failure path below
+    // (componentDidCatch) stays loud in production on purpose; success does
+    // not need announcing.
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.info(`[ArtifactModel] ✓ termuat & ter-decode: ${url}`);
+    }
   }, [url]);
   const { model, fitScale, ownedMaterials } = useMemo(() => {
     const clone = scene.clone(true);

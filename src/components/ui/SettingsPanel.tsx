@@ -31,9 +31,6 @@ export function SettingsPanel() {
     if (e.target === e.currentTarget) setIsSettingsOpen(false);
   };
 
-  const deadzoneMap: Record<string, number> = { small: 0.05, medium: 0.1, large: 0.2 };
-  const reverseDeadzoneMap: Record<number, string> = { 0.05: "small", 0.1: "medium", 0.2: "large" };
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm"
@@ -270,22 +267,13 @@ export function SettingsPanel() {
                 />
               </div>
 
-              {/* Volume UI */}
-              <div>
-                <div className="mb-2 flex justify-between">
-                  <label>Volume Efek UI</label>
-                  <span className="text-museum-gold">{settings.volumeUI}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={settings.volumeUI}
-                  onChange={(e) => updateSettings({ volumeUI: parseInt(e.target.value) })}
-                  className="w-full h-2 bg-museum-charcoal/50 rounded-lg appearance-none cursor-pointer accent-museum-gold"
-                />
-              </div>
+              {/* "Volume Efek UI" stood here and controlled nothing: there are
+                  no UI sound effects anywhere in this app, so `volumeUI` had
+                  zero consumers (audit 2026-08-05, P1-2). Removed rather than
+                  wired up, because inventing button clicks purely to justify a
+                  slider is the wrong direction — a museum should be quiet. The
+                  field itself stays in Settings so a returning visitor's saved
+                  preferences still parse; it simply has no control any more. */}
 
               {/* Show Subtitles */}
               <div className="flex items-center justify-between">

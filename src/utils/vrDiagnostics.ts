@@ -143,6 +143,9 @@ export function dumpVrDiag(label = "snapshot") {
         ? "native, but short of the 1.1-1.4 a barrel pass wants"
         : "OK for a distorted view";
 
+  // Dev-only diagnostic dump, invoked by hand from the console. Gated by
+  // VR_DIAG_ENABLED at every call site, but the lint rule cannot see that.
+  // eslint-disable-next-line no-console
   console.log(
     [
       ``,

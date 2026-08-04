@@ -37,7 +37,6 @@ export function auditCeilingClearance(room: RoomConfig): void {
   const ceiling = room.ceilingHeight ?? DEFAULT_CEILING_HEIGHT;
   const limit = beamUnderside(ceiling);
   const warn = (msg: string) => {
-    // eslint-disable-next-line no-console
     console.warn(`[decor] ${room.name}: ${msg}`);
   };
 

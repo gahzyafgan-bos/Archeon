@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Environment, useGLTF } from "@react-three/drei";
+import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { useAudioGuide } from "@/hooks/useAudioGuide";
@@ -41,10 +41,22 @@ export function InfoPanel() {
               buttons below it nowhere to go. */}
           <div className="h-56 sm:h-64 short:h-32 shrink-0 bg-museum-charcoal/60 relative">
             <Canvas camera={{ position: [0, 0.4, 2.6], fov: settings.cameraFOV }}>
-              <ambientLight intensity={0.6} />
-              <directionalLight position={[3, 4, 2]} intensity={1.4} />
+              {/* Three plain lights instead of <Environment preset="city" />.
+                  That preset was doing two harmful things at once. It fetched a
+                  multi-megabyte HDR from a third-party CDN — every panel open,
+                  from a host we don't control, which simply fails on a museum
+                  network with no route to the internet. And it built a fresh
+                  PMREM cubemap per open with nothing disposing it: the audit
+                  measured 184 textures and 390 buffers leaked across 20
+                  open/close cycles, invisible to the JS heap profiler because
+                  it is all GPU memory. On a phone that is the road to a lost
+                  context. A key/fill/rim trio costs nothing, never touches the
+                  network, and reads better on a small preview than an
+                  environment map the viewer can't see the source of anyway. */}
+              <ambientLight intensity={0.75} />
+              <directionalLight position={[3, 4, 2]} intensity={1.5} />
+              <directionalLight position={[-3, 1.5, -2]} intensity={0.5} color="#cfd8e8" />
               <MiniArtifact artifact={focusedArtifact} />
-              <Environment preset="city" />
               <OrbitControls
                 enablePan={false}
                 enableZoom={true}
@@ -212,6 +224,10 @@ function MiniRealModel({
   const { model, offset, fitScale, ownedMaterials } = useMemo(() => {
     const clone = scene.clone(true);
     // Clone before recolouring — see the matching note in ArtifactMesh.
+    // `owned` is everything THIS component created and is therefore the only
+    // thing it is allowed to dispose: the source materials belong to the
+    // cached GLTF that the main scene is still rendering from, and disposing
+    // those would blank the artifact in the hall behind the panel.
     const owned: THREE.Material[] = [];
     if (materialOverride) {
       clone.traverse((obj) => {

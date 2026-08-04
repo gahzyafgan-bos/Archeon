@@ -37,7 +37,6 @@ export class AppErrorBoundary extends Component<
     // looking at an error screen, and the one thing that makes that
     // investigable later is the stack that caused it. Unlike the per-model
     // success logs, this is not chatter — it fires at most once per session.
-    // eslint-disable-next-line no-console
     console.error("[museum] gagal total, menampilkan layar kesalahan.", error, info.componentStack);
   }
 

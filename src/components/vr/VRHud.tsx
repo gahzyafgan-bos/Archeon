@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { useAudioGuide } from "@/hooks/useAudioGuide";
 import { eyeLensCenterShift } from "@/utils/vrOptics";
@@ -110,7 +110,11 @@ function EyeOverlay({ eye }: { eye: "left" | "right" }) {
           from the bright scene behind the glyphs. */}
       <div className="absolute top-[72%] left-0 right-0 flex justify-center px-2">
         <div className="rounded-lg bg-black/45 px-2.5 py-1 text-center text-museum-bone/85 text-[10px] tracking-wider uppercase leading-relaxed">
-          <p>Start = keluar · Select = kalibrasi arah</p>
+          {/* The touch line comes FIRST and names the exit, because it is the
+              only instruction that works for a visitor with no gamepad — which
+              is most of them. */}
+          <p>Tekan layar sebentar = pilih · tahan = keluar</p>
+          <p>Gamepad: A = pilih · Start = keluar · Select = kalibrasi</p>
           <p>D-pad ◀ ▶ = jarak lensa {lensSeparationMm}mm</p>
         </div>
       </div>
@@ -157,6 +161,16 @@ function EyeOverlay({ eye }: { eye: "left" | "right" }) {
  * Cardboard lenses. Also owns the fullscreen/orientation-lock cleanup that
  * needs to fire whenever VR mode is switched off (gamepad Start button).
  */
+/**
+ * How long the screen has to be held before VR mode exits.
+ *
+ * Long enough that the short taps used for interacting can never be mistaken
+ * for "get me out of here", short enough that someone who is dizzy and wants
+ * out does not have to wait. A Cardboard viewer's button holds the contact for
+ * as long as it is pressed, so this is a comfortable gesture through the case.
+ */
+const VR_EXIT_HOLD_MS = 900;
+
 export function VRHud() {
   const isVRMode = useMuseumStore((s) => s.isVRMode);
   const focusedArtifact = useMuseumStore((s) => s.focusedArtifact);
@@ -176,6 +190,79 @@ export function VRHud() {
 
   if (!isVRMode) return null;
 
+  return (
+    <>
+      <VRTouchLayer />
+      <VRHudOverlay />
+    </>
+  );
+}
+
+/**
+ * The only way in or out of VR that does not require a gamepad.
+ *
+ * Before this, `setVRMode(false)` had exactly one caller: the Start button on a
+ * Bluetooth pad. A visitor who put a phone into a Cardboard viewer without one
+ * had no exit at all — not a hard one, none — and the same was true of
+ * interacting with an artifact, because the entire touch HUD is hidden in VR.
+ * Refreshing the page meant taking the phone back out of the headset first.
+ *
+ * Two gestures on one transparent full-screen layer, distinguished only by how
+ * long the contact lasts, because a Cardboard viewer gives the visitor exactly
+ * one input: a button that presses the glass.
+ *
+ *  - **short tap** → the same action the pad's A button performs: open the
+ *    artifact in range, or cross the archway being offered.
+ *  - **hold** → leave VR.
+ *
+ * Deliberately not `onClick`: a click needs press and release at the same spot,
+ * and a viewer's button rarely obliges. Pointer events with a timer do.
+ */
+function VRTouchLayer() {
+  const holdTimer = useRef<number | null>(null);
+  const didHoldExit = useRef(false);
+
+  const clearHold = () => {
+    if (holdTimer.current !== null) {
+      window.clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+  };
+
+  useEffect(() => clearHold, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[45]"
+      style={{ touchAction: "none" }}
+      onPointerDown={() => {
+        didHoldExit.current = false;
+        clearHold();
+        holdTimer.current = window.setTimeout(() => {
+          didHoldExit.current = true;
+          useMuseumStore.getState().setVRMode(false);
+        }, VR_EXIT_HOLD_MS);
+      }}
+      onPointerUp={() => {
+        clearHold();
+        // The hold already exited VR; do not also fire the tap action.
+        if (didHoldExit.current) return;
+        const s = useMuseumStore.getState();
+        if (s.focusedArtifact) {
+          s.focusArtifact(null);
+        } else if (s.nearbyArtifact) {
+          s.focusArtifact(s.nearbyArtifact);
+        } else if (s.nearbyDoorLabel) {
+          s.confirmDoor();
+        }
+      }}
+      onPointerCancel={clearHold}
+      onPointerLeave={clearHold}
+    />
+  );
+}
+
+function VRHudOverlay() {
   return (
     // Height comes from --app-height (visualViewport) with a 100dvh fallback,
     // NOT from `inset-0`. On a mobile browser that can't be taken fullscreen,

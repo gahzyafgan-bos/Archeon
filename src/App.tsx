@@ -31,6 +31,7 @@ const HAS_WEBGL = detectWebGLSupport();
 export default function App() {
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null);
   const isRendererLost = useMuseumStore((s) => s.isRendererLost);
+  const highContrast = useMuseumStore((s) => s.settings.highContrast);
 
   useViewportHeight();
   useDeviceDetection();
@@ -42,6 +43,17 @@ export default function App() {
     // Reset onboarding state on every mount (fresh page load)
     useMuseumStore.getState().setHasCompletedOnboarding(false);
   }, []);
+
+  // Publishes "Mode Kontras Tinggi" as an attribute on <html>, which is what
+  // the stylesheet keys off. An attribute rather than React state threaded
+  // through every panel: the rules it drives are CSS overrides on shared
+  // classes, so one flag at the root reaches all of them without a single
+  // component needing to know the setting exists. See index.css.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (highContrast) root.setAttribute("data-contrast", "high");
+    else root.removeAttribute("data-contrast");
+  }, [highContrast]);
 
   if (!HAS_WEBGL) {
     return (

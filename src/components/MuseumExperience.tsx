@@ -14,19 +14,12 @@ import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
 import { useAdjacentHallPreload } from "@/hooks/useAdjacentHallPreload";
 import { initKTX2Support } from "@/utils/modelLoader";
 import { MiniMapFrame, MiniMapTracker } from "./ui/MiniMap";
+import { roomCrossfadeMs } from "./ui/RoomTransition";
 import { PostProcessing } from "./PostProcessing";
 import { CardboardStereoView } from "./vr/CardboardStereoView";
 import { VRInfoPanel } from "./vr/VRInfoPanel";
 import { WebGLContextGuard } from "./WebGLContextGuard";
 
-/**
- * Keeps only the artifacts that actually have a real 3D model to show, so
- * placeholders for pieces still awaiting a `.glb` are never mounted (no empty
- * pedestal, no `E` anchor) — see hasRealModel. The full dataset stays intact
- * in artifacts.json; this is purely a render-time filter. Dev-only: logs which
- * ids are still waiting on a model so pending asset work stays trackable
- * (console only, never surfaced to end users).
- */
 /**
  * How long the loading progress may sit completely still before the app admits
  * something is wrong and offers the visitor a way out.
@@ -38,6 +31,25 @@ import { WebGLContextGuard } from "./WebGLContextGuard";
  */
 const LOAD_STALL_TIMEOUT_MS = 20000;
 
+/**
+ * Longest a visitor is made to wait before being let into the museum, counted
+ * from the moment the artifact list is known.
+ *
+ * Comfortably long enough that a normal broadband or 4G visitor never sees it
+ * fire — Hall 1 settles well inside this on anything reasonable, so the
+ * no-pop-in behaviour is preserved for the common case. It only takes effect
+ * on the connections where the alternative was minutes. See where it is used.
+ */
+const MAX_LOADING_WAIT_MS = 12000;
+
+/**
+ * Keeps only the artifacts that actually have a real 3D model to show, so
+ * placeholders for pieces still awaiting a `.glb` are never mounted (no empty
+ * pedestal, no `E` anchor) — see hasRealModel. The full dataset stays intact
+ * in artifacts.json; this is purely a render-time filter. Dev-only: logs which
+ * ids are still waiting on a model so pending asset work stays trackable
+ * (console only, never surfaced to end users).
+ */
 function renderableArtifacts(data: Artifact[]): Artifact[] {
   const shown = data.filter(hasRealModel);
   if (import.meta.env.DEV) {
@@ -78,13 +90,13 @@ function KTX2Support() {
 export function MuseumExperience() {
   const activeRoom = useMuseumStore((s) => s.activeRoom);
   const setActiveRoom = useMuseumStore((s) => s.setActiveRoom);
-  const isTransitioning = useMuseumStore((s) => s.isTransitioning);
   const setTransitioning = useMuseumStore((s) => s.setTransitioning);
   const setPendingSpawnPoint = useMuseumStore((s) => s.setPendingSpawnPoint);
   const finishLoading = useMuseumStore((s) => s.finishLoading);
   const setLoadProgress = useMuseumStore((s) => s.setLoadProgress);
   const setLoadError = useMuseumStore((s) => s.setLoadError);
   const isLoading = useMuseumStore((s) => s.isLoading);
+  const transitionSpeed = useMuseumStore((s) => s.settings.roomTransitionSpeed);
 
   const isVRMode = useMuseumStore((s) => s.isVRMode);
   const graphicsPreset = useGraphicsPreset();
@@ -137,6 +149,33 @@ export function MuseumExperience() {
   }, [dataReady, glActive, finishLoading, setLoadProgress]);
 
   /**
+   * Ceiling on how long a visitor may be held at the loading screen.
+   *
+   * The gate above waits for every one of Hall 1's models. That is 38 MB, and
+   * on the connections this museum will actually meet it is not a wait, it is
+   * a wall: measured at ~13.9 minutes on Slow 3G, and ~12.4 minutes for a
+   * Wi-Fi network shared by thirty visitors at once. Nobody stands in a museum
+   * lobby staring at a progress bar for thirteen minutes.
+   *
+   * Letting them in early is safe here specifically because each artifact
+   * already carries its OWN <Suspense> and its own error boundary (see
+   * ArtifactMesh): a model that has not arrived yet simply is not in the room
+   * until it is, and the hall, floor, lighting and signage are all procedural
+   * geometry that needs no download at all. So the cost of entering early is
+   * that a few pieces fade in while the visitor walks toward them — and the
+   * benefit is that they are walking at all.
+   *
+   * Only armed once the artifact list itself is in, because entering a hall
+   * whose contents are unknown would place the visitor in a genuinely empty
+   * room rather than a filling one.
+   */
+  useEffect(() => {
+    if (!isLoading || !dataReady) return;
+    const t = setTimeout(finishLoading, MAX_LOADING_WAIT_MS);
+    return () => clearTimeout(t);
+  }, [isLoading, dataReady, finishLoading]);
+
+  /**
    * Watchdog for a load that can no longer finish by itself.
    *
    * The gate above is `dataReady && !glActive`. `glActive` only clears when
@@ -178,14 +217,18 @@ export function MuseumExperience() {
   useEffect(() => {
     if (activeRoom === renderedRoom) return;
     setTransitioning(true);
+    // Derived from the overlay's own duration rather than a second hardcoded
+    // 130 — the swap has to land while the screen is actually dimmed, and two
+    // independent numbers for one beat is how they drift apart. Also why the
+    // user's transition-speed setting reaches this timing at all.
     const fadeOut = setTimeout(async () => {
       const data = await fetchArtifactsByRoom(activeRoom);
       setArtifacts(renderableArtifacts(data));
       setRenderedRoom(activeRoom);
       setTimeout(() => setTransitioning(false), 30);
-    }, 130);
+    }, Math.max(30, roomCrossfadeMs(transitionSpeed) - 20));
     return () => clearTimeout(fadeOut);
-  }, [activeRoom, renderedRoom, setTransitioning]);
+  }, [activeRoom, renderedRoom, setTransitioning, transitionSpeed]);
 
   const handleEnterDoor = useCallback(
     (door: Door) => {
