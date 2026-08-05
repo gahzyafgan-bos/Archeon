@@ -248,6 +248,30 @@ interface MuseumState {
   setTransitioning: (v: boolean) => void;
   pendingSpawnPoint: { x: number; z: number; facingY: number } | null;
   setPendingSpawnPoint: (spawn: { x: number; z: number; facingY: number } | null) => void;
+  /**
+   * Bumped to move the player without changing hall.
+   *
+   * `pendingSpawnPoint` alone is not enough: PlayerRig only reads it when
+   * `room.id` changes, which is correct for archways but means a request to
+   * cross the room the visitor is already standing in does nothing at all. A
+   * counter rather than a boolean so two consecutive requests for the same
+   * destination still each fire.
+   */
+  teleportSignal: number;
+  requestTeleport: (to: { x: number; z: number; facingY: number }) => void;
+
+  /**
+   * The artifact list ("Koleksi").
+   *
+   * Its reason to exist is P0-6 and P2-4 in the 2026-08-05 audit taken
+   * together: walking in a straight line from the entrance reaches no artifact
+   * at all, and 19 of the 32 pieces have no 3D model yet and are therefore
+   * rendered nowhere, mentioned nowhere, and unreachable by any means. Between
+   * those two, a visitor could finish a visit having met none of the
+   * collection and never learn there was more.
+   */
+  isCatalogOpen: boolean;
+  setIsCatalogOpen: (v: boolean) => void;
   /** Nearest zone to the player's current position — purely presentational
    * (minimap highlight, signage, per-zone ambience), doesn't gate anything. */
   activeZoneId: ZoneId;
@@ -417,6 +441,24 @@ export const useMuseumStore = create<MuseumState>()(
       setTransitioning: (v) => set({ isTransitioning: v }),
       pendingSpawnPoint: null,
       setPendingSpawnPoint: (spawn) => set({ pendingSpawnPoint: spawn }),
+      teleportSignal: 0,
+      requestTeleport: (to) =>
+        set((state) => ({ pendingSpawnPoint: to, teleportSignal: state.teleportSignal + 1 })),
+
+      isCatalogOpen: false,
+      // Same rule as Pengaturan, for the same reason: two modal panels stacked
+      // on each other is not a state the visitor asked to be in.
+      setIsCatalogOpen: (v) =>
+        set((state) =>
+          v && state.focusedArtifact
+            ? {
+                isCatalogOpen: true,
+                focusedArtifact: null,
+                isInfoPanelOpen: false,
+                isMovementLocked: false,
+              }
+            : { isCatalogOpen: v }
+        ),
 
       moveInput: { x: 0, y: 0 },
       setMoveInput: (v) => set({ moveInput: v }),
@@ -529,7 +571,13 @@ export const useMuseumStore = create<MuseumState>()(
        * points the visitor at a wall. Previously only the gamepad's Select
        * button ever reset it, which left everyone without a pad stuck with it.
        */
-      setVRMode: (v) => set({ isVRMode: v, isSettingsOpen: false, vrLookOffset: { yaw: 0, pitch: 0 } }),
+      setVRMode: (v) =>
+        set({
+          isVRMode: v,
+          isSettingsOpen: false,
+          isCatalogOpen: false,
+          vrLookOffset: { yaw: 0, pitch: 0 },
+        }),
       vrLookOffset: { yaw: 0, pitch: 0 },
       setVRLookOffset: (v) => set({ vrLookOffset: v }),
       vrRecenterSignal: 0,

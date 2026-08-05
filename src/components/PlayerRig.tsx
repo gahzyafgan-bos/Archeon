@@ -313,6 +313,44 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
   }, [room.id, camera]);
 
   /**
+   * Same repositioning, without a change of hall.
+   *
+   * The effect above is the one that runs when the visitor walks through an
+   * archway, and it is keyed on `room.id` — so a request to be moved somewhere
+   * inside the hall they are already standing in never reached it. That is the
+   * whole of "Kunjungi" in the artifact list: most of what a visitor picks by
+   * name is in the room they are already in.
+   *
+   * Velocity is zeroed along with the position. Without that, whatever the
+   * visitor was holding down when they opened the list is still in
+   * `currentVelocity` and they arrive already drifting away from the piece
+   * they asked to see.
+   */
+  const teleportSignal = useMuseumStore((s) => s.teleportSignal);
+  useEffect(() => {
+    if (teleportSignal === 0) return;
+    const to = useMuseumStore.getState().pendingSpawnPoint;
+    if (!to) return;
+
+    camera.position.set(to.x, EYE_HEIGHT, to.z);
+    yaw.current = to.facingY;
+    targetYaw.current = to.facingY;
+    pitch.current = 0;
+    targetPitch.current = 0;
+    currentVelocity.current.set(0, 0, 0);
+    useMuseumStore.getState().setPendingSpawnPoint(null);
+    // A landing spot is chosen to face an artifact, never an archway, but the
+    // clamp can slide it toward a wall — and a doorway is in a wall. Re-arming
+    // the cooldown means arriving near one cannot instantly throw the visitor
+    // into the next hall.
+    doorCooldown.current = true;
+    lastPublishedDoorLabel.current = null;
+    useMuseumStore.getState().setNearbyDoorLabel(null);
+    const t = setTimeout(() => (doorCooldown.current = false), 1500);
+    return () => clearTimeout(t);
+  }, [teleportSignal, camera]);
+
+  /**
    * Re-anchors VR head-look so that the view does not move at this instant.
    * Called whenever the gyro's frame of reference jumps out from under us —
    * on VR entry, on every recenter, and when the artifact-focus animation
