@@ -317,6 +317,21 @@ export function SettingsPanel() {
                 <p className="text-museum-mist/70 text-[10px] mt-1">
                   {GRAPHICS_QUALITY_LABELS[settings.graphicsQuality].desc}
                 </p>
+                {/* Says out loud what useGraphicsPreset does silently. Mode VR
+                    draws the entire museum twice per frame, once per eye, so
+                    the tier is clamped to Rendah for as long as it is running
+                    no matter what is picked here. Before this line, a visitor
+                    who chose Tinggi and then put the phone in a headset saw the
+                    low settings and had no way to know why — the setting looked
+                    broken (audit 2026-08-05, P2-9). The choice is not
+                    discarded: it comes back the moment VR is left. */}
+                {settings.graphicsQuality !== "rendah" && (
+                  <p className="text-museum-mist/60 text-[10px] mt-1 italic">
+                    Di dalam Mode VR, kualitas otomatis turun ke Rendah karena
+                    pemandangan digambar dua kali (satu per mata). Pilihan Anda
+                    kembali setelah keluar dari Mode VR.
+                  </p>
+                )}
               </div>
 
               {/* Reduce Motion */}

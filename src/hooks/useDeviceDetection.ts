@@ -25,11 +25,30 @@ export function useDeviceDetection() {
     const isTouch = detectTouch();
     setIsTouchDevice(isTouch);
 
-    // Simple heuristic for low-end devices: touch + small screen
+    // Is this machine likely to struggle?
+    //
+    // The old version answered "yes" for every touch device on earth, which
+    // made the flag useless — a tablet and a five-year-old budget phone are
+    // not the same problem — and nothing read it anyway (audit 2026-08-05).
+    // Now it is the input to the graphics default below, so it has to mean
+    // something.
+    //
+    // Only signals the browser actually reports about the hardware are used.
+    // Screen width stays out of it entirely: it describes the panel, not the
+    // GPU behind it, and a phone in landscape reports laptop numbers.
+    //
+    // `deviceMemory` is Chromium-only and coarse (rounded to 0.5/1/2/4/8), but
+    // where it exists it is the single best signal available for the devices
+    // this museum will actually meet. Absent, we simply don't count it.
+    const cores = navigator.hardwareConcurrency ?? 0;
+    const memoryGb = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
     const isLowEnd =
-      isTouch ||
-      window.screen.width < 768 ||
-      navigator.hardwareConcurrency < 4;
+      (cores > 0 && cores < 4) ||
+      (memoryGb !== undefined && memoryGb <= 4) ||
+      // A touch device that reports nothing about itself: assume the worse of
+      // the two, because being wrong toward "rendah" costs some shadow detail
+      // and being wrong the other way costs a slideshow.
+      (isTouch && cores === 0 && memoryGb === undefined);
     setIsLowEndDevice(isLowEnd);
 
     // Safety net: an actual finger on the glass is proof no heuristic can
@@ -53,12 +72,21 @@ export function useDeviceDetection() {
     window.addEventListener("orientationchange", recheck);
     window.addEventListener("resize", recheck);
 
-    // Graphics quality default (only applies while the user hasn't
-    // overridden it in SettingsPanel — see applyAutoGraphicsQuality): always
-    // Rendah on first load, on every device, so the first impression is
-    // smooth rather than laggy. The user can still raise it manually in
-    // SettingsPanel; that choice persists (graphicsQualityCustomized).
-    applyAutoGraphicsQuality("rendah");
+    // Graphics quality default. Only applies while the user hasn't overridden
+    // it in SettingsPanel — that choice persists (graphicsQualityCustomized).
+    //
+    // This used to hand "rendah" to every device including desktops, on the
+    // reasoning that a smooth first impression beats a pretty one. The
+    // reasoning is right; applying it to a machine with a real GPU was not.
+    // A desktop visitor was being shown the phone build — no ambient
+    // occlusion, fewest lights, shadows off — of a museum whose whole point
+    // is how the artefacts are lit, and nothing ever told them a better
+    // version existed.
+    //
+    // "sedang" rather than "tinggi" for the good case: nothing here can
+    // measure the actual GPU, only count cores, so the guess stays one tier
+    // short of the top and the visitor can take the last step themselves.
+    applyAutoGraphicsQuality(isLowEnd || isTouch ? "rendah" : "sedang");
 
     return () => {
       window.removeEventListener("touchstart", onFirstTouch, { capture: true });

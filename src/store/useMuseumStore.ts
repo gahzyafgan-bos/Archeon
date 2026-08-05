@@ -301,6 +301,22 @@ interface MuseumState {
   viewedArtifactIds: Set<string>;
   markArtifactViewed: (id: string) => void;
 
+  /**
+   * Artifacts whose 3D model could not be loaded this session.
+   *
+   * Failures already degraded gracefully — a bad `.glb` falls back to its
+   * placeholder shape instead of taking the artifact or the scene down with it
+   * — but they did so completely silently: the visitor was left looking at a
+   * grey primitive on a marble pedestal with nothing anywhere admitting that
+   * what they were seeing was not the object (audit 2026-08-05, P2-3). Only
+   * the console knew, and visitors do not open the console.
+   *
+   * Session-scoped and deliberately not persisted: a failure is usually the
+   * network, and the next visit deserves a clean try.
+   */
+  failedModelIds: Set<string>;
+  markModelFailed: (id: string) => void;
+
   // --- Input device detection ---
   isTouchDevice: boolean;
   setIsTouchDevice: (v: boolean) => void;
@@ -367,7 +383,30 @@ export const useMuseumStore = create<MuseumState>()(
       setHasCompletedOnboarding: (v) => set({ hasCompletedOnboarding: v, isMovementLocked: !v }),
 
       activeRoom: "hall-1",
-      setActiveRoom: (room) => set({ activeRoom: room }),
+      /**
+       * Changing hall drops everything that pointed at the hall being left.
+       *
+       * `focusedArtifact`, `nearbyArtifact` and `nearbyDoorLabel` all hold
+       * objects from the room the visitor just walked out of, and none of them
+       * were being cleared (audit 2026-08-05, C.2). The stale `nearbyArtifact`
+       * is the visible one: for the frame or two before PlayerRig's next
+       * proximity sweep runs in the new hall, the HUD offers "Lihat …" for a
+       * piece standing in the other room, and pressing E there opens a panel
+       * about an artifact that is nowhere near.
+       *
+       * The movement lock is only released if a focused artifact was the thing
+       * holding it — the same flag also gates onboarding, and clearing it
+       * unconditionally would let a visitor walk away mid-instructions.
+       */
+      setActiveRoom: (room) =>
+        set((state) => ({
+          activeRoom: room,
+          focusedArtifact: null,
+          nearbyArtifact: null,
+          nearbyDoorLabel: null,
+          isInfoPanelOpen: false,
+          isMovementLocked: state.focusedArtifact ? false : state.isMovementLocked,
+        })),
       activeZoneId: "welcome",
       setActiveZoneId: (zone) => set({ activeZoneId: zone }),
       nearbyDoorLabel: null,
@@ -410,13 +449,50 @@ export const useMuseumStore = create<MuseumState>()(
       markArtifactViewed: (id) =>
         set((state) => ({ viewedArtifactIds: new Set(state.viewedArtifactIds).add(id) })),
 
+      failedModelIds: new Set(),
+      markModelFailed: (id) =>
+        set((state) =>
+          // Guarded: this is called from a React error boundary, which can fire
+          // more than once for the same artifact (StrictMode double-invokes,
+          // and the piece remounts whenever the visitor re-enters the hall). An
+          // unguarded set() would allocate a new Set and wake every subscriber
+          // each time for no change at all.
+          state.failedModelIds.has(id)
+            ? {}
+            : { failedModelIds: new Set(state.failedModelIds).add(id) }
+        ),
+
       isTouchDevice: false,
       setIsTouchDevice: (v) => set({ isTouchDevice: v }),
       isLowEndDevice: false,
       setIsLowEndDevice: (v) => set({ isLowEndDevice: v }),
 
       isSettingsOpen: false,
-      setIsSettingsOpen: (v) => set({ isSettingsOpen: v }),
+      /**
+       * Opening Pengaturan closes an open artifact panel.
+       *
+       * Both used to be able to stand open at once, stacked: Pengaturan at
+       * z-50 over InfoPanel at z-30, with the touch joysticks hidden underneath
+       * both (audit 2026-08-05, P2-11). Nothing broke, but the visitor was
+       * looking at two modal dialogs, and closing the top one revealed a second
+       * one they had not asked to be back in.
+       *
+       * Closing via focusArtifact(null) rather than flipping isInfoPanelOpen
+       * directly, so the camera zoom and the movement lock that focusing an
+       * artifact turned on are released too — the three are one state, and
+       * unpicking only the visible part of it is how they drift apart.
+       */
+      setIsSettingsOpen: (v) =>
+        set((state) =>
+          v && state.focusedArtifact
+            ? {
+                isSettingsOpen: true,
+                focusedArtifact: null,
+                isInfoPanelOpen: false,
+                isMovementLocked: false,
+              }
+            : { isSettingsOpen: v }
+        ),
       settings: defaultSettings,
       updateSettings: (newSettings) =>
         set((state) => ({
@@ -438,7 +514,22 @@ export const useMuseumStore = create<MuseumState>()(
         ),
 
       isVRMode: false,
-      setVRMode: (v) => set({ isVRMode: v }),
+      /**
+       * Entering VR also closes Pengaturan and recentres the gyro offset.
+       *
+       * SettingsPanel is rendered by HUD, and HUD renders nothing at all in VR.
+       * So a visitor who opened Pengaturan and then entered VR left
+       * `isSettingsOpen` stuck true behind a panel that had vanished without
+       * being closed — and it sprang back the instant they left VR, over a
+       * museum they had walked somewhere else in (audit 2026-08-05, C.2).
+       *
+       * `vrLookOffset` is cleared on the same transition because it is a
+       * correction applied to gyro readings from one particular way of holding
+       * the phone; carrying yesterday's correction into a fresh headset session
+       * points the visitor at a wall. Previously only the gamepad's Select
+       * button ever reset it, which left everyone without a pad stuck with it.
+       */
+      setVRMode: (v) => set({ isVRMode: v, isSettingsOpen: false, vrLookOffset: { yaw: 0, pitch: 0 } }),
       vrLookOffset: { yaw: 0, pitch: 0 },
       setVRLookOffset: (v) => set({ vrLookOffset: v }),
       vrRecenterSignal: 0,

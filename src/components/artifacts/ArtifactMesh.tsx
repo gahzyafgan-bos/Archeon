@@ -395,6 +395,7 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
       {artifact.url_model_3d ? (
         <ModelErrorBoundary
           url={artifact.url_model_3d}
+          artifactId={artifact.id}
           fallback={
             <mesh position={[0, y, 0]}>
               <PlaceholderGeometry shape={artifact.placeholder_shape} size={artifact.real_world_size} />
@@ -522,7 +523,7 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
  * cause (404, missing Draco decoder, corrupt asset) is visible in the console
  * rather than manifesting only as an invisible/absent piece. */
 class ModelErrorBoundary extends Component<
-  { url: string; fallback: ReactNode; children: ReactNode },
+  { url: string; artifactId: string; fallback: ReactNode; children: ReactNode },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -531,6 +532,11 @@ class ModelErrorBoundary extends Component<
   }
   componentDidCatch(error: unknown) {
     console.error(`[ArtifactModel] gagal memuat "${this.props.url}" — fallback ke placeholder.`, error);
+    // Also tell the rest of the app, so the visitor can be told too. The
+    // fallback below is a convincing object on a real pedestal, and without
+    // this the only party that ever learned the artifact was a stand-in was
+    // the console (audit 2026-08-05, P2-3). See InfoPanel, which says so.
+    useMuseumStore.getState().markModelFailed(this.props.artifactId);
   }
   render() {
     return this.state.failed ? this.props.fallback : this.props.children;

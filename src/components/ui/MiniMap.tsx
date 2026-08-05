@@ -1,6 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { ROOM_CONFIGS, getNearestZone } from "@/data/roomConfig";
 import { useMuseumStore, type RoomId } from "@/store/useMuseumStore";
+import type { Artifact } from "@/types/artifact";
 
 /**
  * Two-hall overview (spec section 8.3) instead of the old single-room grid:
@@ -18,10 +19,18 @@ import { useMuseumStore, type RoomId } from "@/store/useMuseumStore";
  */
 const HALL_ORDER: RoomId[] = ["hall-1", "hall-2"];
 
-export function MiniMapFrame({ canvasRef }: { canvasRef: React.RefObject<HTMLCanvasElement> }) {
+export function MiniMapFrame({
+  canvasRef,
+  artifacts,
+}: {
+  canvasRef: React.RefObject<HTMLCanvasElement>;
+  artifacts: Artifact[];
+}) {
   const activeZoneId = useMuseumStore((s) => s.activeZoneId);
   const activeRoom = useMuseumStore((s) => s.activeRoom);
+  const viewedIds = useMuseumStore((s) => s.viewedArtifactIds);
   const zoneLabel = ROOM_CONFIGS[activeRoom].zones.find((z) => z.id === activeZoneId)?.label ?? "";
+  const seenHere = artifacts.filter((a) => viewedIds.has(a.id)).length;
 
   return (
     <div className="fixed top-16 right-5 z-20 w-28 rounded-lg overflow-hidden glass-panel">
@@ -31,13 +40,36 @@ export function MiniMapFrame({ canvasRef }: { canvasRef: React.RefObject<HTMLCan
           {zoneLabel}
         </p>
       )}
+      {/* Reads the hollow/filled dots above out loud, and is the only place in
+          the app that has ever shown the visitor how much of a hall they have
+          actually looked at — the store has been recording it since
+          viewedArtifactIds was written and no component read it. Also a quiet
+          answer to "am I done here?", which is the question a visitor asks
+          right before they walk out of a hall having missed half of it. */}
+      {artifacts.length > 0 && (
+        <p className="text-[9px] text-center text-museum-mist/80 tracking-wide pb-1 px-1">
+          {seenHere} dari {artifacts.length} dilihat
+        </p>
+      )}
     </div>
   );
 }
 
-export function MiniMapTracker({ canvasEl, room }: { canvasEl: HTMLCanvasElement | null; room: RoomId }) {
+export function MiniMapTracker({
+  canvasEl,
+  room,
+  artifacts,
+}: {
+  canvasEl: HTMLCanvasElement | null;
+  room: RoomId;
+  artifacts: Artifact[];
+}) {
   const { camera } = useThree();
   const setActiveZoneId = useMuseumStore((s) => s.setActiveZoneId);
+  // Safe to subscribe to: markArtifactViewed only allocates a new Set when a
+  // visitor actually opens an artifact for the first time, so this re-renders
+  // a handful of times across an entire visit, not per frame.
+  const viewedIds = useMuseumStore((s) => s.viewedArtifactIds);
 
   useFrame(() => {
     if (!canvasEl) return;
@@ -87,7 +119,39 @@ export function MiniMapTracker({ canvasEl, room }: { canvasEl: HTMLCanvasElement
         ctx.fill();
       }
 
+      // The artifacts themselves.
+      //
+      // The map used to plot zones and nothing else, which made it a compass
+      // and not a guide: it could tell a visitor which part of the hall they
+      // were standing in, but never where anything actually was, so it could
+      // not be used to find a single object in the collection (audit
+      // 2026-08-05, P2-5). Together with P0-6 — walking straight from the
+      // entrance reaches no artifact at all — that left a visitor with no way
+      // to discover the museum except wandering.
+      //
+      // Hollow ring = not yet opened, filled = already read. That distinction
+      // is what turns the map into something you can finish: it answers "what
+      // have I still not seen" at a glance, from a Set the store was already
+      // keeping and nothing had ever displayed.
+      //
+      // Only the hall being rendered has an artifact list in memory; the other
+      // band stays zones-only rather than guessing.
       if (isActiveHall) {
+        for (const a of artifacts) {
+          const { px, py } = toCanvas(a.koordinat_ruangan.x, a.koordinat_ruangan.z);
+          ctx.beginPath();
+          ctx.arc(px, py, 2, 0, Math.PI * 2);
+          if (viewedIds.has(a.id)) {
+            ctx.fillStyle = "rgba(232,230,225,0.9)";
+            ctx.fill();
+          } else {
+            ctx.strokeStyle = "rgba(232,230,225,0.85)";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        }
+
+        // Player marker last, so it is never hidden under an artifact dot.
         const { px, py } = toCanvas(camera.position.x, camera.position.z);
         const dirX = Math.sin(camera.rotation.y) * -5 * scale * (hallW / 20);
         const dirZ = Math.cos(camera.rotation.y) * -5 * scale * (hallW / 20);

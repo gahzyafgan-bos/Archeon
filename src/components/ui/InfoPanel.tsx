@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo } from "react";
+import { Component, Suspense, useEffect, useMemo, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -18,6 +18,9 @@ export function InfoPanel() {
   // that's unreachable inside a Cardboard headset.
   const audio = useAudioGuide(isVRMode ? null : focusedArtifact);
   const settings = useMuseumStore((s) => s.settings);
+  const modelFailed = useMuseumStore(
+    (s) => focusedArtifact != null && s.failedModelIds.has(focusedArtifact.id)
+  );
 
   if (!focusedArtifact || isVRMode) return null;
 
@@ -66,9 +69,22 @@ export function InfoPanel() {
                 autoRotateSpeed={1.2}
               />
             </Canvas>
-            <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] tracking-widest uppercase text-museum-mist/80">
-              Seret untuk memutar 360°
-            </p>
+            {/* Says which of the two things the visitor is looking at. A failed
+                model falls back to a plain coloured shape that is convincing
+                enough to be mistaken for the artefact itself — telling them
+                otherwise is the whole point of P2-3. Kept to one line, in the
+                visitor's own words, with no error code: what they can act on is
+                "the connection", not a 404. */}
+            {modelFailed ? (
+              <p className="absolute bottom-2 left-1/2 -translate-x-1/2 w-full px-3 text-center text-[10px] tracking-wide text-museum-gold/90">
+                Wujud benda ini belum bisa ditampilkan — bentuk di atas hanya
+                gambaran sementara. Periksa koneksi Anda, lalu muat ulang.
+              </p>
+            ) : (
+              <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] tracking-widest uppercase text-museum-mist/80">
+                Seret untuk memutar 360°
+              </p>
+            )}
             <button
               onClick={handleClose}
               className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-museum-bone transition-colors"
@@ -190,16 +206,47 @@ export function InfoPanel() {
 function MiniArtifact({ artifact }: { artifact: Artifact }) {
   if (artifact.url_model_3d) {
     return (
-      <Suspense fallback={<MiniPlaceholder artifact={artifact} />}>
-        <MiniRealModel
-          url={artifact.url_model_3d}
-          rotationY={artifact.model_rotation_y}
-          materialOverride={artifact.material_override}
-        />
-      </Suspense>
+      // The boundary is not optional. <Suspense> catches the loading promise,
+      // never its rejection, so a `.glb` that 404s or fails to decode threw
+      // straight out of this Canvas — and the nearest boundary above it is
+      // AppErrorBoundary, meaning one missing model turned the whole museum
+      // into the fatal error screen the moment someone pressed E on the wrong
+      // artifact. ArtifactMesh has had this guard from the start; the panel's
+      // second, independent renderer of the same model never did.
+      <MiniModelBoundary
+        artifactId={artifact.id}
+        fallback={<MiniPlaceholder artifact={artifact} />}
+      >
+        <Suspense fallback={<MiniPlaceholder artifact={artifact} />}>
+          <MiniRealModel
+            url={artifact.url_model_3d}
+            rotationY={artifact.model_rotation_y}
+            materialOverride={artifact.material_override}
+          />
+        </Suspense>
+      </MiniModelBoundary>
     );
   }
   return <MiniPlaceholder artifact={artifact} />;
+}
+
+/** Same job as ArtifactMesh's ModelErrorBoundary, for the panel's own copy of
+ *  the model: degrade to the placeholder, and record the failure so the panel
+ *  can tell the visitor the shape they are looking at is a stand-in. */
+class MiniModelBoundary extends Component<
+  { artifactId: string; fallback: ReactNode; children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch() {
+    useMuseumStore.getState().markModelFailed(this.props.artifactId);
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
 }
 
 /** Real model preview normalized to fit this fixed-distance mini viewer,

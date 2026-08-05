@@ -32,6 +32,12 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Mpu Tantular" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <!-- Without this, every single page load fetched /favicon.ico, got the
+         SPA's index.html back from the host's catch-all rewrite, failed to
+         parse it as an image, and logged a 404 into a console a museum
+         technician might one day be reading for a real fault. Points at the
+         PWA icon that already ships rather than adding another file. -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <style>
       html, body {
         margin: 0;

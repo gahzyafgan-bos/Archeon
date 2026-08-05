@@ -283,7 +283,13 @@ export function MuseumExperience() {
           <Suspense fallback={null}>
             <Hall hall={room} artifacts={artifacts} />
             <PlayerRig room={room} artifacts={artifacts} onEnterDoor={handleEnterDoor} />
-            {!isVRMode && <MiniMapTracker canvasEl={miniMapCanvasRef.current} room={renderedRoom} />}
+            {!isVRMode && (
+              <MiniMapTracker
+                canvasEl={miniMapCanvasRef.current}
+                room={renderedRoom}
+                artifacts={artifacts}
+              />
+            )}
             {/* Artifact info lives IN the scene while VR is active, so the
                 stereo camera draws it into both eyes with the rest of the
                 world — a DOM panel can't reach either eye viewport. Mounted
@@ -318,7 +324,7 @@ export function MuseumExperience() {
         <Preload key={`preload-${renderedRoom}-${artifacts.length}`} all />
       </Canvas>
       {/* Hidden in VR mode: a single unmirrored corner overlay doesn't read correctly split across two eye viewports. */}
-      {!isVRMode && <MiniMapFrame canvasRef={miniMapCanvasRef} />}
+      {!isVRMode && <MiniMapFrame canvasRef={miniMapCanvasRef} artifacts={artifacts} />}
     </>
   );
 }

@@ -1,4 +1,5 @@
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap");
+/* The Google Fonts @import that stood here is gone — the faces are now
+   self-hosted and imported from src/main.tsx, which explains why. */
 
 @tailwind base;
 @tailwind components;
