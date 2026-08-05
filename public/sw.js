@@ -141,20 +141,38 @@ async function cacheFirst(event, request, cacheName) {
   if (hit) return hit;
 
   const response = await fetch(request);
-  // `basic` excludes opaque cross-origin replies, and `ok` excludes the 404
-  // that the host's SPA rewrite answers with an HTML page — caching that under
-  // a `.glb` URL would make one missing model permanent.
-  if (response.ok && response.type === "basic") {
+  if (isCacheable(response)) {
     keepAliveFor(event, cache.put(request, response.clone()));
   }
   return response;
+}
+
+/**
+ * Whether a response is safe to store under the URL that was asked for.
+ *
+ * `basic` excludes opaque cross-origin replies and `ok` excludes ordinary
+ * errors, but neither is enough here. This app is hosted as a single-page app,
+ * which means the host answers **anything it cannot find with a 200 and the
+ * contents of index.html** — the audit caught exactly that happening to
+ * `/images/brand/archeon-logo.webp`, a file that does not exist and that came
+ * back as a 2.7 kB HTML page (P3-2). Cache-first plus a 200 means one missing
+ * asset would be pinned as an HTML document under a `.glb`/`.webp` URL for as
+ * long as the cache lives, and the fallback that currently hides it would stop
+ * being able to.
+ *
+ * So: a non-document request must not be satisfied by a document.
+ */
+function isCacheable(response) {
+  if (!response.ok || response.type !== "basic") return false;
+  const type = response.headers.get("content-type") || "";
+  return !type.includes("text/html");
 }
 
 async function networkFirst(event, request, cacheName) {
   const cache = await caches.open(cacheName);
   try {
     const response = await fetch(request);
-    if (response.ok && response.type === "basic") {
+    if (isCacheable(response)) {
       keepAliveFor(event, cache.put(request, response.clone()));
     }
     return response;

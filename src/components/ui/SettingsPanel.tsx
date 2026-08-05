@@ -154,7 +154,12 @@ export function SettingsPanel() {
               {/* Deadzone */}
               <div>
                 <div className="mb-2">
-                  <label>Ukuran Deadzone</label>
+                  {/* "Ukuran Deadzone" told a visitor nothing — it is the one
+                      label in this panel that was still a bare English
+                      technical term (audit P3-6). Same parenthetical pattern
+                      the FOV and IPD rows already use: say it in Indonesian,
+                      keep the term for anyone who knows it. */}
+                  <label>Zona Diam Stik (Deadzone)</label>
                 </div>
                 <div className="flex gap-2">
                   {(["small", "medium", "large"] as const).map((size) => (
@@ -184,7 +189,7 @@ export function SettingsPanel() {
                       : "bg-museum-charcoal/50"
                   }`}
                 >
-                  {settings.invertY ? "On" : "Off"}
+                  {settings.invertY ? "Aktif" : "Mati"}
                 </button>
               </div>
 
@@ -229,7 +234,7 @@ export function SettingsPanel() {
                       : "bg-museum-charcoal/50"
                   }`}
                 >
-                  {settings.masterMuted ? "On" : "Off"}
+                  {settings.masterMuted ? "Aktif" : "Mati"}
                 </button>
               </div>
 
@@ -253,7 +258,7 @@ export function SettingsPanel() {
               {/* Volume Guide */}
               <div>
                 <div className="mb-2 flex justify-between">
-                  <label>Volume Audio Guide</label>
+                  <label>Volume Pemandu Audio</label>
                   <span className="text-museum-gold">{settings.volumeGuide}%</span>
                 </div>
                 <input
@@ -277,7 +282,7 @@ export function SettingsPanel() {
 
               {/* Show Subtitles */}
               <div className="flex items-center justify-between">
-                <label>Tampilkan Teks Audio Guide</label>
+                <label>Tampilkan Teks Pemandu Audio</label>
                 <button
                   onClick={() => updateSettings({ showSubtitles: !settings.showSubtitles })}
                   className={`w-14 h-8 rounded-full transition-all ${
@@ -286,7 +291,7 @@ export function SettingsPanel() {
                       : "bg-museum-charcoal/50"
                   }`}
                 >
-                  {settings.showSubtitles ? "On" : "Off"}
+                  {settings.showSubtitles ? "Aktif" : "Mati"}
                 </button>
               </div>
             </div>
@@ -345,7 +350,7 @@ export function SettingsPanel() {
                       : "bg-museum-charcoal/50"
                   }`}
                 >
-                  {settings.reduceMotion ? "On" : "Off"}
+                  {settings.reduceMotion ? "Aktif" : "Mati"}
                 </button>
               </div>
 
@@ -377,7 +382,7 @@ export function SettingsPanel() {
                       : "bg-museum-charcoal/50"
                   }`}
                 >
-                  {settings.highContrast ? "On" : "Off"}
+                  {settings.highContrast ? "Aktif" : "Mati"}
                 </button>
               </div>
 

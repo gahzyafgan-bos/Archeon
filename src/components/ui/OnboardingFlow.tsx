@@ -228,7 +228,11 @@ export function OnboardingFlow() {
                   {/* Canvas screen decoration */}
                   <div className="text-center py-1 opacity-45">
                     <span className="text-[10px] text-museum-mist block font-mono">Museum</span>
-                    <span className="text-[8px] text-museum-mist block uppercase tracking-widest">3D View</span>
+                    {/* Was "3D View" — the last stray English string sitting on
+                        a screen a visitor reads before they have moved once
+                        (audit P3-6). It labels the illustrated screen inside
+                        the control diagram, so it says what the screen shows. */}
+                    <span className="text-[8px] text-museum-mist block uppercase tracking-widest">Ruang Pamer</span>
                   </div>
 
                   {/* Right joystick */}
@@ -288,7 +292,7 @@ export function OnboardingFlow() {
                 Sentuh Setiap Kisah
               </h2>
               <p className="text-museum-mist text-xs md:text-sm mb-6 max-w-sm">
-                Dekati artefak hingga muncul lingkaran bersinar, lalu tekan tombol interaksi untuk melihat info detail & audio guide.
+                Dekati artefak hingga muncul lingkaran bersinar, lalu tekan tombol interaksi untuk melihat info detail & pemandu audio.
               </p>
 
               {/* Interaction Visual Animation */}

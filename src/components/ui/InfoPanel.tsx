@@ -174,11 +174,11 @@ export function InfoPanel() {
                 disabled={!audio.hasAudio}
                 className="flex items-center gap-2 px-4 py-2 rounded-full border border-museum-gold/50 text-museum-gold text-sm hover:bg-museum-gold/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                {audio.isPlaying ? "❚❚ Jeda" : "▶ Audio Guide"}
+                {audio.isPlaying ? "❚❚ Jeda" : "▶ Pemandu Audio"}
               </button>
               {!audio.hasAudio && (
                 <span className="text-museum-mist/60 text-xs italic">
-                  Audio guide belum tersedia
+                  Pemandu audio belum tersedia
                 </span>
               )}
             </div>
