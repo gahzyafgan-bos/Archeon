@@ -12,6 +12,7 @@ import { useSoundtrack } from "@/hooks/useSoundtrack";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
 import { useAdjacentHallPreload } from "@/hooks/useAdjacentHallPreload";
+import { useOrderedModelPreload } from "@/hooks/useOrderedModelPreload";
 import { initKTX2Support } from "@/utils/modelLoader";
 import { MiniMapFrame, MiniMapTracker } from "./ui/MiniMap";
 import { roomCrossfadeMs } from "./ui/RoomTransition";
@@ -116,6 +117,10 @@ export function MuseumExperience() {
   // timer. Works outside the Canvas too (plain zustand subscription), so it
   // can drive the DOM LoadingScreen directly.
   const { progress: glProgress, active: glActive } = useProgress();
+
+  // Warm THIS hall's models, nearest to the entrance first. Same request set
+  // as before and just as eager; only the order changed. See the hook.
+  useOrderedModelPreload(artifacts, ROOM_CONFIGS[renderedRoom]);
 
   // Warm the *next* hall's heavy models during idle time — but only once the
   // current hall has settled (dataReady && nothing still loading), so this

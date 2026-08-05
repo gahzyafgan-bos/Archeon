@@ -8,7 +8,7 @@ import type { Artifact } from "@/types/artifact";
 import { DustParticles } from "./DustParticles";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
 import { objectFootprintRadius } from "@/utils/artifactSize";
-import { DRACO_DECODER_PATH, extendModelLoader, preloadModel } from "@/utils/modelLoader";
+import { DRACO_DECODER_PATH, extendModelLoader } from "@/utils/modelLoader";
 
 interface ArtifactMeshProps {
   artifact: Artifact;
@@ -191,17 +191,19 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
     if (modelGroupRef.current) modelGroupRef.current.rotation.y += spin;
   });
 
-  // Eager-load every artifact's real model as soon as its hall mounts, so the
-  // arca/artefak are already there the moment the room opens — not popped in
-  // only after the player walks up to each one (explicit product requirement:
-  // "dari awal dibuka arca dan artefak lain harus sudah ada"). Only the active
-  // hall's artifacts are mounted at a time, so this preloads one hall's set,
-  // not the whole museum. (The old per-distance gate that deferred this is
-  // gone; if mobile download cost becomes a concern, reintroduce it behind a
-  // device/graphics-preset check rather than for every client.)
-  useEffect(() => {
-    preloadModel(artifact.url_model_3d);
-  }, [artifact.url_model_3d]);
+  // The eager preload that stood here has moved to useOrderedModelPreload,
+  // called once per hall from MuseumExperience.
+  //
+  // Nothing about *when* loading starts changed — every model is still
+  // requested the moment the hall mounts, for every client, because of the
+  // product requirement this component was built around: "dari awal dibuka
+  // arca dan artefak lain harus sudah ada", i.e. pieces must never pop in as
+  // the visitor walks up to them. What changed is the ORDER. Firing one
+  // preload per mounted component meant the request order was the render
+  // order was the order of artifacts.json — unrelated to where the visitor
+  // is standing. One caller that can see the whole list can sort it by
+  // distance from the entrance, which is what decides which models have
+  // arrived when the doors open. See the hook for the measurements.
 
   return (
     <group position={[x, 0, z]} rotation={[0, artifact.rotasi_y ?? 0, 0]}>
