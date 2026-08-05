@@ -255,7 +255,25 @@ export function MuseumExperience() {
         // "fog/draw distance dipendekkan") gives three.js's own frustum
         // culling a tighter volume to reject geometry against, on top of
         // fog's purely visual falloff.
-        camera={{ fov: 68, near: 0.1, far: graphicsPreset.cameraFar }}
+        //
+        // `near` was 0.1, and that is the single biggest cause of the shimmer
+        // on the floor. Depth precision is dominated by the near plane, not
+        // the far one: resolvable depth at distance z is roughly
+        // z² / (near × depthBufferSteps). Across a 24 m hall at grazing angles
+        // — which is exactly how a standing visitor sees the floor — a phone
+        // with a 16-bit depth buffer resolves about 3 cm at the far wall with
+        // near = 0.1. The floor's inlays, borders and medallions are stacked
+        // 5-20 mm apart, so they were well inside one depth step and flickered
+        // against each other and against the floor.
+        //
+        // 0.25 m is a 2.5x precision gain and costs nothing visible: nothing
+        // ever gets that close to the eye. Artifact focus parks the camera at
+        // least 1.5 m from a piece (see PlayerRig), and the wall clamp keeps
+        // the player 0.5 m inside the room bound while the wall's inner face
+        // is only 0.15 m outside it — 0.35 m away, still 10 cm clear of the
+        // near plane. Paired with the polygonOffset the floor decals now carry
+        // (see RoomShell), which fixes the same problem from the other side.
+        camera={{ fov: 68, near: 0.25, far: graphicsPreset.cameraFar }}
         // Both branches come from the SAME preset table — VR has its own row
         // (vrDpr), it does not have its own rule. What used to be here was
         // `isVRMode ? [1, 1] : ...`, which threw devicePixelRatio away: on a

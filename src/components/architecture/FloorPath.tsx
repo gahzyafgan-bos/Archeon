@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { FLOOR_LAYER, floorDecal } from "@/utils/floorDecals";
 import type { RoomConfig } from "@/data/roomConfig";
 
 interface PathNode {
@@ -72,14 +73,30 @@ export function FloorPath({ room }: { room: RoomConfig }) {
         const midX = (a.x + b.x) / 2;
         const midZ = (a.z + b.z) / 2;
         return (
-          <group key={i} position={[midX, 0.02, midZ]} rotation={[0, angle, 0]}>
+          // Raised from 0.02 to 0.028. The path is a 1.5 cm-thick slab, not a
+          // plane, so its centre height is not where it meets the floor — its
+          // underside was at 0.0125, which is BELOW the zone inlays at 0.015
+          // and the centre medallion at 0.016. Every place the path crossed
+          // one, the inlay passed straight through the slab and the two fought
+          // along the intersection. At 0.028 the underside clears all of them.
+          <group key={i} position={[midX, 0.028, midZ]} rotation={[0, angle, 0]}>
             <mesh>
               <boxGeometry args={[0.45, 0.015, len]} />
-              <meshStandardMaterial color={a.accent} transparent opacity={0.5} />
+              <meshStandardMaterial
+                color={a.accent}
+                transparent
+                opacity={0.5}
+                {...floorDecal(FLOOR_LAYER.path)}
+              />
             </mesh>
             <mesh position={[0, 0.01, len * 0.28]} rotation={[Math.PI / 2, 0, 0]}>
               <coneGeometry args={[0.28, 0.6, 3]} />
-              <meshStandardMaterial color={a.accent} transparent opacity={0.75} />
+              <meshStandardMaterial
+                color={a.accent}
+                transparent
+                opacity={0.75}
+                {...floorDecal(FLOOR_LAYER.pathArrow)}
+              />
             </mesh>
           </group>
         );

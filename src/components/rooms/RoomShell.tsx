@@ -40,6 +40,7 @@ import {
   beamUnderside,
 } from "@/utils/hallGeometry";
 import { objectFootprintRadius } from "@/utils/artifactSize";
+import { FLOOR_LAYER, floorDecal } from "@/utils/floorDecals";
 
 const WOOD_COLOR = "#7A5230";
 /** Destination plate on an archway lintel. Sized to sit inside the 0.5 m-deep
@@ -322,7 +323,24 @@ function ArchwayGlimpse({ door, wallZ, outwardSign }: { door: Door; wallZ: numbe
   const target = ROOM_CONFIGS[door.targetRoom];
   const targetLabel = target.zones[0]?.label ?? target.name;
   const peekDepth = 2.4;
-  const peekZ = wallZ + outwardSign * (peekDepth / 2 + 0.05);
+  /**
+   * The strip used to start 5 cm *beyond* the wall line, at y = 0.01.
+   *
+   * The room's floor plane ends exactly on the bound, and an archway has no
+   * wall below the lintel to hide anything — so those 5 cm were a slot of
+   * pure nothing across the threshold, with the scene background showing
+   * through it, and the 1 cm height difference put a lip on the far side of
+   * the slot. Standing in the gate and looking down, that is a dark seam
+   * across the doorway; walking through it, it flickers as the two edges
+   * cross the same pixels. It is the most likely thing anyone means by "the
+   * gate glitches".
+   *
+   * Now it starts 5 cm *inside* the bound, so it overlaps the room floor
+   * instead of leaving a gap, and sits at the same height as the floor rather
+   * than a centimetre above it. Coplanar overlap is exactly what polygonOffset
+   * is for — see the material below.
+   */
+  const peekZ = wallZ + outwardSign * (peekDepth / 2 - 0.05);
 
   const signTexture = useMemo(
     () =>
@@ -344,13 +362,14 @@ function ArchwayGlimpse({ door, wallZ, outwardSign }: { door: Door; wallZ: numbe
 
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[door.position.x, 0.01, peekZ]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[door.position.x, 0, peekZ]} receiveShadow>
         <planeGeometry args={[ARCHWAY_WIDTH - 0.6, peekDepth]} />
         <meshStandardMaterial
           color={target.floorColor}
           emissive={target.accentColor}
           emissiveIntensity={0.25}
           roughness={0.6}
+          {...floorDecal(FLOOR_LAYER.trim)}
         />
       </mesh>
       <pointLight
@@ -626,11 +645,23 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
           from fighting with the zone floor motifs near the short walls/archway) */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[centerX, 0.01, minZ + 1.2]} receiveShadow>
         <planeGeometry args={[floorBorderLength, FLOOR_BORDER_WIDTH]} />
-        <meshStandardMaterial map={floorBorderTexture} roughness={0.8} transparent opacity={0.5} />
+        <meshStandardMaterial
+          map={floorBorderTexture}
+          roughness={0.8}
+          transparent
+          opacity={0.5}
+          {...floorDecal(FLOOR_LAYER.trim)}
+        />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[centerX, 0.01, maxZ - 1.2]} receiveShadow>
         <planeGeometry args={[floorBorderLength, FLOOR_BORDER_WIDTH]} />
-        <meshStandardMaterial map={floorBorderTexture} roughness={0.8} transparent opacity={0.5} />
+        <meshStandardMaterial
+          map={floorBorderTexture}
+          roughness={0.8}
+          transparent
+          opacity={0.5}
+          {...floorDecal(FLOOR_LAYER.trim)}
+        />
       </mesh>
 
       {/* Zone floor motifs — the main way zones read as distinct without a wall in sight */}
@@ -769,7 +800,20 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
         // forces one fresh bake after the (async-loaded) artifacts actually
         // mount instead of baking an empty floor on first render.
         key={`contact-shadows-${artifacts.length}`}
-        position={[centerX, 0.015, centerZ]}
+        // Was 0.015 — the exact height of the zone floor inlays, on a plane
+        // that spans the entire hall. Two coplanar surfaces over 24 metres of
+        // floor, seen almost edge-on by a standing visitor: that is the floor
+        // shimmer. drei gives this material depthWrite: false, so it was never
+        // corrupting the depth buffer; it was the depth *test* tying with the
+        // inlays and resolving differently pixel to pixel.
+        //
+        // Moved to the top of the floor stack rather than the bottom, which is
+        // also where a shadow belongs: it falls ON the inlays and the walking
+        // path, the way a real one would, instead of being hidden underneath
+        // them. Because it writes no depth, nothing drawn afterwards is
+        // affected by it sitting up here. 0.06 clears the tallest thing in the
+        // stack (the path slab, top at 0.0355) with room to spare.
+        position={[centerX, 0.06, centerZ]}
         opacity={0.45}
         scale={[width, depth]}
         blur={2.2}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Pillar } from "./Pillar";
 import { applyBatikWorldScale, createBatikPattern } from "@/utils/batikPatterns";
+import { FLOOR_LAYER, floorDecal } from "@/utils/floorDecals";
 
 const BRASS = "#B08D3C";
 const MEDALLION_RADIUS = 1.6;
@@ -53,11 +54,20 @@ export function CenterInstallation({
       {/* Floor medallion */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[center.x, 0.016, center.z]} receiveShadow>
         <circleGeometry args={[MEDALLION_RADIUS, 48]} />
-        <meshStandardMaterial map={medallionTexture} roughness={0.85} />
+        <meshStandardMaterial
+          map={medallionTexture}
+          roughness={0.85}
+          {...floorDecal(FLOOR_LAYER.medallion)}
+        />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[center.x, 0.017, center.z]}>
         <ringGeometry args={[MEDALLION_RADIUS - 0.05, MEDALLION_RADIUS + 0.02, 48]} />
-        <meshStandardMaterial color={BRASS} roughness={0.5} metalness={0.4} />
+        <meshStandardMaterial
+          color={BRASS}
+          roughness={0.5}
+          metalness={0.4}
+          {...floorDecal(FLOOR_LAYER.medallionRing)}
+        />
       </mesh>
 
       {/* Flanking pillars, mirroring the hero-framing pillar language used
