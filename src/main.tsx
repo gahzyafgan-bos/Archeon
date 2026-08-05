@@ -40,8 +40,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   </React.StrictMode>
 );
 
-// Registering a (deliberately caching-free) service worker is one of the two
-// criteria Chrome checks before offering "Add to Home Screen" — see public/sw.js.
+// Registering a service worker is one of the two criteria Chrome checks before
+// offering "Add to Home Screen", and since the caching rewrite it is also what
+// makes a second visit — or a kiosk device handed to the next visitor — cost
+// almost nothing instead of another 40 MB. See public/sw.js.
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
