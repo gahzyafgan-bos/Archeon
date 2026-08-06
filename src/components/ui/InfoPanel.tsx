@@ -1,6 +1,6 @@
-import { Suspense, useEffect, useMemo } from "react";
+import { Component, Suspense, useEffect, useMemo, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Environment, useGLTF } from "@react-three/drei";
+import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { useAudioGuide } from "@/hooks/useAudioGuide";
@@ -18,6 +18,9 @@ export function InfoPanel() {
   // that's unreachable inside a Cardboard headset.
   const audio = useAudioGuide(isVRMode ? null : focusedArtifact);
   const settings = useMuseumStore((s) => s.settings);
+  const modelFailed = useMuseumStore(
+    (s) => focusedArtifact != null && s.failedModelIds.has(focusedArtifact.id)
+  );
 
   if (!focusedArtifact || isVRMode) return null;
 
@@ -41,10 +44,22 @@ export function InfoPanel() {
               buttons below it nowhere to go. */}
           <div className="h-56 sm:h-64 short:h-32 shrink-0 bg-museum-charcoal/60 relative">
             <Canvas camera={{ position: [0, 0.4, 2.6], fov: settings.cameraFOV }}>
-              <ambientLight intensity={0.6} />
-              <directionalLight position={[3, 4, 2]} intensity={1.4} />
+              {/* Three plain lights instead of <Environment preset="city" />.
+                  That preset was doing two harmful things at once. It fetched a
+                  multi-megabyte HDR from a third-party CDN — every panel open,
+                  from a host we don't control, which simply fails on a museum
+                  network with no route to the internet. And it built a fresh
+                  PMREM cubemap per open with nothing disposing it: the audit
+                  measured 184 textures and 390 buffers leaked across 20
+                  open/close cycles, invisible to the JS heap profiler because
+                  it is all GPU memory. On a phone that is the road to a lost
+                  context. A key/fill/rim trio costs nothing, never touches the
+                  network, and reads better on a small preview than an
+                  environment map the viewer can't see the source of anyway. */}
+              <ambientLight intensity={0.75} />
+              <directionalLight position={[3, 4, 2]} intensity={1.5} />
+              <directionalLight position={[-3, 1.5, -2]} intensity={0.5} color="#cfd8e8" />
               <MiniArtifact artifact={focusedArtifact} />
-              <Environment preset="city" />
               <OrbitControls
                 enablePan={false}
                 enableZoom={true}
@@ -54,9 +69,22 @@ export function InfoPanel() {
                 autoRotateSpeed={1.2}
               />
             </Canvas>
-            <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] tracking-widest uppercase text-museum-mist/80">
-              Seret untuk memutar 360°
-            </p>
+            {/* Says which of the two things the visitor is looking at. A failed
+                model falls back to a plain coloured shape that is convincing
+                enough to be mistaken for the artefact itself — telling them
+                otherwise is the whole point of P2-3. Kept to one line, in the
+                visitor's own words, with no error code: what they can act on is
+                "the connection", not a 404. */}
+            {modelFailed ? (
+              <p className="absolute bottom-2 left-1/2 -translate-x-1/2 w-full px-3 text-center text-[10px] tracking-wide text-museum-gold/90">
+                Wujud benda ini belum bisa ditampilkan — bentuk di atas hanya
+                gambaran sementara. Periksa koneksi Anda, lalu muat ulang.
+              </p>
+            ) : (
+              <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] tracking-widest uppercase text-museum-mist/80">
+                Seret untuk memutar 360°
+              </p>
+            )}
             <button
               onClick={handleClose}
               className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-museum-bone transition-colors"
@@ -146,11 +174,11 @@ export function InfoPanel() {
                 disabled={!audio.hasAudio}
                 className="flex items-center gap-2 px-4 py-2 rounded-full border border-museum-gold/50 text-museum-gold text-sm hover:bg-museum-gold/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                {audio.isPlaying ? "❚❚ Jeda" : "▶ Audio Guide"}
+                {audio.isPlaying ? "❚❚ Jeda" : "▶ Pemandu Audio"}
               </button>
               {!audio.hasAudio && (
                 <span className="text-museum-mist/60 text-xs italic">
-                  Audio guide belum tersedia
+                  Pemandu audio belum tersedia
                 </span>
               )}
             </div>
@@ -178,16 +206,47 @@ export function InfoPanel() {
 function MiniArtifact({ artifact }: { artifact: Artifact }) {
   if (artifact.url_model_3d) {
     return (
-      <Suspense fallback={<MiniPlaceholder artifact={artifact} />}>
-        <MiniRealModel
-          url={artifact.url_model_3d}
-          rotationY={artifact.model_rotation_y}
-          materialOverride={artifact.material_override}
-        />
-      </Suspense>
+      // The boundary is not optional. <Suspense> catches the loading promise,
+      // never its rejection, so a `.glb` that 404s or fails to decode threw
+      // straight out of this Canvas — and the nearest boundary above it is
+      // AppErrorBoundary, meaning one missing model turned the whole museum
+      // into the fatal error screen the moment someone pressed E on the wrong
+      // artifact. ArtifactMesh has had this guard from the start; the panel's
+      // second, independent renderer of the same model never did.
+      <MiniModelBoundary
+        artifactId={artifact.id}
+        fallback={<MiniPlaceholder artifact={artifact} />}
+      >
+        <Suspense fallback={<MiniPlaceholder artifact={artifact} />}>
+          <MiniRealModel
+            url={artifact.url_model_3d}
+            rotationY={artifact.model_rotation_y}
+            materialOverride={artifact.material_override}
+          />
+        </Suspense>
+      </MiniModelBoundary>
     );
   }
   return <MiniPlaceholder artifact={artifact} />;
+}
+
+/** Same job as ArtifactMesh's ModelErrorBoundary, for the panel's own copy of
+ *  the model: degrade to the placeholder, and record the failure so the panel
+ *  can tell the visitor the shape they are looking at is a stand-in. */
+class MiniModelBoundary extends Component<
+  { artifactId: string; fallback: ReactNode; children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch() {
+    useMuseumStore.getState().markModelFailed(this.props.artifactId);
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
 }
 
 /** Real model preview normalized to fit this fixed-distance mini viewer,
@@ -212,6 +271,10 @@ function MiniRealModel({
   const { model, offset, fitScale, ownedMaterials } = useMemo(() => {
     const clone = scene.clone(true);
     // Clone before recolouring — see the matching note in ArtifactMesh.
+    // `owned` is everything THIS component created and is therefore the only
+    // thing it is allowed to dispose: the source materials belong to the
+    // cached GLTF that the main scene is still rendering from, and disposing
+    // those would blank the artifact in the hall behind the panel.
     const owned: THREE.Material[] = [];
     if (materialOverride) {
       clone.traverse((obj) => {

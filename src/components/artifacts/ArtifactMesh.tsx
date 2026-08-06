@@ -8,7 +8,7 @@ import type { Artifact } from "@/types/artifact";
 import { DustParticles } from "./DustParticles";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
 import { objectFootprintRadius } from "@/utils/artifactSize";
-import { DRACO_DECODER_PATH, extendModelLoader, preloadModel } from "@/utils/modelLoader";
+import { DRACO_DECODER_PATH, extendModelLoader } from "@/utils/modelLoader";
 
 interface ArtifactMeshProps {
   artifact: Artifact;
@@ -191,17 +191,19 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
     if (modelGroupRef.current) modelGroupRef.current.rotation.y += spin;
   });
 
-  // Eager-load every artifact's real model as soon as its hall mounts, so the
-  // arca/artefak are already there the moment the room opens — not popped in
-  // only after the player walks up to each one (explicit product requirement:
-  // "dari awal dibuka arca dan artefak lain harus sudah ada"). Only the active
-  // hall's artifacts are mounted at a time, so this preloads one hall's set,
-  // not the whole museum. (The old per-distance gate that deferred this is
-  // gone; if mobile download cost becomes a concern, reintroduce it behind a
-  // device/graphics-preset check rather than for every client.)
-  useEffect(() => {
-    preloadModel(artifact.url_model_3d);
-  }, [artifact.url_model_3d]);
+  // The eager preload that stood here has moved to useOrderedModelPreload,
+  // called once per hall from MuseumExperience.
+  //
+  // Nothing about *when* loading starts changed — every model is still
+  // requested the moment the hall mounts, for every client, because of the
+  // product requirement this component was built around: "dari awal dibuka
+  // arca dan artefak lain harus sudah ada", i.e. pieces must never pop in as
+  // the visitor walks up to them. What changed is the ORDER. Firing one
+  // preload per mounted component meant the request order was the render
+  // order was the order of artifacts.json — unrelated to where the visitor
+  // is standing. One caller that can see the whole list can sort it by
+  // distance from the entrance, which is what decides which models have
+  // arrived when the doors open. See the hook for the measurements.
 
   return (
     <group position={[x, 0, z]} rotation={[0, artifact.rotasi_y ?? 0, 0]}>
@@ -395,6 +397,7 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
       {artifact.url_model_3d ? (
         <ModelErrorBoundary
           url={artifact.url_model_3d}
+          artifactId={artifact.id}
           fallback={
             <mesh position={[0, y, 0]}>
               <PlaceholderGeometry shape={artifact.placeholder_shape} size={artifact.real_world_size} />
@@ -522,7 +525,7 @@ function ArtifactMeshWithModel({ artifact, accentColor }: ArtifactMeshProps) {
  * cause (404, missing Draco decoder, corrupt asset) is visible in the console
  * rather than manifesting only as an invisible/absent piece. */
 class ModelErrorBoundary extends Component<
-  { url: string; fallback: ReactNode; children: ReactNode },
+  { url: string; artifactId: string; fallback: ReactNode; children: ReactNode },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -531,6 +534,11 @@ class ModelErrorBoundary extends Component<
   }
   componentDidCatch(error: unknown) {
     console.error(`[ArtifactModel] gagal memuat "${this.props.url}" — fallback ke placeholder.`, error);
+    // Also tell the rest of the app, so the visitor can be told too. The
+    // fallback below is a convincing object on a real pedestal, and without
+    // this the only party that ever learned the artifact was a stand-in was
+    // the console (audit 2026-08-05, P2-3). See InfoPanel, which says so.
+    useMuseumStore.getState().markModelFailed(this.props.artifactId);
   }
   render() {
     return this.state.failed ? this.props.fallback : this.props.children;
@@ -570,7 +578,16 @@ function RealArtifactModel({
 }) {
   const { scene } = useGLTF(url, DRACO_DECODER_PATH, true, extendModelLoader);
   useEffect(() => {
-    console.info(`[ArtifactModel] ✓ termuat & ter-decode: ${url}`);
+    // Dev only. This shipped ungated and produced 35 console entries per
+    // session in the production build (audit 2026-08-05, P2-1) — noise that
+    // buries the messages that actually matter, in the one place a museum
+    // technician would look when something is wrong. The failure path below
+    // (componentDidCatch) stays loud in production on purpose; success does
+    // not need announcing.
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.info(`[ArtifactModel] ✓ termuat & ter-decode: ${url}`);
+    }
   }, [url]);
   const { model, fitScale, ownedMaterials } = useMemo(() => {
     const clone = scene.clone(true);

@@ -31,9 +31,6 @@ export function SettingsPanel() {
     if (e.target === e.currentTarget) setIsSettingsOpen(false);
   };
 
-  const deadzoneMap: Record<string, number> = { small: 0.05, medium: 0.1, large: 0.2 };
-  const reverseDeadzoneMap: Record<number, string> = { 0.05: "small", 0.1: "medium", 0.2: "large" };
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm"
@@ -157,7 +154,12 @@ export function SettingsPanel() {
               {/* Deadzone */}
               <div>
                 <div className="mb-2">
-                  <label>Ukuran Deadzone</label>
+                  {/* "Ukuran Deadzone" told a visitor nothing — it is the one
+                      label in this panel that was still a bare English
+                      technical term (audit P3-6). Same parenthetical pattern
+                      the FOV and IPD rows already use: say it in Indonesian,
+                      keep the term for anyone who knows it. */}
+                  <label>Zona Diam Stik (Deadzone)</label>
                 </div>
                 <div className="flex gap-2">
                   {(["small", "medium", "large"] as const).map((size) => (
@@ -187,7 +189,7 @@ export function SettingsPanel() {
                       : "bg-museum-charcoal/50"
                   }`}
                 >
-                  {settings.invertY ? "On" : "Off"}
+                  {settings.invertY ? "Aktif" : "Mati"}
                 </button>
               </div>
 
@@ -232,7 +234,7 @@ export function SettingsPanel() {
                       : "bg-museum-charcoal/50"
                   }`}
                 >
-                  {settings.masterMuted ? "On" : "Off"}
+                  {settings.masterMuted ? "Aktif" : "Mati"}
                 </button>
               </div>
 
@@ -256,7 +258,7 @@ export function SettingsPanel() {
               {/* Volume Guide */}
               <div>
                 <div className="mb-2 flex justify-between">
-                  <label>Volume Audio Guide</label>
+                  <label>Volume Pemandu Audio</label>
                   <span className="text-museum-gold">{settings.volumeGuide}%</span>
                 </div>
                 <input
@@ -270,26 +272,17 @@ export function SettingsPanel() {
                 />
               </div>
 
-              {/* Volume UI */}
-              <div>
-                <div className="mb-2 flex justify-between">
-                  <label>Volume Efek UI</label>
-                  <span className="text-museum-gold">{settings.volumeUI}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={settings.volumeUI}
-                  onChange={(e) => updateSettings({ volumeUI: parseInt(e.target.value) })}
-                  className="w-full h-2 bg-museum-charcoal/50 rounded-lg appearance-none cursor-pointer accent-museum-gold"
-                />
-              </div>
+              {/* "Volume Efek UI" stood here and controlled nothing: there are
+                  no UI sound effects anywhere in this app, so `volumeUI` had
+                  zero consumers (audit 2026-08-05, P1-2). Removed rather than
+                  wired up, because inventing button clicks purely to justify a
+                  slider is the wrong direction — a museum should be quiet. The
+                  field itself stays in Settings so a returning visitor's saved
+                  preferences still parse; it simply has no control any more. */}
 
               {/* Show Subtitles */}
               <div className="flex items-center justify-between">
-                <label>Tampilkan Teks Audio Guide</label>
+                <label>Tampilkan Teks Pemandu Audio</label>
                 <button
                   onClick={() => updateSettings({ showSubtitles: !settings.showSubtitles })}
                   className={`w-14 h-8 rounded-full transition-all ${
@@ -298,7 +291,7 @@ export function SettingsPanel() {
                       : "bg-museum-charcoal/50"
                   }`}
                 >
-                  {settings.showSubtitles ? "On" : "Off"}
+                  {settings.showSubtitles ? "Aktif" : "Mati"}
                 </button>
               </div>
             </div>
@@ -329,6 +322,21 @@ export function SettingsPanel() {
                 <p className="text-museum-mist/70 text-[10px] mt-1">
                   {GRAPHICS_QUALITY_LABELS[settings.graphicsQuality].desc}
                 </p>
+                {/* Says out loud what useGraphicsPreset does silently. Mode VR
+                    draws the entire museum twice per frame, once per eye, so
+                    the tier is clamped to Rendah for as long as it is running
+                    no matter what is picked here. Before this line, a visitor
+                    who chose Tinggi and then put the phone in a headset saw the
+                    low settings and had no way to know why — the setting looked
+                    broken (audit 2026-08-05, P2-9). The choice is not
+                    discarded: it comes back the moment VR is left. */}
+                {settings.graphicsQuality !== "rendah" && (
+                  <p className="text-museum-mist/60 text-[10px] mt-1 italic">
+                    Di dalam Mode VR, kualitas otomatis turun ke Rendah karena
+                    pemandangan digambar dua kali (satu per mata). Pilihan Anda
+                    kembali setelah keluar dari Mode VR.
+                  </p>
+                )}
               </div>
 
               {/* Reduce Motion */}
@@ -342,7 +350,7 @@ export function SettingsPanel() {
                       : "bg-museum-charcoal/50"
                   }`}
                 >
-                  {settings.reduceMotion ? "On" : "Off"}
+                  {settings.reduceMotion ? "Aktif" : "Mati"}
                 </button>
               </div>
 
@@ -374,7 +382,7 @@ export function SettingsPanel() {
                       : "bg-museum-charcoal/50"
                   }`}
                 >
-                  {settings.highContrast ? "On" : "Off"}
+                  {settings.highContrast ? "Aktif" : "Mati"}
                 </button>
               </div>
 
@@ -448,6 +456,41 @@ export function SettingsPanel() {
                   Ukur sisi panjang layar HP kamu pakai penggaris, lalu isi di sini. Cukup sekali —
                   setelah benar, semua perhitungan VR ikut benar. Browser tidak bisa membaca ukuran
                   layar sendiri, jadi ini satu-satunya angka yang harus kamu beri tahu.
+                </p>
+                {/* Tanpa penggaris, tombol ini yang menyelamatkan.
+                    Slidernya sudah benar dan penjelasannya sudah jelas, tapi
+                    keduanya mengandaikan pengunjung memegang penggaris — dan
+                    di dalam museum tidak ada yang memegang penggaris. Nilai
+                    default 145 mm adalah HP Android 6,3 inci, dan di iPhone
+                    6,1 inci (130 mm) itu menggeser tiap mata 3,26 mm terlalu
+                    ke dalam. Rumusnya `1 - 2*lensa/lebar` adalah selisih dua
+                    panjang yang mirip, jadi salah 15 mm di input jadi salah
+                    4x di output — persis besaran yang dulu tercatat sebagai
+                    "gambar dobel". Tiga tombol menghapus seluruh kelas masalah
+                    ini untuk mayoritas perangkat. */}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {[
+                    { label: 'iPhone kecil 4,7"', mm: 104 },
+                    { label: 'iPhone 6,1"', mm: 130 },
+                    { label: 'iPhone Pro Max 6,7"', mm: 143 },
+                    { label: 'Android 6,5"', mm: 150 },
+                  ].map((p) => (
+                    <button
+                      key={p.mm}
+                      onClick={() => updateSettings({ vrScreenWidthMm: p.mm })}
+                      className={`px-2.5 py-1 rounded-full border text-[10px] transition-all ${
+                        settings.vrScreenWidthMm === p.mm
+                          ? "bg-museum-gold/20 border-museum-gold/50 text-museum-gold"
+                          : "border-white/10 text-museum-mist hover:text-museum-bone"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-museum-mist/60 text-[10px] mt-1.5 italic">
+                  Kalau gambarnya terlihat dobel di iPhone, ini penyebab paling sering — pilih
+                  ukuran yang paling mendekati HP-mu dulu sebelum menyentuh dua setelan di bawah.
                 </p>
               </div>
 

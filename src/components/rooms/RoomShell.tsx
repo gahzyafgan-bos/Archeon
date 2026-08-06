@@ -1,8 +1,8 @@
-import { ReactNode, useEffect, useMemo, useRef } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { ReactNode, useEffect, useMemo } from "react";
+import { useThree } from "@react-three/fiber";
 import { ContactShadows, Environment, Instances, Instance } from "@react-three/drei";
 import * as THREE from "three";
-import type { RoomConfig, RoomBounds, Door, ZoneConfig } from "@/data/roomConfig";
+import type { RoomConfig, RoomBounds, Door } from "@/data/roomConfig";
 import { ARCHWAY_WIDTH, ARCHWAY_HEIGHT, ROOM_CONFIGS, getNearestZone } from "@/data/roomConfig";
 import type { Artifact, ZoneId } from "@/types/artifact";
 import { ArtifactMesh } from "@/components/artifacts/ArtifactMesh";
@@ -40,6 +40,12 @@ import {
   beamUnderside,
 } from "@/utils/hallGeometry";
 import { objectFootprintRadius } from "@/utils/artifactSize";
+import {
+  CONTACT_SHADOW_ORDER,
+  FLOOR_LAYER,
+  floorDecal,
+  transparentFloorDecal,
+} from "@/utils/floorDecals";
 
 const WOOD_COLOR = "#7A5230";
 /** Destination plate on an archway lintel. Sized to sit inside the 0.5 m-deep
@@ -122,17 +128,62 @@ interface WallSegment {
  * lintel that closes the wall above the opening. */
 function ArchwayFrame({ door, z, wallHeight, wallColor }: { door: Door; z: number; wallHeight: number; wallColor: string }) {
   const gapHalf = ARCHWAY_WIDTH / 2;
+  /**
+   * How far each jamb is pulled in over the opening.
+   *
+   * The wall segments are cut at exactly `gapHalf`, and a jamb centred at
+   * `gapHalf + 0.2` starts at exactly `gapHalf` too — so the wall's cut face
+   * and the jamb's inner face were the same plane, both opaque, both facing
+   * into the opening, over the jamb's full 5 m height. The second coincident
+   * pair in this frame, and the one that showed as a vertical striped seam
+   * down the inside edge of the doorway.
+   *
+   * Sliding the jamb 5 cm into the opening puts the wall's cut face *inside*
+   * the jamb's volume, where it cannot be seen and cannot compete. Five
+   * centimetres out of a six-metre opening is not a design change; it is the
+   * smallest offset that is unambiguously not zero.
+   */
+  const JAMB_INSET = 0.05;
   return (
     <group>
+      {/*
+        Closes the wall above the opening — and nothing more than the opening.
+
+        This box was ARCHWAY_WIDTH + 0.6 wide. The wall segments either side of
+        an archway are cut at exactly ARCHWAY_WIDTH / 2 from the door centre
+        (see wallSegments), they run the full height of the room, and they are
+        WALL_THICKNESS deep on the same wall plane. A header 0.6 wider than the
+        hole therefore buried 0.3 m of itself inside each neighbouring wall
+        slab, from door height to the ceiling, with both boxes' front AND back
+        faces exactly coincident: a 30 cm x 2 m sheet of perfect z-fighting on
+        each side of every archway.
+
+        It read as a comb of pale vertical stripes because the two contestants
+        carry different materials — the wall segment wears the baked texture
+        with its pilaster rhythm, dado and frieze, the header a flat colour —
+        so the depth buffer was choosing between stripes and no stripes, pixel
+        by pixel.
+
+        And it only showed while the visitor was moving, which is the classic
+        z-fighting signature rather than a clue pointing elsewhere: while the
+        camera is still, every pixel's two depth values are constant and one
+        side wins consistently; the moment the camera moves, the winner flips
+        per pixel per frame and the seam crawls.
+
+        Exactly ARCHWAY_WIDTH now, so the header meets each wall segment edge
+        to edge and shares no volume with either. Not "slightly overlapping to
+        be safe" — any overlap at all recreates the coincident faces, just in a
+        narrower strip.
+      */}
       <mesh position={[door.position.x, ARCHWAY_HEIGHT + (wallHeight - ARCHWAY_HEIGHT) / 2, z]}>
-        <boxGeometry args={[ARCHWAY_WIDTH + 0.6, Math.max(0.1, wallHeight - ARCHWAY_HEIGHT), WALL_THICKNESS]} />
+        <boxGeometry args={[ARCHWAY_WIDTH, Math.max(0.1, wallHeight - ARCHWAY_HEIGHT), WALL_THICKNESS]} />
         <meshStandardMaterial color={wallColor} roughness={0.85} />
       </mesh>
-      <mesh position={[door.position.x - gapHalf - 0.2, ARCHWAY_HEIGHT / 2, z]} castShadow>
+      <mesh position={[door.position.x - gapHalf - 0.2 + JAMB_INSET, ARCHWAY_HEIGHT / 2, z]} castShadow>
         <boxGeometry args={[0.4, ARCHWAY_HEIGHT, 0.5]} />
         <meshStandardMaterial color={WOOD_COLOR} roughness={0.7} />
       </mesh>
-      <mesh position={[door.position.x + gapHalf + 0.2, ARCHWAY_HEIGHT / 2, z]} castShadow>
+      <mesh position={[door.position.x + gapHalf + 0.2 - JAMB_INSET, ARCHWAY_HEIGHT / 2, z]} castShadow>
         <boxGeometry args={[0.4, ARCHWAY_HEIGHT, 0.5]} />
         <meshStandardMaterial color={WOOD_COLOR} roughness={0.7} />
       </mesh>
@@ -322,7 +373,24 @@ function ArchwayGlimpse({ door, wallZ, outwardSign }: { door: Door; wallZ: numbe
   const target = ROOM_CONFIGS[door.targetRoom];
   const targetLabel = target.zones[0]?.label ?? target.name;
   const peekDepth = 2.4;
-  const peekZ = wallZ + outwardSign * (peekDepth / 2 + 0.05);
+  /**
+   * The strip used to start 5 cm *beyond* the wall line, at y = 0.01.
+   *
+   * The room's floor plane ends exactly on the bound, and an archway has no
+   * wall below the lintel to hide anything — so those 5 cm were a slot of
+   * pure nothing across the threshold, with the scene background showing
+   * through it, and the 1 cm height difference put a lip on the far side of
+   * the slot. Standing in the gate and looking down, that is a dark seam
+   * across the doorway; walking through it, it flickers as the two edges
+   * cross the same pixels. It is the most likely thing anyone means by "the
+   * gate glitches".
+   *
+   * Now it starts 5 cm *inside* the bound, so it overlaps the room floor
+   * instead of leaving a gap, and sits at the same height as the floor rather
+   * than a centimetre above it. Coplanar overlap is exactly what polygonOffset
+   * is for — see the material below.
+   */
+  const peekZ = wallZ + outwardSign * (peekDepth / 2 - 0.05);
 
   const signTexture = useMemo(
     () =>
@@ -344,13 +412,14 @@ function ArchwayGlimpse({ door, wallZ, outwardSign }: { door: Door; wallZ: numbe
 
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[door.position.x, 0.01, peekZ]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[door.position.x, 0, peekZ]} receiveShadow>
         <planeGeometry args={[ARCHWAY_WIDTH - 0.6, peekDepth]} />
         <meshStandardMaterial
           color={target.floorColor}
           emissive={target.accentColor}
           emissiveIntensity={0.25}
           roughness={0.6}
+          {...floorDecal(FLOOR_LAYER.trim)}
         />
       </mesh>
       <pointLight
@@ -624,13 +693,35 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
       </mesh>
       {/* Floor border, subtle batik trim along the long walls only (keeps it
           from fighting with the zone floor motifs near the short walls/archway) */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[centerX, 0.01, minZ + 1.2]} receiveShadow>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[centerX, 0.01, minZ + 1.2]}
+        renderOrder={FLOOR_LAYER.trim}
+        receiveShadow
+      >
         <planeGeometry args={[floorBorderLength, FLOOR_BORDER_WIDTH]} />
-        <meshStandardMaterial map={floorBorderTexture} roughness={0.8} transparent opacity={0.5} />
+        <meshStandardMaterial
+          map={floorBorderTexture}
+          roughness={0.8}
+          transparent
+          opacity={0.5}
+          {...transparentFloorDecal(FLOOR_LAYER.trim)}
+        />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[centerX, 0.01, maxZ - 1.2]} receiveShadow>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[centerX, 0.01, maxZ - 1.2]}
+        renderOrder={FLOOR_LAYER.trim}
+        receiveShadow
+      >
         <planeGeometry args={[floorBorderLength, FLOOR_BORDER_WIDTH]} />
-        <meshStandardMaterial map={floorBorderTexture} roughness={0.8} transparent opacity={0.5} />
+        <meshStandardMaterial
+          map={floorBorderTexture}
+          roughness={0.8}
+          transparent
+          opacity={0.5}
+          {...transparentFloorDecal(FLOOR_LAYER.trim)}
+        />
       </mesh>
 
       {/* Zone floor motifs — the main way zones read as distinct without a wall in sight */}
@@ -733,6 +824,29 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
           shadow-camera-near={0.5}
           shadow-camera-far={wallHeight + 24}
           shadow-bias={-0.0005}
+          /**
+           * Shadow acne on the floor, and the single reason the hall shimmers.
+           *
+           * The shadow camera has to span the whole hall — 28 x 19 m for Hall
+           * 1 — and the map is 1024 px at this tier. That is one shadow texel
+           * every 2.7 cm of floor. A large, almost flat surface sampled that
+           * coarsely shadows itself in a moire pattern, and because the pattern
+           * is computed in light space it swims as the visitor turns.
+           *
+           * `bias` alone cannot fix it. A constant depth offset has to be big
+           * enough for the worst-angled surface in the room, and at that size
+           * it detaches shadows from the objects casting them. `normalBias`
+           * offsets the sample along the surface normal instead, so the
+           * correction scales with how obliquely each fragment is lit — which
+           * is exactly the variable that produces acne. Roughly two texels of
+           * world size is the usual landing point, and 2 x 2.7 cm is 0.05.
+           *
+           * This surfaced only recently because shadows are off at the Rendah
+           * tier, and Rendah used to be what every device got. See
+           * useDeviceDetection: desktops now default to Sedang, which turns
+           * shadows, post-processing and dust particles on together.
+           */
+          shadow-normalBias={0.05}
         />
       ) : (
         <directionalLight
@@ -769,7 +883,25 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
         // forces one fresh bake after the (async-loaded) artifacts actually
         // mount instead of baking an empty floor on first render.
         key={`contact-shadows-${artifacts.length}`}
-        position={[centerX, 0.015, centerZ]}
+        // Was 0.015 — the exact height of the zone floor inlays, on a plane
+        // that spans the entire hall. Two coplanar surfaces over 24 metres of
+        // floor, seen almost edge-on by a standing visitor: that is the floor
+        // shimmer. drei gives this material depthWrite: false, so it was never
+        // corrupting the depth buffer; it was the depth *test* tying with the
+        // inlays and resolving differently pixel to pixel.
+        //
+        // Moved to the top of the floor stack rather than the bottom, which is
+        // also where a shadow belongs: it falls ON the inlays and the walking
+        // path, the way a real one would, instead of being hidden underneath
+        // them. Because it writes no depth, nothing drawn afterwards is
+        // affected by it sitting up here. 0.06 clears the tallest thing in the
+        // stack (the path slab, top at 0.0355) with room to spare.
+        position={[centerX, 0.06, centerZ]}
+        // Explicit, for the same reason the decals below carry one: this plane
+        // is transparent too, so without it three sorts it against them by
+        // camera distance and the shadow changes places with the path as the
+        // visitor walks. One past the top decal layer keeps it above all of them.
+        renderOrder={CONTACT_SHADOW_ORDER}
         opacity={0.45}
         scale={[width, depth]}
         blur={2.2}

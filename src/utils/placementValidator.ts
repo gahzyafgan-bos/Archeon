@@ -83,7 +83,6 @@ export function validatePlacement(roomLabel: string, objects: PlacedObject[]): v
       const dist = Math.hypot(a.x - b.x, a.z - b.z);
       const minGap = a.radius + b.radius + PLACEMENT_MARGIN;
       if (dist < minGap) {
-        // eslint-disable-next-line no-console
         console.warn(
           `[placement] ${roomLabel}: "${a.id}" overlaps "${b.id}" — dist ${dist.toFixed(2)}m, need >= ${minGap.toFixed(2)}m (short by ${(minGap - dist).toFixed(2)}m)`
         );
@@ -198,4 +197,28 @@ export function buildPlacedObjects(room: RoomConfig, artifacts: Artifact[]): Pla
   }
 
   return objects;
+}
+
+/**
+ * The decor a visitor must not be able to walk through, as colliders.
+ *
+ * PlayerRig used to know about exactly three things it could bump into: the
+ * room bounds, the artifacts, and the two greeters. Everything else the museum
+ * is built from — the colonnade, the centre installation's pillars, the
+ * Dwarapala pair, the zone signboards, the prasejarah stone clusters — was
+ * scenery you strolled straight through, and the camera would end up inside it
+ * (audit 2026-08-05, P1-7).
+ *
+ * Derived from buildPlacedObjects rather than written out again. That function
+ * already mirrors every placement formula in RoomShell/HallEdgeDecor and is
+ * kept in step with them, so reusing it means the colliders cannot describe a
+ * different museum than the one on screen — and adding a new piece of decor
+ * gives it a collider for free.
+ *
+ * Artifacts are filtered out on purpose: PlayerRig builds its own artifact
+ * colliders, with the `E`-trigger radius attached, and two sets would fight.
+ */
+export function buildDecorColliders(room: RoomConfig, artifacts: Artifact[]): PlacedObject[] {
+  const artifactIds = new Set(artifacts.map((a) => a.id));
+  return buildPlacedObjects(room, artifacts).filter((o) => !artifactIds.has(o.id));
 }

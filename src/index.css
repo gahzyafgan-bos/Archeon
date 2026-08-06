@@ -1,4 +1,5 @@
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap");
+/* The Google Fonts @import that stood here is gone — the faces are now
+   self-hosted and imported from src/main.tsx, which explains why. */
 
 @tailwind base;
 @tailwind components;
@@ -36,6 +37,58 @@ canvas {
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border: 1px solid rgba(201, 169, 97, 0.18);
+}
+
+/* ---------------------------------------------------------------------------
+   Mode Kontras Tinggi.
+
+   The toggle for this has been in Pengaturan → Visual since the panel was
+   written, and until now it set a boolean nothing read (audit 2026-08-05,
+   P1-3). An accessibility control that does nothing is the worst kind of dead
+   setting: the people who turn it on are exactly the people who cannot tell,
+   from looking, that it did not work.
+
+   What "high contrast" has to fix here is specific. The museum's panels are
+   translucent dark glass sitting over a bright ivory gallery, and the body text
+   is a soft grey (#8a8a92 / museum-mist) chosen to sit quietly against it. In
+   ordinary light that reads beautifully. On a phone held at arm's length in a
+   sunlit room — or for anyone with reduced contrast sensitivity — the grey on
+   semi-transparent charcoal falls under the 4.5:1 that WCAG asks for body text.
+
+   So the fix is not a filter over everything, which would wreck the artefacts'
+   colours. It is: make the panels opaque so the gallery stops shining through
+   them, and lift the dimmest text to full strength.
+   --------------------------------------------------------------------------- */
+:root[data-contrast="high"] .glass-panel {
+  background: rgba(8, 8, 10, 0.97);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-color: rgba(201, 169, 97, 0.75);
+}
+
+/* museum-mist is the body-copy grey; museum-bone is the near-white heading
+   colour. Collapsing the former onto the latter is what actually moves the
+   contrast ratio, and it is confined to panels so nothing in the 3D scene
+   changes. */
+:root[data-contrast="high"] .glass-panel .text-museum-mist,
+:root[data-contrast="high"] .glass-panel .text-museum-mist\/70,
+:root[data-contrast="high"] .glass-panel .text-museum-mist\/60 {
+  color: #f4f3f0;
+}
+
+/* The gold accent is legible on dark glass but thin at small sizes; brighten
+   it rather than replace it, so the museum's palette survives. */
+:root[data-contrast="high"] .glass-panel .text-museum-gold {
+  color: #f0cf7a;
+}
+
+/* Opaque backdrops behind the full-screen modals too — a blurred gallery
+   showing through a settings panel is the single biggest contrast leak. */
+:root[data-contrast="high"] .backdrop-blur-md,
+:root[data-contrast="high"] .backdrop-blur-sm {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background-color: rgba(0, 0, 0, 0.92);
 }
 
 /* Subtle top/bottom fade hinting that a scrollable panel has more content

@@ -1,6 +1,48 @@
-import { useRef, useMemo, useState } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+
+/**
+ * The sprite each dust mote is drawn with.
+ *
+ * Without a `map`, `THREE.PointsMaterial` rasterises every point as a hard
+ * square. At `size: 0.04` those squares are only a few pixels across, and with
+ * additive blending over the dark opening of an archway they stop reading as
+ * motes of dust and start reading as scattered white specks — which is exactly
+ * how the glitch was reported: "titik putih ... kaya kotak kecil". The colours
+ * here are a warm cream (0.95/0.88/0.72), but additive blending piles them
+ * towards white against anything dark.
+ *
+ * A radial alpha falloff is the whole fix: the mote keeps its centre and fades
+ * out before its own edge, so there is no square to see. Built once at module
+ * scope and shared by every dust system in the museum — it is 64x64 and
+ * identical everywhere, so there is no reason for each artifact to own one.
+ */
+const DUST_SPRITE = createDustSprite();
+
+function createDustSprite(): THREE.Texture {
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+
+  const half = size / 2;
+  const gradient = ctx.createRadialGradient(half, half, 0, half, half, half);
+  // Opaque core, then a curve that is already almost gone by 60% of the
+  // radius. A linear falloff still leaves a visible disc edge under additive
+  // blending; this does not.
+  gradient.addColorStop(0, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.35, "rgba(255,255,255,0.5)");
+  gradient.addColorStop(0.7, "rgba(255,255,255,0.08)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
 
 interface DustParticlesProps {
   count?: number;
@@ -16,7 +58,6 @@ export function DustParticles({
   height = 4,
 }: DustParticlesProps) {
   const meshRef = useRef<THREE.Points>(null);
-  const { viewport } = useThree();
 
   const { particles, geometry } = useMemo(() => {
     const tempParticles: { pos: THREE.Vector3; vel: THREE.Vector3; phase: number }[] = [];
@@ -55,8 +96,25 @@ export function DustParticles({
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
+    // Fixed by hand, and never recomputed. The points move every frame, so a
+    // bounding volume derived once from their starting positions goes stale
+    // immediately — and a stale one makes the frustum test wrong, which shows
+    // up as the whole dust column blinking out when the visitor turns. This
+    // sphere covers the entire volume the simulation can ever reach: the loop
+    // rules below keep every particle inside `radius` horizontally and between
+    // 0 and `height` vertically.
+    geo.boundingSphere = new THREE.Sphere(
+      new THREE.Vector3(0, height / 2, 0),
+      Math.hypot(radius, height / 2)
+    );
+
     return { particles: tempParticles, geometry: geo };
   }, [count, radius, height]);
+
+  // `geometry` is created here, so disposing it is this component's job. R3F
+  // only auto-disposes objects it constructed itself, and the <primitive>
+  // below hands it one we built.
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   useFrame((_, delta) => {
     if (!meshRef.current) return;
@@ -93,8 +151,23 @@ export function DustParticles({
   return (
     <group position={position}>
       <points ref={meshRef}>
-        <bufferGeometry attach="geometry" {...geometry} />
+        {/* `<bufferGeometry attach="geometry" {...geometry} />` stood here.
+            That spreads a BufferGeometry INSTANCE as if its fields were JSX
+            props: R3F built a second, empty geometry and then copied `uuid`,
+            `attributes`, `drawRange`, `boundingSphere` and the rest onto it
+            one property at a time. Two live geometries claiming the same uuid,
+            sharing attribute objects by reference, with the copy's own state
+            assembled in whatever order the props happened to be applied.
+            That is also the most plausible source of the intermittent
+            `WebGL: INVALID_VALUE: bufferSubData: srcOffset + length too large`
+            the audit recorded (P2-6) and could not localise — every frame,
+            this is the one buffer in the app being re-uploaded.
+            <primitive> passes the geometry itself, which is what was meant. */}
+        <primitive object={geometry} attach="geometry" />
         <pointsMaterial
+          // `map` is what turns each point from a hard square into a soft
+          // mote — see DUST_SPRITE. Everything else is unchanged.
+          map={DUST_SPRITE}
           size={0.04}
           vertexColors
           transparent

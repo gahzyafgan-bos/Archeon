@@ -7,6 +7,7 @@ import { useGamepadControls } from "@/hooks/useGamepadControls";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { ROOM_CONFIGS } from "@/data/roomConfig";
 import { SettingsPanel } from "./SettingsPanel";
+import { ArtifactCatalog } from "./ArtifactCatalog";
 import { VREntryOverlay } from "../vr/VREntryOverlay";
 
 export function HUD() {
@@ -16,10 +17,14 @@ export function HUD() {
   const nearbyArtifact = useMuseumStore((s) => s.nearbyArtifact);
   const focusedArtifact = useMuseumStore((s) => s.focusedArtifact);
   const focusArtifact = useMuseumStore((s) => s.focusArtifact);
+  const nearbyDoorLabel = useMuseumStore((s) => s.nearbyDoorLabel);
+  const confirmDoor = useMuseumStore((s) => s.confirmDoor);
   const isAmbienceMuted = useMuseumStore((s) => s.isAmbienceMuted);
   const toggleAmbience = useMuseumStore((s) => s.toggleAmbience);
   const activeRoom = useMuseumStore((s) => s.activeRoom);
   const setIsSettingsOpen = useMuseumStore((s) => s.setIsSettingsOpen);
+  const setIsCatalogOpen = useMuseumStore((s) => s.setIsCatalogOpen);
+  const isCatalogOpen = useMuseumStore((s) => s.isCatalogOpen);
   const isVRMode = useMuseumStore((s) => s.isVRMode);
   const setVRMode = useMuseumStore((s) => s.setVRMode);
 
@@ -155,6 +160,18 @@ export function HUD() {
             <IconExpand />
           </button>
         )}
+        {/* Sits before the gear rather than after it: this is the one control
+            here that a first-time visitor actually needs. Walking straight in
+            from the entrance reaches no artifact at all (audit P0-6), so
+            without a way to ask for one by name the default visit is a walk
+            through an empty-looking hall and out the far end. */}
+        <button
+          onClick={() => setIsCatalogOpen(true)}
+          className="h-9 rounded-full glass-panel flex items-center gap-1.5 px-3.5 text-museum-bone/80 hover:text-museum-gold transition-colors text-xs tracking-wide"
+          aria-label="Buka daftar koleksi"
+        >
+          <IconList /> <span>Koleksi</span>
+        </button>
         <button
           onClick={() => setIsSettingsOpen(true)}
           className="w-9 h-9 rounded-full glass-panel flex items-center justify-center text-museum-bone/80 hover:text-museum-gold transition-colors"
@@ -186,6 +203,24 @@ export function HUD() {
         </div>
       )}
 
+      {/* Archway prompt — same shape and same position as the artifact prompt
+          above, because to the visitor it is the same gesture: "there is
+          something here, press this to use it". Only shown when no artifact is
+          competing for the prompt, so the two can never stack. */}
+      {nearbyDoorLabel && !nearbyArtifact && !focusedArtifact && (
+        <div className="fixed bottom-40 left-1/2 -translate-x-1/2 z-20 animate-slide-up-fade">
+          <button
+            onClick={confirmDoor}
+            className="glass-panel rounded-full pl-2 pr-5 py-2 flex items-center gap-3 text-museum-bone hover:border-museum-gold/50 transition-colors"
+          >
+            <span className="w-7 h-7 rounded-full border border-museum-gold/70 flex items-center justify-center text-museum-gold text-xs font-semibold">
+              {showTouchControls ? "X" : "E"}
+            </span>
+            <span className="text-sm tracking-wide">{nearbyDoorLabel}</span>
+          </button>
+        </div>
+      )}
+
       {/* Desktop keyboard hint, auto-hidden on touch devices */}
       {!showTouchControls && !focusedArtifact && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
@@ -202,7 +237,7 @@ export function HUD() {
           fires touchcancel and drops the gesture mid-rotation. Paired with
           useVirtualJoysticks' LOOK_SATURATION so full turn rate is reached
           before the rim, not at it. */}
-      {showTouchControls && !focusedArtifact && !isSettingsOpen && (
+      {showTouchControls && !focusedArtifact && !isSettingsOpen && !isCatalogOpen && (
         <>
           <div
             ref={setLeftZone}
@@ -227,7 +262,19 @@ export function HUD() {
 
       {/* Settings Panel */}
       <SettingsPanel />
+      <ArtifactCatalog />
     </>
+  );
+}
+
+function IconList() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="5" cy="7" r="1.4" />
+      <circle cx="5" cy="12" r="1.4" />
+      <circle cx="5" cy="17" r="1.4" />
+      <path strokeLinecap="round" d="M9.5 7h9.5M9.5 12h9.5M9.5 17h9.5" />
+    </svg>
   );
 }
 

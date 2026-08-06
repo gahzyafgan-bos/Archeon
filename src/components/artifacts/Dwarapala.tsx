@@ -1,5 +1,3 @@
-import * as THREE from "three";
-
 interface DwarapalaProps {
   position: [number, number, number];
   rotation?: number; // y rotation

@@ -46,7 +46,6 @@ export function HallColonnade({ room, exclude = [] }: { room: RoomConfig; exclud
       if (!exclude.some((e) => Math.hypot(e.x - rx, e.z - z) < e.dist)) pts.push([rx, z]);
     }
     return pts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minX, maxX, minZ, maxZ, exclude]);
 
   return (

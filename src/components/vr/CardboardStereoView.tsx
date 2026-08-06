@@ -3,15 +3,17 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { barrelNormalizer, eyeLensCenterShift } from "@/utils/vrOptics";
+import { GRAPHICS_PRESETS } from "@/utils/graphicsPresets";
+import { VR_DIAG_ENABLED, publishVrDiagFrame } from "@/utils/vrDiagnostics";
 
-/**
- * Render-target resolution relative to each eye's actual on-screen pixel
- * size. The distorted output is viewed squashed through a Cardboard lens, so
- * mild softness at the edges is invisible there — trading a bit of sharpness
- * for this headroom keeps frame rate comfortable on mid-range phones (see
- * spec section 5: barrel distortion via render targets adds cost).
- */
-const RENDER_SCALE = 0.9;
+// Per-eye render resolution and MSAA now come from the active tier's VR row in
+// GRAPHICS_PRESETS (vrEyeScale / vrMsaaSamples), so there is exactly one place
+// in the codebase that decides how many pixels a VR frame gets. The constant
+// that used to live here was a bare 0.9 — a SUBsample, applied underneath a
+// canvas that had already been pinned to devicePixelRatio 1, in front of a
+// barrel pass that magnifies the middle of the image by ~1.46x. The three
+// stacked to roughly a quarter of native at the point the eye is actually
+// looking, which is what "grafiknya buruk banget" was measuring.
 
 const distortionVertexShader = /* glsl */ `
   varying vec2 vUv;
@@ -34,6 +36,12 @@ const distortionVertexShader = /* glsl */ `
 // the source texture are left black, matching the soft circular vignette
 // Cardboard viewers already impose physically.
 const distortionFragmentShader = /* glsl */ `
+  // Width of the fade at the edge of the sampled region, in UV units — about
+  // 1.5 pixels' worth on a ~600px eye render. Wide enough to kill the stair-step,
+  // narrow enough that it reads as the viewer's own vignette rather than a
+  // deliberate border.
+  #define EDGE_FEATHER 0.0025
+
   uniform sampler2D map;
   uniform float k1;
   uniform float k2;
@@ -69,11 +77,18 @@ const distortionFragmentShader = /* glsl */ `
 
     // Sample coordinates outside the source stay black, matching the soft
     // circular vignette a Cardboard viewer imposes physically anyway.
-    vec3 linearColor = vec3(0.0);
-    if (sampleUv.x >= 0.0 && sampleUv.x <= 1.0 && sampleUv.y >= 0.0 && sampleUv.y <= 1.0) {
-      linearColor = texture2D(map, sampleUv).rgb;
-    }
-    gl_FragColor = vec4(linearColor, 1.0);
+    //
+    // Faded rather than cut. A binary inside/outside test makes the boundary a
+    // hard step: one pixel is the scene, the next is black, with the step itself
+    // running diagonally across the pixel grid. Through a lens that magnifies
+    // this region that reads as a jagged, crawling edge — the same stair-step
+    // the MSAA fix removes from the geometry, reintroduced by the composite.
+    // smoothstep over a fraction of a UV unit costs two extra ops and leaves an
+    // edge that stays clean while the head moves.
+    vec3 linearColor = texture2D(map, clamp(sampleUv, 0.0, 1.0)).rgb;
+    vec2 edgeFade = smoothstep(vec2(0.0), vec2(EDGE_FEATHER), sampleUv) *
+                    (1.0 - smoothstep(vec2(1.0 - EDGE_FEATHER), vec2(1.0), sampleUv));
+    gl_FragColor = vec4(linearColor * edgeFade.x * edgeFade.y, 1.0);
 
     // ---- Display transform: THE ONE AND ONLY PLACE it happens -------------
     // The eye render targets hold raw linear radiance (three switches tone
@@ -97,7 +112,7 @@ const distortionFragmentShader = /* glsl */ `
   }
 `;
 
-function createEyeRenderTarget() {
+function createEyeRenderTarget(samples: number) {
   const target = new THREE.WebGLRenderTarget(2, 2, {
     minFilter: THREE.LinearFilter,
     magFilter: THREE.LinearFilter,
@@ -118,7 +133,50 @@ function createEyeRenderTarget() {
     // 0.45 x canvas width per eye), so the extra bandwidth is affordable.
     type: THREE.HalfFloatType,
   });
+
+  // The canvas's own `antialias` flag stops applying the moment three renders
+  // into a render target — that flag antialiases the DEFAULT framebuffer, and
+  // nothing here draws to it until the distortion pass, which is a flat quad
+  // with no geometric edges of its own to smooth. So while mono had MSAA at
+  // Sedang/Tinggi, VR silently had none at any tier: WebGLRenderTarget defaults
+  // to samples: 0. Every curved edge in the hall was drawn with hard binary
+  // coverage and then magnified by the lens. Setting it here is the fix; the
+  // caller feature-detects whether the GPU can multisample a half-float target
+  // and passes 0 where it cannot.
+  target.samples = samples;
   return target;
+}
+
+// Numeric three constants read back as names, so the audit dump says
+// "LinearFilter" instead of "1006". Dev-only path; tree-shaken in production.
+function filterName(value: number): string {
+  const names: Record<number, string> = {
+    [THREE.NearestFilter]: "NearestFilter",
+    [THREE.NearestMipmapNearestFilter]: "NearestMipmapNearestFilter",
+    [THREE.NearestMipmapLinearFilter]: "NearestMipmapLinearFilter",
+    [THREE.LinearFilter]: "LinearFilter",
+    [THREE.LinearMipmapNearestFilter]: "LinearMipmapNearestFilter",
+    [THREE.LinearMipmapLinearFilter]: "LinearMipmapLinearFilter",
+  };
+  return names[value] ?? String(value);
+}
+
+function formatName(value: number): string {
+  const names: Record<number, string> = {
+    [THREE.RGBAFormat]: "RGBAFormat",
+    [THREE.RGFormat]: "RGFormat",
+    [THREE.RedFormat]: "RedFormat",
+  };
+  return names[value] ?? String(value);
+}
+
+function typeName(value: number): string {
+  const names: Record<number, string> = {
+    [THREE.UnsignedByteType]: "UnsignedByteType (8-bit)",
+    [THREE.HalfFloatType]: "HalfFloatType (16-bit float)",
+    [THREE.FloatType]: "FloatType (32-bit float)",
+  };
+  return names[value] ?? String(value);
 }
 
 /**
@@ -152,8 +210,35 @@ export function CardboardStereoView() {
     return cam;
   }, []);
 
-  const targetL = useMemo(() => createEyeRenderTarget(), []);
-  const targetR = useMemo(() => createEyeRenderTarget(), []);
+  const graphicsQuality = useMuseumStore((s) => s.settings.graphicsQuality);
+  const preset = GRAPHICS_PRESETS[graphicsQuality];
+
+  // MSAA on a half-float target needs WebGL2 plus EXT_color_buffer_float —
+  // without the extension the multisampled renderbuffer is not color-renderable
+  // and the framebuffer comes back incomplete, which in this component's
+  // history means a black headset, not a warning. Detect, don't assume.
+  const eyeSamples = useMemo(() => {
+    if (preset.vrMsaaSamples <= 0) return 0;
+    const ctx = gl.getContext();
+    const isWebGL2 =
+      typeof WebGL2RenderingContext !== "undefined" && ctx instanceof WebGL2RenderingContext;
+    if (!isWebGL2 || !ctx.getExtension("EXT_color_buffer_float")) return 0;
+    return preset.vrMsaaSamples;
+  }, [gl, preset.vrMsaaSamples]);
+
+  // Keyed on the sample count: `samples` is baked into the framebuffer three
+  // builds for a target, so changing tiers mid-session has to build new ones
+  // rather than mutate the live pair.
+  const targetL = useMemo(() => createEyeRenderTarget(eyeSamples), [eyeSamples]);
+  const targetR = useMemo(() => createEyeRenderTarget(eyeSamples), [eyeSamples]);
+
+  // Dispose the previous pair when the tier changes, not only on unmount.
+  useEffect(() => {
+    return () => {
+      targetL.dispose();
+      targetR.dispose();
+    };
+  }, [targetL, targetR]);
 
   const distortionMaterial = useMemo(
     () =>
@@ -194,6 +279,55 @@ export function CardboardStereoView() {
   const stereoKey = useRef("");
   const baseSkew = useRef({ left: 0, right: 0 });
 
+  // --- dev-only diagnostics state (see utils/vrDiagnostics.ts) --------------
+  // Everything guarded by VR_DIAG_ENABLED, which Vite statically replaces with
+  // `false` in a production build, so all of it tree-shakes away.
+  const diag = useRef({
+    lastTime: 0,
+    lastHeadYaw: 0,
+    shadowPasses: 0,
+    posL: new THREE.Vector3(),
+    posR: new THREE.Vector3(),
+    quatL: new THREE.Quaternion(),
+    quatR: new THREE.Quaternion(),
+    scratchScale: new THREE.Vector3(),
+    eulerL: new THREE.Euler(0, 0, 0, "YXZ"),
+    eulerR: new THREE.Euler(0, 0, 0, "YXZ"),
+    headEuler: new THREE.Euler(0, 0, 0, "YXZ"),
+    delta: new THREE.Vector3(),
+    right: new THREE.Vector3(),
+    up: new THREE.Vector3(),
+    forward: new THREE.Vector3(),
+  });
+
+  useEffect(() => {
+    if (!VR_DIAG_ENABLED) return;
+
+    // three resets info at the top of EVERY render() call, so by default the
+    // counters would only ever describe the last of this frame's four renders
+    // (right eye's distortion quad). Take manual control so A.4 measures the
+    // whole frame, and hand it back on the way out.
+    const previousAutoReset = gl.info.autoReset;
+    gl.info.autoReset = false;
+
+    // The only reliable way to count shadow-map passes: three calls this once
+    // per render(), and with autoUpdate on it does the full pass every time —
+    // meaning twice per frame here, once per eye.
+    const shadowMap = gl.shadowMap as unknown as {
+      render: (...args: unknown[]) => void;
+    };
+    const originalShadowRender = shadowMap.render.bind(gl.shadowMap);
+    shadowMap.render = (...args: unknown[]) => {
+      diag.current.shadowPasses++;
+      originalShadowRender(...args);
+    };
+
+    return () => {
+      gl.info.autoReset = previousAutoReset;
+      shadowMap.render = originalShadowRender;
+    };
+  }, [gl]);
+
   useEffect(() => {
     return () => {
       // Hand the renderer back a full-screen viewport. WebGLRenderer keeps the
@@ -206,8 +340,8 @@ export function CardboardStereoView() {
       gl.setViewport(0, 0, canvasSize.width, canvasSize.height);
       gl.setScissor(0, 0, canvasSize.width, canvasSize.height);
 
-      targetL.dispose();
-      targetR.dispose();
+      // The eye targets are disposed by their own effect above, which also
+      // covers a mid-session tier change — doing it here too would double-free.
       distortionMaterial.dispose();
       distortionScene.children.forEach((child) => {
         if (child instanceof THREE.Mesh) child.geometry.dispose();
@@ -218,6 +352,13 @@ export function CardboardStereoView() {
 
   useFrame(() => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
+
+    // Counters start at zero here, not inside three's render(): every draw this
+    // frame happens below, so this brackets the whole VR frame (A.4).
+    if (VR_DIAG_ENABLED) {
+      gl.info.reset();
+      diag.current.shadowPasses = 0;
+    }
 
     // --- Everything below is measured in DRAWING BUFFER pixels ---------------
     // Not clientWidth, not window.innerWidth, not the `size` r3f reports: those
@@ -242,8 +383,11 @@ export function CardboardStereoView() {
     const rightHalfWidth = rightEyeBufferW / pixelRatio;
     const viewHeight = eyeBufferH / pixelRatio;
 
-    const eyeWidth = Math.max(2, Math.round(eyeBufferW * RENDER_SCALE));
-    const eyeHeight = Math.max(2, Math.round(eyeBufferH * RENDER_SCALE));
+    // Per-eye scene resolution. eyeBufferW is already half the drawing buffer,
+    // so the division by two happens exactly once in the whole path — the scale
+    // below is applied to an eye's width, never to the full canvas width.
+    const eyeWidth = Math.max(2, Math.round(eyeBufferW * preset.vrEyeScale));
+    const eyeHeight = Math.max(2, Math.round(eyeBufferH * preset.vrEyeScale));
 
     if (lastTargetSize.current.width !== eyeWidth || lastTargetSize.current.height !== eyeHeight) {
       targetL.setSize(eyeWidth, eyeHeight);
@@ -308,6 +452,22 @@ export function CardboardStereoView() {
 
     gl.setScissorTest(false);
 
+    // --- Shadow maps: once per FRAME, not once per eye ----------------------
+    // three calls shadowMap.render() inside every renderer.render(), and with
+    // autoUpdate on it redoes the whole pass each time — so drawing two eyes
+    // meant rendering every shadow map twice per frame, at full resolution, for
+    // two viewpoints 63mm apart that produce visually identical shadows.
+    //
+    // Taking manual control lets us pay for it once: needsUpdate makes the left
+    // eye's render do the real pass (three clears the flag itself once it's
+    // done), and the right eye then finds autoUpdate false / needsUpdate false
+    // and skips straight to drawing the scene, reusing the maps still bound.
+    // This is the budget that funds the resolution increase above — the prompt's
+    // rule is to cut effects, not pixels, and this cuts neither.
+    const shadowsWereAuto = gl.shadowMap.autoUpdate;
+    gl.shadowMap.autoUpdate = false;
+    gl.shadowMap.needsUpdate = true;
+
     // Pass 1: render each eye's scene into its own off-screen target.
     gl.setRenderTarget(targetL);
     gl.render(scene, stereoCamera.cameraL);
@@ -316,6 +476,14 @@ export function CardboardStereoView() {
     gl.render(scene, stereoCamera.cameraR);
 
     gl.setRenderTarget(null);
+
+    // Hand the renderer back exactly what it had. Mono must be untouched by
+    // anything in this file, including on the frame VR is switched off.
+    //
+    // Safe to restore here rather than after the composite: the two distortion
+    // passes below render distortionScene, which has no lights in it, and
+    // WebGLShadowMap.render returns immediately on an empty light list.
+    gl.shadowMap.autoUpdate = shadowsWereAuto;
 
     // Pass 2: barrel-distort each render target onto its half of the screen.
     gl.setScissorTest(true);
@@ -344,6 +512,106 @@ export function CardboardStereoView() {
     gl.render(distortionScene, distortionCamera);
 
     gl.setScissorTest(false);
+
+    // ---- dev-only measurement (A.2 / A.3 / A.4 / A.6 / A.7) -----------------
+    if (VR_DIAG_ENABLED) {
+      const d = diag.current;
+      const now = performance.now();
+      const frameMs = d.lastTime === 0 ? 0 : now - d.lastTime;
+      d.lastTime = now;
+
+      // Read the two eye poses back out of the matrices three actually rendered
+      // with, rather than trusting the inputs — the point of the test is to
+      // catch a difference nobody intended.
+      stereoCamera.cameraL.matrixWorld.decompose(d.posL, d.quatL, d.scratchScale);
+      stereoCamera.cameraR.matrixWorld.decompose(d.posR, d.quatR, d.scratchScale);
+      d.eulerL.setFromQuaternion(d.quatL, "YXZ");
+      d.eulerR.setFromQuaternion(d.quatR, "YXZ");
+      d.headEuler.setFromQuaternion(camera.quaternion, "YXZ");
+
+      const headYawDeg = THREE.MathUtils.radToDeg(d.headEuler.y);
+      const yawVelDegPerSec =
+        frameMs > 0 ? (Math.abs(headYawDeg - d.lastHeadYaw) * 1000) / frameMs : 0;
+      d.lastHeadYaw = headYawDeg;
+
+      // Decompose the eye separation along the HEAD's own axes: a correct
+      // stereo pair is offset purely sideways, so the up/forward components are
+      // the vertical-disparity and one-eye-ahead tests in one measurement (A.6).
+      d.delta.subVectors(d.posR, d.posL);
+      d.right.set(1, 0, 0).applyQuaternion(camera.quaternion);
+      d.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
+      d.forward.set(0, 0, -1).applyQuaternion(camera.quaternion);
+
+      const pL = stereoCamera.cameraL.projectionMatrix.elements;
+      const pR = stereoCamera.cameraR.projectionMatrix.elements;
+      // Total horizontal field across an asymmetric frustum: from m[0] = 2n/(r-l)
+      // and m[8] = (r+l)/(r-l) we get r/n = (1+m8)/m0 and -l/n = (1-m8)/m0.
+      const fovHorizontal =
+        THREE.MathUtils.radToDeg(Math.atan((1 + pL[8]) / pL[0]) + Math.atan((1 - pL[8]) / pL[0]));
+
+      const screenPxPerEye = (gl.domElement.clientWidth * window.devicePixelRatio) / 2;
+      const pxPerEyeRatio = screenPxPerEye > 0 ? eyeWidth / screenPxPerEye : 0;
+      // The barrel pass samples radius r from r/distortionScale at the lens
+      // axis, so the middle of the image is stretched by exactly that factor —
+      // which is where the visitor is looking (see the shader comments).
+      const centerMagnification = distortionUniforms.distortionScale.value;
+
+      publishVrDiagFrame({
+        fps: frameMs > 0 ? 1000 / frameMs : 0,
+        frameMs,
+        yawVelDegPerSec,
+
+        devicePixelRatio: window.devicePixelRatio,
+        rendererPixelRatio: pixelRatio,
+        cssWidth: gl.domElement.clientWidth,
+        cssHeight: gl.domElement.clientHeight,
+        bufferWidth: buffer.x,
+        bufferHeight: buffer.y,
+        preset: graphicsQuality,
+        presetDprMax: preset.vrDpr[1],
+        renderScale: preset.vrEyeScale,
+        rtWidth: eyeWidth,
+        rtHeight: eyeHeight,
+        eyeViewportWidth: eyeBufferW,
+        eyeViewportHeight: eyeBufferH,
+        pxPerEyeRatio,
+        pxPerEyeRatioAtCenter: pxPerEyeRatio / centerMagnification,
+        centerMagnification,
+
+        rtSamples: targetL.samples,
+        rtMinFilter: filterName(targetL.texture.minFilter),
+        rtMagFilter: filterName(targetL.texture.magFilter),
+        rtGenerateMipmaps: targetL.texture.generateMipmaps,
+        rtColorSpace: targetL.texture.colorSpace,
+        rtFormat: formatName(targetL.texture.format),
+        rtType: typeName(targetL.texture.type),
+        canvasAntialias: gl.getContext().getContextAttributes()?.antialias ?? false,
+
+        fovVertical: camera.fov,
+        fovHorizontal,
+        eyeAspect: camera.aspect * stereoCamera.aspect,
+        near: camera.near,
+        far: camera.far,
+        yawDeltaDeg: THREE.MathUtils.radToDeg(d.eulerR.y - d.eulerL.y),
+        pitchDeltaDeg: THREE.MathUtils.radToDeg(d.eulerR.x - d.eulerL.x),
+        rollDeltaDeg: THREE.MathUtils.radToDeg(d.eulerR.z - d.eulerL.z),
+        measuredEyeSepM: d.delta.dot(d.right),
+        measuredEyeVerticalOffsetM: d.delta.dot(d.up),
+        measuredEyeDepthOffsetM: d.delta.dot(d.forward),
+        projYScaleDeltaAbs: Math.abs(pL[5] - pR[5]),
+        projYSkewDeltaAbs: Math.abs(pL[9] - pR[9]),
+        frustumSkewL: pL[8],
+        frustumSkewR: pR[8],
+        lensCenterShift: lensShift,
+
+        drawCalls: gl.info.render.calls,
+        triangles: gl.info.render.triangles,
+        programs: gl.info.programs?.length ?? 0,
+        shadowPassesPerFrame: d.shadowPasses,
+        shadowsEnabled: gl.shadowMap.enabled,
+        shadowAutoUpdate: gl.shadowMap.autoUpdate,
+      });
+    }
   }, 1);
 
   return null;
