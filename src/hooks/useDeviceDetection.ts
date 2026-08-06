@@ -75,18 +75,29 @@ export function useDeviceDetection() {
     // Graphics quality default. Only applies while the user hasn't overridden
     // it in SettingsPanel — that choice persists (graphicsQualityCustomized).
     //
-    // This used to hand "rendah" to every device including desktops, on the
-    // reasoning that a smooth first impression beats a pretty one. The
-    // reasoning is right; applying it to a machine with a real GPU was not.
-    // A desktop visitor was being shown the phone build — no ambient
-    // occlusion, fewest lights, shadows off — of a museum whose whole point
-    // is how the artefacts are lit, and nothing ever told them a better
-    // version existed.
+    // ALWAYS "rendah", on every device. This is a product decision, and it has
+    // now been made twice.
     //
-    // "sedang" rather than "tinggi" for the good case: nothing here can
-    // measure the actual GPU, only count cores, so the guess stays one tier
-    // short of the top and the visitor can take the last step themselves.
-    applyAutoGraphicsQuality(isLowEnd || isTouch ? "rendah" : "sedang");
+    // The audit called the blanket default a defect (P2-8: "auto-preset selalu
+    // rendah — memberi PC desktop preset HP kentang") and it was changed to
+    // hand desktops "sedang". That was wrong, for two reasons the owner named
+    // directly:
+    //
+    //  1. Rendah is not merely a dimmer Sedang. Moving up turns on shadows,
+    //     post-processing AND dust particles at once, and each one brought
+    //     visible artefacts to a build that had been clean — shadow acne
+    //     swimming across the floor, specks around the archway. A tier nobody
+    //     had been running is a tier nobody had been testing.
+    //  2. First render gets materially heavier, and there is no way from here
+    //     to tell a capable desktop from a weak one. `hardwareConcurrency` and
+    //     `deviceMemory` count cores and gigabytes; neither says anything about
+    //     the GPU, which is the part that decides whether this stutters.
+    //
+    // A visitor who wants more can still pick Sedang or Tinggi in Pengaturan,
+    // and that choice is remembered. Guessing on their behalf is what cost us
+    // this. `isLowEnd` stays computed above because it is genuine device
+    // information other code may want; it just no longer decides this.
+    applyAutoGraphicsQuality("rendah");
 
     return () => {
       window.removeEventListener("touchstart", onFirstTouch, { capture: true });

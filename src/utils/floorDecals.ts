@@ -62,3 +62,43 @@ export function floorDecal(layer: FloorLayer): {
     polygonOffsetUnits: -layer,
   };
 }
+
+/**
+ * The same, for a floor decal whose material is `transparent`.
+ *
+ * polygonOffset alone does not settle these. A transparent material still
+ * writes depth by default in three.js, and transparent objects are drawn in a
+ * second pass ordered *by distance from the camera* — so the trim, the zone
+ * inlay, the walking path and its arrows were being re-sorted against each
+ * other every time the visitor moved. Two decals whose centres are nearly
+ * equidistant swap places from one frame to the next, and because each one had
+ * written depth, the loser is punched out where they overlap. That is a
+ * flicker that only appears while walking, which is precisely how it was
+ * reported: "glitch glitch" saat bergerak.
+ *
+ * `depthWrite: false` stops a flat decal from occluding the flat decal beside
+ * it, and an explicit `renderOrder` (pass the same layer number to the mesh)
+ * replaces distance sorting with a fixed painter's order. Between them the
+ * stacking order stops depending on where anyone is standing.
+ *
+ * Safe here specifically because every one of these lies flat on the floor
+ * with nothing between it and the slab: they are painted onto a surface, not
+ * volumes that need to occlude one another. Solid geometry standing on the
+ * floor — pedestals, pillars, artifacts — is opaque, drawn first, and still
+ * writes the depth these decals test against, so nothing bleeds through it.
+ */
+export function transparentFloorDecal(layer: FloorLayer): {
+  polygonOffset: true;
+  polygonOffsetFactor: number;
+  polygonOffsetUnits: number;
+  depthWrite: false;
+} {
+  return { ...floorDecal(layer), depthWrite: false };
+}
+
+/**
+ * Draw order for the contact-shadow plane, which has to stay above the whole
+ * decal stack — a shadow falls on the inlays and the path, not under them.
+ * One past the highest decal layer.
+ */
+export const CONTACT_SHADOW_ORDER = 7;

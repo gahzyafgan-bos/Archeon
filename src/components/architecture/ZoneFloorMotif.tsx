@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import type { ZoneConfig } from "@/data/roomConfig";
 import { applyBatikWorldScale, createBatikPattern } from "@/utils/batikPatterns";
-import { FLOOR_LAYER, floorDecal } from "@/utils/floorDecals";
+import { FLOOR_LAYER, transparentFloorDecal } from "@/utils/floorDecals";
 
 const MOTIF_BY_ZONE: Record<string, "kawung" | "parang" | "gajahOling" | "artDeco"> = {
   welcome: "kawung",
@@ -38,14 +38,19 @@ export function ZoneFloorMotif({ zone, floorColor }: { zone: ZoneConfig; floorCo
   useEffect(() => () => texture.dispose(), [texture]);
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[zone.center.x, 0.015, zone.center.z]} receiveShadow>
+    <mesh
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[zone.center.x, 0.015, zone.center.z]}
+      renderOrder={FLOOR_LAYER.zoneMotif}
+      receiveShadow
+    >
       <circleGeometry args={[radius, 40]} />
       <meshStandardMaterial
         map={texture}
         roughness={0.9}
         transparent
         opacity={0.85}
-        {...floorDecal(FLOOR_LAYER.zoneMotif)}
+        {...transparentFloorDecal(FLOOR_LAYER.zoneMotif)}
       />
     </mesh>
   );

@@ -290,6 +290,23 @@ export function MuseumExperience() {
         // disabled color-grading composer (see graphicsPresets.ts); MSAA is
         // off at Rendah too, alongside the composer, for the same reason.
         gl={{ toneMappingExposure: graphicsPreset.toneMappingExposure, antialias: graphicsPreset.antialias }}
+        /**
+         * How far AdaptiveDpr is allowed to drop resolution while regressed.
+         *
+         * r3f's default floor is 0.5, i.e. half the pixel ratio — a QUARTER of
+         * the pixels — and r3f regresses on every pointer move, so that floor
+         * was being hit simply by looking around. Even resolved smoothly (the
+         * `pixelated` flag is gone, see AdaptiveDpr below) a 4x pixel drop is
+         * plainly visible as the image going soft the instant the visitor
+         * moves and sharpening again when they stop.
+         *
+         * 0.75 keeps the protection that matters — a device genuinely unable
+         * to hold frame rate still gets relief, and it compounds with the
+         * preset's own dpr ceiling — while making the step small enough that
+         * the visitor is not watching the museum change quality every time
+         * they turn their head.
+         */
+        performance={{ min: 0.75 }}
       >
         {/* Safety net on top of the manual preset: if FPS actually drops,
             AdaptiveDpr steps the renderer's pixel ratio down within the
@@ -325,7 +342,29 @@ export function MuseumExperience() {
           </Suspense>
           {!isVRMode && (
             <>
-              <AdaptiveDpr pixelated />
+              {/*
+                `pixelated` was here, and it is what the visitor was seeing as
+                "garis putih glitch, cuma pas kamera gerak, kalau diam hilang".
+
+                The mechanism: r3f calls `performance.regress()` on every
+                pointer move, so looking around puts the app in its regressed
+                state. AdaptiveDpr answers that by dropping the renderer's
+                pixel ratio — and `pixelated` additionally sets
+                `image-rendering: pixelated` on the canvas, so the low-res
+                buffer is blown back up to full size with NEAREST-NEIGHBOUR
+                sampling. Nearest-neighbour upscaling of a moving image is
+                exactly how you manufacture crawling, broken white edges along
+                every high-contrast boundary — the archway frame against the
+                dark opening being the worst case in this museum. Stop moving,
+                the debounce expires, full resolution returns, and it is clean
+                again. That on/off-with-motion signature is the tell.
+
+                Dropping the flag keeps the safety net and loses the artefact:
+                the resolution still steps down under load, it is just resolved
+                smoothly on the way back up, which reads as a touch soft rather
+                than as broken geometry.
+              */}
+              <AdaptiveDpr />
               <AdaptiveEvents />
             </>
           )}

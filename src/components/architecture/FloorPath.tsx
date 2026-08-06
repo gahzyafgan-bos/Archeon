@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { FLOOR_LAYER, floorDecal } from "@/utils/floorDecals";
+import { FLOOR_LAYER, transparentFloorDecal } from "@/utils/floorDecals";
 import type { RoomConfig } from "@/data/roomConfig";
 
 interface PathNode {
@@ -80,22 +80,26 @@ export function FloorPath({ room }: { room: RoomConfig }) {
           // one, the inlay passed straight through the slab and the two fought
           // along the intersection. At 0.028 the underside clears all of them.
           <group key={i} position={[midX, 0.028, midZ]} rotation={[0, angle, 0]}>
-            <mesh>
+            <mesh renderOrder={FLOOR_LAYER.path}>
               <boxGeometry args={[0.45, 0.015, len]} />
               <meshStandardMaterial
                 color={a.accent}
                 transparent
                 opacity={0.5}
-                {...floorDecal(FLOOR_LAYER.path)}
+                {...transparentFloorDecal(FLOOR_LAYER.path)}
               />
             </mesh>
-            <mesh position={[0, 0.01, len * 0.28]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh
+              position={[0, 0.01, len * 0.28]}
+              rotation={[Math.PI / 2, 0, 0]}
+              renderOrder={FLOOR_LAYER.pathArrow}
+            >
               <coneGeometry args={[0.28, 0.6, 3]} />
               <meshStandardMaterial
                 color={a.accent}
                 transparent
                 opacity={0.75}
-                {...floorDecal(FLOOR_LAYER.pathArrow)}
+                {...transparentFloorDecal(FLOOR_LAYER.pathArrow)}
               />
             </mesh>
           </group>

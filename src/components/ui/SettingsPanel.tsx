@@ -457,6 +457,41 @@ export function SettingsPanel() {
                   setelah benar, semua perhitungan VR ikut benar. Browser tidak bisa membaca ukuran
                   layar sendiri, jadi ini satu-satunya angka yang harus kamu beri tahu.
                 </p>
+                {/* Tanpa penggaris, tombol ini yang menyelamatkan.
+                    Slidernya sudah benar dan penjelasannya sudah jelas, tapi
+                    keduanya mengandaikan pengunjung memegang penggaris — dan
+                    di dalam museum tidak ada yang memegang penggaris. Nilai
+                    default 145 mm adalah HP Android 6,3 inci, dan di iPhone
+                    6,1 inci (130 mm) itu menggeser tiap mata 3,26 mm terlalu
+                    ke dalam. Rumusnya `1 - 2*lensa/lebar` adalah selisih dua
+                    panjang yang mirip, jadi salah 15 mm di input jadi salah
+                    4x di output — persis besaran yang dulu tercatat sebagai
+                    "gambar dobel". Tiga tombol menghapus seluruh kelas masalah
+                    ini untuk mayoritas perangkat. */}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {[
+                    { label: 'iPhone kecil 4,7"', mm: 104 },
+                    { label: 'iPhone 6,1"', mm: 130 },
+                    { label: 'iPhone Pro Max 6,7"', mm: 143 },
+                    { label: 'Android 6,5"', mm: 150 },
+                  ].map((p) => (
+                    <button
+                      key={p.mm}
+                      onClick={() => updateSettings({ vrScreenWidthMm: p.mm })}
+                      className={`px-2.5 py-1 rounded-full border text-[10px] transition-all ${
+                        settings.vrScreenWidthMm === p.mm
+                          ? "bg-museum-gold/20 border-museum-gold/50 text-museum-gold"
+                          : "border-white/10 text-museum-mist hover:text-museum-bone"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-museum-mist/60 text-[10px] mt-1.5 italic">
+                  Kalau gambarnya terlihat dobel di iPhone, ini penyebab paling sering — pilih
+                  ukuran yang paling mendekati HP-mu dulu sebelum menyentuh dua setelan di bawah.
+                </p>
               </div>
 
               {/* Lens separation — a property of the viewer, not the phone. */}
