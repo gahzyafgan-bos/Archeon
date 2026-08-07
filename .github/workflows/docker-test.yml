@@ -1,0 +1,56 @@
+name: Docker Build & Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Get repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t my-app:test \
+            .
+
+      # Run container
+      - name: Start container
+        run: |
+          docker run -d \
+            --name my-app \
+            -p 8080:8080 \
+            my-app:test
+
+      # Wait for application startup
+      - name: Wait for app
+        run: |
+          sleep 10
+
+      # Test container is running
+      - name: Check container
+        run: |
+          docker ps
+          docker logs my-app
+
+      # Example HTTP health test
+      - name: Test API
+        run: |
+          curl --fail http://localhost:8080/health
+
+      # Stop container
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop my-app || true
+          docker rm my-app || true
