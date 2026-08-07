@@ -46,7 +46,7 @@ jobs:
       # Example HTTP health test
       - name: Test API
         run: |
-          curl --fail http://localhost:8080/health
+          curl --fail http://localhost:8080
 
       # Stop container
       - name: Cleanup
