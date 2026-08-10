@@ -435,7 +435,7 @@ export function OnboardingFlow() {
             {/* Something that visibly moves, so a wait behind a disabled button
                 never reads as a frozen app. */}
             {waitingForAssets && (
-              <div className="h-[2px] w-32 overflow-hidden bg-museum-stone/60">
+              <div className="h-[2px] w-full overflow-hidden bg-museum-stone/60">
                 <div
                   className="h-full bg-museum-gold transition-all duration-200 ease-museum"
                   style={{ width: `${loadProgress}%` }}
