@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Howl } from "howler";
 import { useMuseumStore } from "@/store/useMuseumStore";
 
@@ -20,6 +20,25 @@ export function useSoundtrack() {
   const howlRef = useRef<Howl | null>(null);
   // Playback has actually begun (survived the browser autoplay gate).
   const startedRef = useRef(false);
+  /**
+   * Whether the visitor has interacted with the page at least once.
+   *
+   * Nothing to do with whether the music *may* play — it's about when the
+   * AudioContext may be built at all. Howler creates it inside the very first
+   * `new Howl()` (howler.js `Howl.init` → `setupAudioContext`), and a context
+   * created before any interaction is born suspended: Chrome logs "The
+   * AudioContext was not allowed to start. It must be resumed (or created)
+   * after a user gesture on the page." for the creation itself, and again for
+   * every `resume()` Howler's autoUnlock/_autoResume then attempts — six
+   * warnings on a plain page load (audit P3-4).
+   *
+   * So the Howl isn't built until this flips. The document has sticky user
+   * activation by then, so the context is created running and no warning is
+   * ever printed. Nothing is lost by waiting: the sound was inaudible until
+   * that first gesture regardless, and onboarding guarantees several clicks
+   * before the visitor is ever inside the museum.
+   */
+  const [hasUserGesture, setHasUserGesture] = useState(false);
 
   const targetVolume =
     settings.masterMuted || isAmbienceMuted ? 0 : settings.volumeAmbience / 100;
@@ -28,8 +47,26 @@ export function useSoundtrack() {
   const targetRef = useRef(targetVolume);
   targetRef.current = targetVolume;
 
-  // Create the track once and keep it alive for the session.
+  // Wait for the first interaction anywhere on the page.
   useEffect(() => {
+    if (hasUserGesture) return;
+    const onGesture = () => setHasUserGesture(true);
+    const opts: AddEventListenerOptions = { passive: true };
+    window.addEventListener("pointerdown", onGesture, opts);
+    window.addEventListener("keydown", onGesture, opts);
+    window.addEventListener("touchend", onGesture, opts);
+    return () => {
+      window.removeEventListener("pointerdown", onGesture);
+      window.removeEventListener("keydown", onGesture);
+      window.removeEventListener("touchend", onGesture);
+    };
+  }, [hasUserGesture]);
+
+  // Create the track once that gesture has happened, and keep it alive for the
+  // rest of the session.
+  useEffect(() => {
+    if (!hasUserGesture) return;
+
     const track = new Howl({
       src: [SOUNDTRACK_SRC],
       loop: true,
@@ -44,37 +81,15 @@ export function useSoundtrack() {
       },
     });
     howlRef.current = track;
-
-    // Browser autoplay policy blocks sound until the user has interacted. Try
-    // once now (covers the case where a gesture, e.g. an onboarding click, has
-    // already happened), and arm a one-time listener so the very first
-    // interaction anywhere starts it. onplay flips startedRef, so a queued/
-    // blocked play() simply gets retried on that gesture — no double-start.
-    const start = () => {
-      if (!startedRef.current && !track.playing()) track.play();
-    };
-    const onGesture = () => {
-      start();
-      if (startedRef.current) detach();
-    };
-    const detach = () => {
-      window.removeEventListener("pointerdown", onGesture);
-      window.removeEventListener("keydown", onGesture);
-      window.removeEventListener("touchend", onGesture);
-    };
-    start();
-    window.addEventListener("pointerdown", onGesture);
-    window.addEventListener("keydown", onGesture);
-    window.addEventListener("touchend", onGesture);
+    track.play();
 
     return () => {
-      detach();
       track.fade(track.volume(), 0, 300);
       setTimeout(() => track.unload(), 350);
       howlRef.current = null;
       startedRef.current = false;
     };
-  }, []);
+  }, [hasUserGesture]);
 
   // Follow mute/volume changes with a short fade.
   useEffect(() => {
@@ -82,5 +97,5 @@ export function useSoundtrack() {
     if (!track || !startedRef.current) return;
     if (targetVolume > 0 && !track.playing()) track.play();
     track.fade(track.volume(), targetVolume, 400);
-  }, [targetVolume]);
+  }, [targetVolume, hasUserGesture]);
 }
