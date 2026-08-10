@@ -7,6 +7,9 @@ export function OnboardingFlow() {
   const hasCompletedOnboarding = useMuseumStore((s) => s.hasCompletedOnboarding);
   const setHasCompletedOnboarding = useMuseumStore((s) => s.setHasCompletedOnboarding);
   const isTouchDevice = useMuseumStore((s) => s.isTouchDevice);
+  const isLoading = useMuseumStore((s) => s.isLoading);
+  const loadProgress = useMuseumStore((s) => s.loadProgress);
+  const loadError = useMuseumStore((s) => s.loadError);
   const { enterFullscreen, isFullscreenSupported } = useFullscreen();
 
   const [activeSlide, setActiveSlide] = useState(0);
@@ -14,8 +17,26 @@ export function OnboardingFlow() {
   if (hasCompletedOnboarding) return null;
 
   const totalSlides = 5;
+  const isLastSlide = activeSlide === totalSlides - 1;
+
+  /**
+   * The exit door stays shut while the galleries are still being assembled
+   * (audit P3-5). Onboarding sits above the loading screen on purpose — the
+   * minute or so a visitor spends reading it is a minute the models spend
+   * downloading — but that same stacking meant "Mulai Jelajahi" could be
+   * pressed at 20% and drop the visitor into a hall with nothing in it, with
+   * the progress bar that would have explained the wait hidden behind this
+   * very card.
+   *
+   * So the last slide reports the real progress instead of hiding it, and only
+   * opens once `isLoading` clears. That is bounded, not open-ended: the loader
+   * lets itself out after MAX_LOADING_WAIT_MS once the artifact list is in, and
+   * a load that can no longer finish sets `loadError` — see below.
+   */
+  const waitingForAssets = isLastSlide && isLoading && !loadError;
 
   const handleNext = () => {
+    if (waitingForAssets) return;
     if (activeSlide < totalSlides - 1) {
       setActiveSlide(activeSlide + 1);
     } else {
@@ -56,7 +77,21 @@ export function OnboardingFlow() {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/60 backdrop-blur-md transition-all duration-500"
+      /* Normally above the loading screen (z-50) so the visitor reads while the
+         museum downloads. The one exception is a load that has failed or
+         stalled: the only two ways out of that — "Coba Lagi" and "Lanjutkan
+         Saja" — live on the loading screen, so this card steps below it rather
+         than sealing the visitor in behind a button that will never enable.
+
+         transition-opacity, NOT transition-all, precisely because of that swap:
+         z-index is an animatable integer, so `transition-all` interpolates
+         60 -> 40 across the full 500ms (measured: still reading 50 most of the
+         way through). That left the recovery buttons under this card,
+         swallowing taps, at the exact moment a visitor reaches for one.
+         Nothing on this element animates anyway. */
+      className={`fixed inset-0 ${
+        loadError ? "z-40" : "z-[60]"
+      } flex items-center justify-center px-4 bg-black/60 backdrop-blur-md transition-opacity duration-500`}
       style={{
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)",
         paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
@@ -383,11 +418,31 @@ export function OnboardingFlow() {
           <div className="flex flex-col items-end gap-1">
             <button
               onClick={handleNext}
-              className="bg-museum-gold text-museum-void text-xs uppercase tracking-wider font-semibold py-2.5 px-5 rounded hover:bg-museum-gold/90 border border-museum-gold hover:border-museum-gold shadow-lg shadow-museum-gold/5 transition-all"
+              disabled={waitingForAssets}
+              aria-busy={waitingForAssets}
+              className={`text-xs uppercase tracking-wider font-semibold py-2.5 px-5 rounded border shadow-lg transition-all ${
+                waitingForAssets
+                  ? "cursor-progress border-museum-gold/30 bg-museum-gold/10 text-museum-gold/80 shadow-transparent"
+                  : "bg-museum-gold text-museum-void border-museum-gold hover:bg-museum-gold/90 hover:border-museum-gold shadow-museum-gold/5"
+              }`}
             >
-              {activeSlide === totalSlides - 1 ? "Mulai Jelajahi" : "Lanjut"}
+              {!isLastSlide
+                ? "Lanjut"
+                : waitingForAssets
+                  ? `Menyiapkan Galeri ${Math.round(loadProgress)}%`
+                  : "Mulai Jelajahi"}
             </button>
-            {activeSlide === totalSlides - 1 && isTouchDevice && isFullscreenSupported && (
+            {/* Something that visibly moves, so a wait behind a disabled button
+                never reads as a frozen app. */}
+            {waitingForAssets && (
+              <div className="h-[2px] w-32 overflow-hidden bg-museum-stone/60">
+                <div
+                  className="h-full bg-museum-gold transition-all duration-200 ease-museum"
+                  style={{ width: `${loadProgress}%` }}
+                />
+              </div>
+            )}
+            {isLastSlide && !waitingForAssets && isTouchDevice && isFullscreenSupported && (
               <span className="text-museum-mist/60 text-[9px] tracking-wide">
                 Mode layar penuh akan aktif
               </span>

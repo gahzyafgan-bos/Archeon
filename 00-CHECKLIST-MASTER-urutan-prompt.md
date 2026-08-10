@@ -585,3 +585,66 @@ di layer DOM HUD yang sama.
 **File yang berubah:** `src/hooks/useIsOverlayActive.ts` (baru),
 `src/components/architecture/ZoneSignboard.tsx`, `src/components/rooms/Hall.tsx`,
 `src/components/rooms/RoomShell.tsx`.
+
+---
+
+## 9. Tuntaskan Sisa Audit P3-4 & P3-5 (AudioContext + Gerbang Onboarding)
+
+**Sumber:** dua baris terakhir yang masih `⏸ belum dikerjakan` di
+`docs/AUDIT-2026-08-05.md`. Sisa temuan lain memang tidak bisa ditutup dari
+sisi kode (P1-5, P3-2, P3-3 butuh aset/isi; P2-6 tidak reproduksibel).
+
+**Yang dikerjakan (1 commit):**
+
+- [x] **P3-4 — AudioContext dibuat sebelum ada interaksi**: warning itu cuma
+      gejala; akarnya Howler membangun AudioContext di dalam `new Howl()`
+      pertama (`Howl.init` → `setupAudioContext`), dan `useSoundtrack`
+      memanggilnya saat mount. Context yang lahir tanpa aktivasi pengguna
+      lahir dalam keadaan *suspended*, dan Chrome mengeluh sekali untuk
+      pembuatannya lalu sekali lagi untuk tiap `resume()` yang dicoba
+      autoUnlock/`_autoResume` Howler. Perbaikannya: Howl baru dibangun
+      setelah gesture pertama (`pointerdown`/`keydown`/`touchend`). Tidak ada
+      yang hilang — suaranya memang tidak terdengar sebelum itu, dan
+      onboarding menjamin ada beberapa klik sebelum pengunjung masuk.
+- [x] **P3-5 — Onboarding bisa diselesaikan sebelum aset siap**: tombol
+      "Mulai Jelajahi" di slide terakhir sekarang terkunci selagi `isLoading`,
+      dan selama menunggu ia **menampilkan** progres nyata
+      (`Menyiapkan Galeri N%` + bar tipis) alih-alih menutupinya — dulu
+      layar loading di baliknya tidak pernah terlihat. Penguncian ini
+      terbatas, bukan tak berujung: loader melepas diri sendiri setelah
+      `MAX_LOADING_WAIT_MS` begitu daftar artefak masuk, dan kalau muat
+      gagal/mandek (`loadError`) kartu onboarding turun ke bawah layar
+      loading supaya "Coba Lagi"/"Lanjutkan Saja" bisa ditekan.
+- [x] **Cacat susulan yang ketemu lewat pengujian**: kartu onboarding memakai
+      `transition-all`, dan `z-index` termasuk properti yang bisa
+      dianimasikan — penurunan lapis 60 → 40 itu ikut ter-interpolasi selama
+      500 ms (terukur masih membaca 50 di sebagian besar rentangnya), jadi
+      tombol pemulihan tertutup kartu persis saat pengunjung meraihnya.
+      Transisinya dipersempit ke `transition-opacity`.
+
+**Verifikasi — untuk pertama kalinya benar-benar dijalankan di browser.**
+Ekstensi Chrome tetap tidak tersambung (kendala yang sama seperti prompt #2,
+#4, #5, #6, #7, #8), jadi dipakai harness Chrome DevTools Protocol di luar
+repo yang menjalankan **build produksi** (`vite preview`) dengan throttle
+jaringan:
+
+- **P3-4** diuji sebagai invarian, bukan sebagai teks warning: konstruktor
+  `AudioContext` diganti Proxy pencatat lewat
+  `Page.addScriptToEvaluateOnNewDocument` (sebelum kode aplikasi jalan), tiap
+  pembuatan dicap `navigator.userActivation.hasBeenActive`.
+  **Sebelum:** 2 context dibuat pada t≈0,8 dtk dengan `hasBeenActive:false`,
+  disertai 3 warning Chrome. **Sesudah:** 0 context sampai gesture pertama,
+  lalu dibuat dengan `hasBeenActive:true`, **0 warning**.
+- **P3-5** diuji dengan menekan tombolnya sungguhan: saat 0% tombol
+  `disabled` dan berbunyi "Menyiapkan Galeri 0%" — ditekan, onboarding tetap
+  terbuka (tidak ada masuk lebih awal); setelah muat selesai tombol terbuka
+  sendiri jadi "Mulai Jelajahi"; ditekan, onboarding tertutup & HUD muncul.
+- **Jalur gagal** diuji dengan memutus koneksi di tengah muat: `loadError`
+  muncul, gerbang melepas, dan "Coba Lagi"/"Lanjutkan Saja" terbukti bisa
+  ditekan lewat uji `elementFromPoint` (bukan sekadar ada di DOM) —
+  inilah yang menangkap cacat `transition-all` di atas.
+- `tsc -b` bersih, `npm run lint` bersih (1 warning pre-existing di
+  `useMuseumStore.ts`, di luar scope), `npm run build` sukses.
+
+**File yang berubah:** `src/hooks/useSoundtrack.ts`,
+`src/components/ui/OnboardingFlow.tsx`, `docs/AUDIT-2026-08-05.md`.
