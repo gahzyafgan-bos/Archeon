@@ -518,6 +518,8 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
       // pushed, and is integrated here over delta time. That is what makes the
       // turn incremental — hold the stick and yaw keeps accumulating, so the
       // player can spin 360° as many times as they like.
+
+
       const lookSpeed = BASE_LOOK_SPEED * settings.lookSensitivity;
       const yawDelta = -lookX * lookSpeed * delta;
       targetYaw.current += yawDelta;
@@ -527,6 +529,8 @@ export function PlayerRig({ room, artifacts, onEnterDoor }: PlayerRigProps) {
       // axes log). Lets an on-device test confirm the fix directly: hold the
       // look stick one way and `turns` must keep climbing without ever
       // settling, while `pitch` stops at the ±1.40 limit by design.
+
+      
       if (import.meta.env.DEV && (lookX !== 0 || lookY !== 0)) {
         const now = performance.now();
         if (now - lastLookLog.current > 500) {

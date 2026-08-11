@@ -14,12 +14,42 @@ ada di data dan sebaiknya dikonfirmasi.
 
 # 0. PERTANYAAN DARI NASKAH KURATOR BARU — PALING MENDESAK
 
-Pemilik repo mengirim naskah deskripsi resmi untuk 11 artefak, dan naskah itu sudah
-dipasang ke `artifacts.json`. Aturan yang dipakai: **kalau naskah kurator berbeda dengan
-data lama, naskah kurator menang.** Tapi beberapa perbedaannya cukup besar sehingga perlu
-dikonfirmasi balik — kalau ternyata datanya yang benar, teksnya harus dikoreksi lagi.
+Pemilik repo mengirim naskah deskripsi resmi untuk artefak, dan naskah tersebut telah diproses ke `artifacts.json` (kecuali Surya Stambha yang ditahan). Aturan yang dipakai: **kalau naskah kurator berbeda dengan data lama, naskah kurator menang.** Namun beberapa perbedaannya cukup besar sehingga perlu dikonfirmasi balik oleh pihak museum.
 
-Diurutkan dari yang paling berisiko.
+---
+
+### 🚨 0.1 — 🚨 ⭐⭐⭐ PRIORITAS TINGGI (BELUM DITULIS KE APLIKASI): `r2-surya-stambha` — Naskah Tidak Cocok Dengan Bentuk Benda
+
+- **Teks Naskah Baru:** *"Termasuk jenis kapak perunggu, hasil teknologi masa perundagian yang dipergunakan sebagai sarana upacara. Hiasan motif 'kedok' (muka manusia) dianggap mempunyai kekuatan ghaib sebagai pengusir pengaruh roh jahat. Motif hiasan ini menunjukkan adanya pengaruh kuat dari kebudayaan Dongson. Surya berarti matahari dan Stambha berarti tiang."*
+- **Kondisi Aplikasi & Model 3D saat ini (`surya-stambha.glb`):** Menggambarkan sebuah **pilar/tugu/tongkat hias sakral bermotif matahari** dari Pulau Sawu, NTT (tinggi ±1,5–2,0 m).
+- **Masalah:** Teks naskah secara fisik mendeskripsikan **kapak perunggu/kapak upacara Dongson**, bukan tugu/pilar. Ini **kemungkinan besar salah tempel / tertukar** dengan artefak kapak perunggu lain.
+- **Tindakan Saat Ini:** **Deskripsi Surya Stambha TIDAK ditulis ke `artifacts.json`** (deskripsi lama dipertahankan) sampai ada konfirmasi resmi dari pemilik project / kurator museum.
+
+---
+
+### 0.2 — `r1-kapak-persegi`: Perolehan Asal Pacitan (Non-blocking)
+
+- **Teks Naskah Baru:** *"Asal perolehan Pacitan. Hasil teknologi masa Neolitik, fungsi kapak ini antara lain untuk menebang pohon, memotong dahan, dan tulang binatang..."*
+- **Catatan Verifikasi:** Secara arkeologis umum, Pacitan sangat identik dengan kebudayaan *Pacitanian* (Paleolitikum / Kapak Perimbas), sedangkan Kapak Persegi (Beliung Persegi) adalah hasil teknologi Neolitikum.
+- **Tindakan Saat Ini:** Teks naskah **tetap ditulis** ke aplikasi sesuai naskah pemilik project, tetapi dicatat untuk konfirmasi lanjutan apakah spesimen koleksi spesifik museum Mpu Tantular ini memang diperoleh dari situs Pacitan.
+
+---
+
+### 0.3 — `r3-telepon-antik`: Tahun 1882 pada Pesawat Telepon Dinding
+
+- **Teks Naskah Baru:** *"Pesawat telepon dinding yang dikembangkan pada tahun 1882 merefleksikan keterbatasan teknologi pada eranya..."*
+- **Catatan Verifikasi:** Tahun 1882 merujuk pada tahun paten/pengembangan tipe pesawat telepon dinding oleh Bell/Western Electric, bukan tahun unit fisiknya diperoleh museum.
+- **Tindakan Saat Ini:** Ditulis netral sesuai naskah tanpa menambahkan prasangka atau tafsiran berlebih.
+
+---
+
+### 0.4 — `r3-sepeda-tinggi`: Dua Narasi Tahun (Paten 1870 vs Kolonial Akhir Abad ke-19)
+
+- **Teks Naskah Baru:** *"Diciptakan oleh 2 orang berkebangsaan Inggris bernama James Starley dan William Hillman dan mendapat hak paten pada tahun 1870..."*
+- **Catatan Verifikasi:** Naskah baru menyebutkan perancang James Starley & William Hillman dan paten 1870 (Inggris). Narasi lama menyebutkan penggunaan sepeda tinggi oleh elit kolonial di Hindia Belanda pada akhir abad ke-19.
+- **Tindakan Saat Ini:** Kedua narasi ini **tidak saling bertentangan** (1870 = paten di Inggris, akhir abad ke-19 = masuk Hindia Belanda). Naskah baru telah diterapkan secara utuh.
+
+---
 
 ## 0.1 — ⚠️ `r3-sepeda-motor-uap`: benda ini sebenarnya apa?
 
