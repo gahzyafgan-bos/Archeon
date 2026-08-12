@@ -14,6 +14,7 @@ import { FloorPath } from "@/components/architecture/FloorPath";
 import { ZoneFloorMotif } from "@/components/architecture/ZoneFloorMotif";
 import { ZoneSignboard } from "@/components/architecture/ZoneSignboard";
 import { InterpretivePanel, WALL_FURNITURE_MAT } from "@/components/architecture/InterpretivePanel";
+import { WELCOME_HISTORY_PANELS } from "@/data/wallPanels";
 import { applyBatikWorldScale, createBatikPattern } from "@/utils/batikPatterns";
 import { createSignPlateTexture, createStoneReliefTexture } from "@/utils/panelTexture";
 import {
@@ -545,6 +546,12 @@ export function RoomShell({ room, artifacts, children }: RoomShellProps) {
       if (zone.id === "transisi-iptek") {
         const half = transisiPanelLength(depth) / 2;
         for (const wallX of [minX, maxX]) addFeature({ x: wallX, z: zone.center.z }, half);
+      }
+    }
+    for (const panel of WELCOME_HISTORY_PANELS) {
+      if (panel.roomId === room.id) {
+        const pos = panel.getPosition(room.bounds);
+        addFeature({ x: pos[0], z: pos[2] }, panel.width / 2);
       }
     }
 

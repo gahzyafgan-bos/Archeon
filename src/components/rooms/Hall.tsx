@@ -7,6 +7,8 @@ import type { Artifact } from "@/types/artifact";
 import { createSignPlateTexture } from "@/utils/panelTexture";
 import { DEFAULT_CEILING_HEIGHT } from "@/utils/hallGeometry";
 
+import { WelcomeHistoryPanels } from "@/components/architecture/WelcomeHistoryPanels";
+
 /** Hanging cloth banner, in metres. A hall banner carries larger letters than a
  * zone post — it is read from the far end of the aisle, not from arm's length —
  * but it is still a fixed physical size at every distance. */
@@ -149,6 +151,11 @@ export function Hall({ hall, artifacts }: { hall: RoomConfig; artifacts: Artifac
           <WelcomeBanner ceilingHeight={hall.ceilingHeight ?? DEFAULT_CEILING_HEIGHT} localZ={-3.4} />
         </group>
       )}
+
+      {/* Museum History Pigoras mounted on the South wall of the welcome zone.
+          Rendered outside the welcomeZone group because their positions are in
+          world space (derived from room bounds), not local to the zone centre. */}
+      {welcomeZone && <WelcomeHistoryPanels bounds={hall.bounds} />}
     </RoomShell>
   );
 }

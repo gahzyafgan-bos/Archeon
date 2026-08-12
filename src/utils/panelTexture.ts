@@ -388,3 +388,187 @@ export function createSignPlateTexture(opts: SignPlateOptions): THREE.CanvasText
   texture.anisotropy = 4;
   return texture;
 }
+
+export interface HistoryPanelTextureOptions {
+  title: string;
+  subtitle?: string;
+  body: string[];
+  widthM: number;
+  heightM: number;
+  accent: string;
+  ground: string;
+  ink: string;
+  maxAnisotropy?: number;
+}
+
+/**
+ * High-density history panel texture generator for museum wall pigoras.
+ * Renders crisp, legibly-typeset multi-paragraph Indonesian text onto a rich
+ * Batik Modern background with brass frame accents and exact world-scale font height.
+ */
+export function createHistoryPanelTexture(opts: HistoryPanelTextureOptions): THREE.CanvasTexture {
+  const { title, subtitle, body, widthM, heightM, accent, ground, ink, maxAnisotropy = 8 } = opts;
+
+  // High DPI rasterisation: 512 px per metre on world scale
+  const PX_PER_M = 512;
+  const W = Math.round(widthM * PX_PER_M);
+  const H = Math.round(heightM * PX_PER_M);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    const empty = new THREE.CanvasTexture(canvas);
+    empty.colorSpace = THREE.SRGBColorSpace;
+    return empty;
+  }
+
+  // Rich layered ground with subtle vertical lighting gradient
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, ground);
+  bg.addColorStop(1, "#1B2F52");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Soft overhead light wash simulation
+  const shade = ctx.createLinearGradient(0, 0, 0, H);
+  shade.addColorStop(0, "rgba(255, 246, 226, 0.08)");
+  shade.addColorStop(0.5, "rgba(0, 0, 0, 0)");
+  shade.addColorStop(1, "rgba(0, 0, 0, 0.24)");
+  ctx.fillStyle = shade;
+  ctx.fillRect(0, 0, W, H);
+
+  // Inset brass hairline border
+  const inset = Math.round(H * 0.045);
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = Math.max(3, Math.round(H * 0.008));
+  ctx.strokeRect(inset, inset, W - inset * 2, H - inset * 2);
+
+  // Corner flourishes
+  const cornerLen = Math.round(H * 0.055);
+  ctx.lineWidth = Math.max(4, Math.round(H * 0.012));
+  // Top-left
+  ctx.beginPath();
+  ctx.moveTo(inset, inset + cornerLen);
+  ctx.lineTo(inset, inset);
+  ctx.lineTo(inset + cornerLen, inset);
+  ctx.stroke();
+  // Top-right
+  ctx.beginPath();
+  ctx.moveTo(W - inset - cornerLen, inset);
+  ctx.lineTo(W - inset, inset);
+  ctx.lineTo(W - inset, inset + cornerLen);
+  ctx.stroke();
+  // Bottom-left
+  ctx.beginPath();
+  ctx.moveTo(inset, H - inset - cornerLen);
+  ctx.lineTo(inset, H - inset);
+  ctx.lineTo(inset + cornerLen, H - inset);
+  ctx.stroke();
+  // Bottom-right
+  ctx.beginPath();
+  ctx.moveTo(W - inset - cornerLen, H - inset);
+  ctx.lineTo(W - inset, H - inset);
+  ctx.lineTo(W - inset, H - inset - cornerLen);
+  ctx.stroke();
+
+  const padX = inset * 2.2;
+  const padY = inset * 1.8;
+  const maxTextW = W - padX * 2;
+
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
+
+  // Accent bar above title
+  ctx.fillStyle = accent;
+  ctx.fillRect(padX, padY, Math.round(W * 0.1), Math.max(4, Math.round(H * 0.012)));
+
+  let y = padY + Math.round(H * 0.035);
+
+  // Setup drop shadow for text legibility
+  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+
+  // Title: Georgia 600 serif, ~11 cm physical cap height
+  const titleCapPx = 0.11 * PX_PER_M;
+  const titleFontPx = titleCapPx / 0.7;
+  ctx.font = `600 ${Math.round(titleFontPx)}px Georgia, 'Times New Roman', serif`;
+  ctx.fillStyle = accent;
+
+  const titleLines = wrap(ctx, title, maxTextW);
+  for (const line of titleLines) {
+    ctx.fillText(line, padX, y);
+    y += titleFontPx * 1.25;
+  }
+
+  // Subtitle
+  if (subtitle) {
+    y += Math.round(H * 0.008);
+    const subCapPx = 0.05 * PX_PER_M;
+    const subFontPx = subCapPx / 0.7;
+    ctx.font = `italic 400 ${Math.round(subFontPx)}px Georgia, 'Times New Roman', serif`;
+    ctx.fillStyle = "#E4D5B7";
+    ctx.fillText(subtitle, padX, y);
+    y += subFontPx * 1.35;
+  }
+
+  // Disable shadow for divider line
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  // Divider line
+  y += Math.round(H * 0.012);
+  ctx.strokeStyle = "rgba(232, 160, 32, 0.4)";
+  ctx.lineWidth = Math.max(1, Math.round(H * 0.003));
+  ctx.beginPath();
+  ctx.moveTo(padX, y);
+  ctx.lineTo(W - padX, y);
+  ctx.stroke();
+  y += Math.round(H * 0.022);
+
+  // Re-enable shadow for body text
+  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+
+  // Paragraph body text: Georgia 400 serif, ~4.5 cm physical cap height
+  const bodyCapPx = 0.045 * PX_PER_M;
+  const bodyFontPx = bodyCapPx / 0.7;
+  ctx.font = `400 ${Math.round(bodyFontPx)}px Georgia, 'Times New Roman', serif`;
+  ctx.fillStyle = ink;
+
+  const lineSpacing = bodyFontPx * 1.4;
+  const paragraphSpacing = bodyFontPx * 0.7;
+
+  for (const p of body) {
+    const lines = wrap(ctx, p, maxTextW);
+    for (const line of lines) {
+      if (y + bodyFontPx > H - padY) break;
+      ctx.fillText(line, padX, y);
+      y += lineSpacing;
+    }
+    y += paragraphSpacing;
+    if (y > H - padY) break;
+  }
+
+  // Reset shadow before exit
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = maxAnisotropy;
+  return texture;
+}
+
