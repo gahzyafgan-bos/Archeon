@@ -202,9 +202,93 @@ export function dumpVrDiag(label = "snapshot") {
   );
 }
 
+/**
+ * Live counts of everything Mode VR sets up and is supposed to tear down again.
+ *
+ * The symptom this exists for is "flicker + double, worse the second time you
+ * enter VR". That shape — fine on the first cycle, degrading on every one after
+ * — is what a leak looks like: a `deviceorientation` handler that was never
+ * removed writes head pose alongside the new one and the two fight for the same
+ * value each frame; a render loop that was never cancelled draws into the same
+ * canvas as the live one. Both are invisible in a screenshot and obvious in a
+ * counter, so the counter is the test: enter and leave VR five times and every
+ * number below must read exactly the same as after the first.
+ */
+export interface VrLifecycleCounts {
+  /** deviceorientation handlers currently attached. Must be 1 in VR, 0 outside. */
+  orientationListeners: number;
+  /** Stereo frame loops currently registered. Must be 1 in VR, 0 outside. */
+  stereoLoops: number;
+  /** Eye render targets allocated and not yet disposed. Must be 2 in VR, 0 outside. */
+  eyeRenderTargets: number;
+  /** Cumulative, never reset — how many times each was ever created this session. */
+  totalOrientationListenersEver: number;
+  totalStereoLoopsEver: number;
+  totalEyeRenderTargetsEver: number;
+}
+
+export const vrLifecycle: VrLifecycleCounts = {
+  orientationListeners: 0,
+  stereoLoops: 0,
+  eyeRenderTargets: 0,
+  totalOrientationListenersEver: 0,
+  totalStereoLoopsEver: 0,
+  totalEyeRenderTargetsEver: 0,
+};
+
+type LiveKey = "orientationListeners" | "stereoLoops" | "eyeRenderTargets";
+const TOTAL_KEY: Record<LiveKey, keyof VrLifecycleCounts> = {
+  orientationListeners: "totalOrientationListenersEver",
+  stereoLoops: "totalStereoLoopsEver",
+  eyeRenderTargets: "totalEyeRenderTargetsEver",
+};
+
+/** `delta` is +1 on setup and -1 on teardown. */
+export function countVrResource(key: LiveKey, delta: 1 | -1) {
+  if (!VR_DIAG_ENABLED) return;
+  vrLifecycle[key] += delta;
+  if (delta === 1) vrLifecycle[TOTAL_KEY[key]] += 1;
+  if (vrLifecycle[key] < 0) {
+    console.error(`[VR] ${key} went negative (${vrLifecycle[key]}) — teardown ran without a matching setup.`);
+  }
+}
+
+/**
+ * Reads the counters back with the expected values for the current mode. Call
+ * from the console after N enter/leave cycles — the numbers must not depend
+ * on N.
+ */
+export function dumpVrLifecycle(inVR = false) {
+  if (!VR_DIAG_ENABLED) return;
+  const expect = inVR
+    ? { orientationListeners: 1, stereoLoops: 1, eyeRenderTargets: 2 }
+    : { orientationListeners: 0, stereoLoops: 0, eyeRenderTargets: 0 };
+  const row = (key: LiveKey, label: string) => {
+    const got = vrLifecycle[key];
+    const ok = got === expect[key];
+    return `     ${label.padEnd(28)}: ${got} (harus ${expect[key]}) ${ok ? "OK" : "← BOCOR"}`;
+  };
+  // eslint-disable-next-line no-console
+  console.log(
+    [
+      ``,
+      `============ [VR SIKLUS HIDUP — ${inVR ? "di dalam VR" : "di luar VR"}] ============`,
+      row("orientationListeners", "listener deviceorientation"),
+      row("stereoLoops", "loop render stereo"),
+      row("eyeRenderTargets", "render target mata"),
+      `     dibuat total sesi ini       : listener ${vrLifecycle.totalOrientationListenersEver}, ` +
+        `loop ${vrLifecycle.totalStereoLoopsEver}, rt ${vrLifecycle.totalEyeRenderTargetsEver}`,
+      `============================================================`,
+      ``,
+    ].join("\n")
+  );
+}
+
 // Reachable from a remote-debug console (chrome://inspect) while the phone is
 // in the headset, where there is no keyboard to trigger anything.
 if (VR_DIAG_ENABLED && typeof window !== "undefined") {
   (window as unknown as { vrDiag?: unknown }).vrDiag = vrDiag;
   (window as unknown as { dumpVrDiag?: unknown }).dumpVrDiag = dumpVrDiag;
+  (window as unknown as { vrLifecycle?: unknown }).vrLifecycle = vrLifecycle;
+  (window as unknown as { dumpVrLifecycle?: unknown }).dumpVrLifecycle = dumpVrLifecycle;
 }

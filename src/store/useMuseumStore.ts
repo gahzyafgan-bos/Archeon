@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Artifact, RoomId, ZoneId } from "@/types/artifact";
+import { ROOM_CONFIGS } from "@/data/roomConfig";
 import { GRAPHICS_QUALITIES, type GraphicsQuality } from "@/utils/graphicsPresets";
 import {
   IPD_DEFAULT_M,
@@ -389,6 +390,75 @@ interface MuseumState {
   requestVRRecenter: () => void;
   isGamepadConnected: boolean;
   setIsGamepadConnected: (v: boolean) => void;
+
+  /**
+   * Puts every SESSION-scoped field back to the value a first-time visitor
+   * gets, without touching a single preference.
+   *
+   * Exists because "a new visit" and "a new page load" are not the same event
+   * on a phone. A visitor who put the phone in a Cardboard viewer, took it out
+   * and walked away leaves the tab alive; the browser hands the very same
+   * JavaScript context back when it is reopened (bfcache / tab restore), so no
+   * mount runs, no store is constructed, and the next person is dropped
+   * straight into a split-screen stereo view with no onboarding and no way out
+   * they know about. On a shared device — a teacher's phone, a school lab, a
+   * museum tablet — that means the next user inherits the previous user's mode.
+   *
+   * Preferences (graphics tier, volumes, sensitivity, text size, IPD) are
+   * deliberately untouched: those belong to the person's eyes and hardware, not
+   * to the visit. See PERSISTED_KEYS for the same split applied to storage.
+   */
+  resetSessionState: () => void;
+}
+
+/**
+ * The ONLY fields written to localStorage — an allowlist, not a blocklist.
+ *
+ * The direction matters. With a blocklist, every field added to this store in
+ * future is persisted by default and someone has to remember to exclude it; the
+ * ones that get forgotten are exactly the session flags that then come back to
+ * life on the next visit. With an allowlist, a new field is NOT persisted until
+ * somebody writes its name here on purpose.
+ *
+ * What may live here: preferences that describe the visitor or their hardware
+ * and are still true tomorrow. What may not: anything describing what is
+ * happening right now — VR mode, fullscreen, open panels, player position,
+ * active hall, gyro calibration offset.
+ */
+const PERSISTED_KEYS = ["settings", "graphicsQualityCustomized"] as const;
+type PersistedKey = (typeof PERSISTED_KEYS)[number];
+type PersistedState = Pick<MuseumState, PersistedKey>;
+
+/**
+ * Storage schema version.
+ *
+ * Bumped to 2 alongside the hardened `merge` below. The old `merge` spread the
+ * WHOLE stored object over the live state, so any key that ever reached storage
+ * — from an older build, another tab, or a hand-edited value — was reapplied on
+ * every boot regardless of what `partialize` writes today. A stored
+ * `isVRMode: true` therefore survived forever: the app would enter stereo
+ * during hydration, before React rendered anything. Fixing the code alone does
+ * not help anyone who already has such a blob, which is why the migration is
+ * mandatory rather than cosmetic.
+ */
+const PERSIST_VERSION = 2;
+
+/**
+ * Where a visit starts — read from the hall config rather than restated here,
+ * so moving Hall 1's entrance moves this too. (roomConfig imports only types,
+ * so there is no cycle back into the store.)
+ */
+const ENTRANCE_SPAWN = ROOM_CONFIGS["hall-1"].spawn;
+
+/** Drops every key outside the allowlist, whatever version wrote it. */
+function stripToAllowlist(state: unknown): Partial<PersistedState> {
+  if (!state || typeof state !== "object") return {};
+  const source = state as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const key of PERSISTED_KEYS) {
+    if (key in source) out[key] = source[key];
+  }
+  return out as Partial<PersistedState>;
 }
 
 export const useMuseumStore = create<MuseumState>()(
@@ -572,38 +642,95 @@ export const useMuseumStore = create<MuseumState>()(
        * button ever reset it, which left everyone without a pad stuck with it.
        */
       setVRMode: (v) =>
-        set({
-          isVRMode: v,
-          isSettingsOpen: false,
-          isCatalogOpen: false,
-          vrLookOffset: { yaw: 0, pitch: 0 },
-        }),
+        set((state) =>
+          // Idempotent: asking for the mode already in effect must be a no-op.
+          // Without the guard, a second "enter VR" would re-run the resets
+          // below and re-baseline the gyro under a visitor who is already
+          // wearing the headset — and every subscriber would be woken for a
+          // transition that never happened.
+          state.isVRMode === v
+            ? {}
+            : {
+                isVRMode: v,
+                isSettingsOpen: false,
+                isCatalogOpen: false,
+                vrLookOffset: { yaw: 0, pitch: 0 },
+              }
+        ),
       vrLookOffset: { yaw: 0, pitch: 0 },
       setVRLookOffset: (v) => set({ vrLookOffset: v }),
       vrRecenterSignal: 0,
       requestVRRecenter: () => set((state) => ({ vrRecenterSignal: state.vrRecenterSignal + 1 })),
       isGamepadConnected: false,
       setIsGamepadConnected: (v) => set({ isGamepadConnected: v }),
+
+      resetSessionState: () =>
+        set((state) => ({
+          // The one that started this: stereo is never inherited.
+          isVRMode: false,
+          vrLookOffset: { yaw: 0, pitch: 0 },
+          // Back to the start of the visit.
+          hasCompletedOnboarding: false,
+          isMovementLocked: true,
+          activeRoom: "hall-1",
+          activeZoneId: "welcome",
+          isTransitioning: false,
+          // Put the player back at the entrance too. PlayerRig only respawns on
+          // a change of hall, so someone who left the tab standing in Hall 2
+          // would otherwise get the onboarding overlay over a view from
+          // wherever the previous visitor abandoned them.
+          pendingSpawnPoint: ENTRANCE_SPAWN,
+          teleportSignal: state.teleportSignal + 1,
+          // Nothing left open over a museum the next visitor has not entered.
+          isSettingsOpen: false,
+          isCatalogOpen: false,
+          isInfoPanelOpen: false,
+          focusedArtifact: null,
+          nearbyArtifact: null,
+          nearbyDoorLabel: null,
+          moveInput: { x: 0, y: 0 },
+          lookInput: { x: 0, y: 0 },
+        })),
     }),
     {
       name: "museum-settings",
-      partialize: (state) => ({
-        settings: state.settings,
-        graphicsQualityCustomized: state.graphicsQualityCustomized,
-      }),
-      merge: (persistedState: any, currentState) => ({
+      version: PERSIST_VERSION,
+      // Allowlist. Everything not named in PERSISTED_KEYS stays in memory and
+      // dies with the tab, which is the correct default for session state.
+      partialize: (state) => stripToAllowlist(state) as PersistedState,
+      /**
+       * Rewrites any older blob down to the allowlist.
+       *
+       * Required, not optional: a visitor who tried Mode VR on a build whose
+       * storage carried more than these two keys keeps that blob until
+       * something rewrites it, and until then the app re-enters VR on every
+       * single load. The version bump is what forces this to run for them.
+       */
+      migrate: (persistedState) => stripToAllowlist(persistedState) as PersistedState,
+      merge: (persistedState, currentState) => ({
         ...currentState,
-        ...persistedState,
+        // Only allowlisted keys are lifted out of storage. This used to be a
+        // wholesale `...persistedState` spread, which meant storage could set
+        // ANY field in the store — including isVRMode, during hydration, before
+        // the first render. partialize alone does not close that: it governs
+        // what is written, never what is read back.
+        ...stripToAllowlist(persistedState),
         // Validated on the way OUT of storage, not just on the way in from the
         // UI — storage is untrusted input written by a build that no longer
         // exists. See sanitizeSettings for the full reasoning; the short
         // version is that one unknown graphics tier used to be a white screen.
         settings: sanitizeSettings({
           ...currentState.settings,
-          ...(persistedState?.settings || {}),
+          ...((persistedState as { settings?: Partial<Settings> } | undefined)?.settings || {}),
         }),
         // Persisted alongside settings, and equally capable of being garbage.
-        graphicsQualityCustomized: persistedState?.graphicsQualityCustomized === true,
+        graphicsQualityCustomized:
+          (persistedState as { graphicsQualityCustomized?: unknown } | undefined)
+            ?.graphicsQualityCustomized === true,
+        // Belt and braces for anyone whose storage predates the allowlist: even
+        // if a future edit lets something through, stereo mode cannot start a
+        // session switched on.
+        isVRMode: false,
       }),
     }
   )

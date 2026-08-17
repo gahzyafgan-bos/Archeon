@@ -1,7 +1,11 @@
 import { useEffect, useMemo } from "react";
 import { useThree } from "@react-three/fiber";
 import type { RoomBounds } from "@/data/roomConfig";
-import { WELCOME_HISTORY_PANELS, type HistoryWallPanelData } from "@/data/wallPanels";
+import {
+  HISTORY_PANEL_FRAME_MARGIN,
+  WELCOME_HISTORY_PANELS,
+  type HistoryWallPanelData,
+} from "@/data/wallPanels";
 import { createHistoryPanelTexture } from "@/utils/panelTexture";
 import { WALL_FURNITURE_MAT } from "@/components/architecture/InterpretivePanel";
 import { useGraphicsPreset } from "@/hooks/useGraphicsPreset";
@@ -16,50 +20,63 @@ function SingleHistoryPanel({
   maxAnisotropy: number;
 }) {
   const graphicsPreset = useGraphicsPreset();
-  const position = useMemo(() => panelData.getPosition(bounds), [panelData, bounds]);
+  const anchor = useMemo(() => panelData.getPosition(bounds), [panelData, bounds]);
 
-  const texture = useMemo(
+  const boardWidth = panelData.width - HISTORY_PANEL_FRAME_MARGIN * 2;
+
+  // The texture decides how tall the board has to be to show every paragraph;
+  // the frame is then built around it. Deriving geometry from the measured text
+  // (rather than cropping text to fixed geometry) is what stops the naskah
+  // being cut mid-sentence — see createHistoryPanelTexture.
+  const { texture, heightM: boardHeight } = useMemo(
     () =>
       createHistoryPanelTexture({
         title: panelData.title,
         subtitle: panelData.subtitle,
         body: panelData.body,
-        widthM: panelData.width,
-        heightM: panelData.height,
+        widthM: boardWidth,
+        minHeightM: panelData.minHeight - HISTORY_PANEL_FRAME_MARGIN * 2,
+        maxHeightM: panelData.maxHeight - HISTORY_PANEL_FRAME_MARGIN * 2,
         accent: panelData.accentColor,
         ground: panelData.groundColor,
         ink: panelData.inkColor,
+        titleCapM: panelData.titleCapM,
         maxAnisotropy,
       }),
-    [panelData, maxAnisotropy]
+    [panelData, boardWidth, maxAnisotropy]
   );
 
   useEffect(() => () => texture.dispose(), [texture]);
 
   const frameDepth = 0.05;
-  const boardWidth = panelData.width - 0.16;
-  const boardHeight = panelData.height - 0.16;
+  const panelHeight = boardHeight + HISTORY_PANEL_FRAME_MARGIN * 2;
+  // getPosition's y is the TOP edge (see wallPanels.ts) — the two boards have
+  // different heights and hang from a shared line.
+  const position = useMemo<[number, number, number]>(
+    () => [anchor[0], anchor[1] - panelHeight / 2, anchor[2]],
+    [anchor, panelHeight]
+  );
 
-  // Overhead spotlight position: 1.1m above panel, slightly in front
-  const lightPosY = position[1] + panelData.height / 2 + 0.45;
+  // Overhead spotlight position: above the panel, slightly in front
+  const lightPosY = anchor[1] + 0.45;
   const lightPosZ = position[2] - 0.45; // in front of the wall (+Z facing into room)
 
   return (
     <group position={position} rotation={[0, panelData.rotationY, 0]}>
       {/* Outer warm wood frame profile (gives physical 3D depth to the wall pigora) */}
       <mesh receiveShadow castShadow position={[0, 0, 0]}>
-        <boxGeometry args={[panelData.width, panelData.height, frameDepth]} />
+        <boxGeometry args={[panelData.width, panelHeight, frameDepth]} />
         <primitive object={WALL_FURNITURE_MAT.wood} attach="material" />
       </mesh>
 
       {/* Brass reveal lip between frame and face board */}
       <mesh position={[0, 0, 0.015]}>
-        <boxGeometry args={[panelData.width - 0.08, panelData.height - 0.08, 0.01]} />
+        <boxGeometry args={[panelData.width - 0.08, panelHeight - 0.08, 0.01]} />
         <primitive object={WALL_FURNITURE_MAT.brass} attach="material" />
       </mesh>
 
       {/* Printed panel face */}
-      <mesh position={[0, 0, 0.026]}>
+      <mesh position={[0, 0, 0.031]}>
         <planeGeometry args={[boardWidth, boardHeight]} />
         <meshStandardMaterial
           map={texture}

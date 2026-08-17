@@ -82,6 +82,64 @@ function KTX2Support() {
 }
 
 /**
+ * Owns the renderer's pixel ratio across a VR toggle, and holds the stereo
+ * view back until the canvas it is about to draw into has stopped changing
+ * size.
+ *
+ * Two things collide the moment Mode VR is switched on, and together they are
+ * the "double + flicker on the way in" that survived the stereo-geometry fixes:
+ *
+ *  1. `<AdaptiveDpr/>` unmounts (it is mono-only), and drei's unmount handler
+ *     calls `setDpr(viewport.initialDpr)` — the MONO pixel ratio captured when
+ *     the Canvas first mounted. That runs as a passive effect, i.e. AFTER the
+ *     Canvas has already applied its `dpr={vrDpr}` prop in a layout effect. So
+ *     the renderer ends the entry commit at the wrong resolution and is
+ *     corrected again on the next render: two full drawing-buffer resizes,
+ *     back to back, exactly at the transition. Re-asserting it here fixes it
+ *     for good, because a passive effect on a component that STAYS MOUNTED runs
+ *     after the unmounting one's cleanup, every time.
+ *  2. A drawing-buffer resize invalidates the eye render targets, which
+ *     CardboardStereoView re-sizes from inside its own frame callback. Frames
+ *     composited while those numbers disagree are the visible flicker — and
+ *     each eye briefly showing a differently-scaled image is what reads as
+ *     "double".
+ *
+ * So: settle the size first, then start drawing stereo. Until then r3f's
+ * ordinary mono render keeps the screen alive, which is the right thing to be
+ * looking at while the phone is still being slotted into the viewer anyway.
+ */
+function VRStereoStage({ dpr }: { dpr: number | [number, number] }) {
+  const setDpr = useThree((s) => s.setDpr);
+  const size = useThree((s) => s.size);
+  const viewportDpr = useThree((s) => s.viewport.dpr);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setDpr(dpr);
+  }, [setDpr, dpr]);
+
+  useEffect(() => {
+    // Two frames, not one: the first lets the resize land in the renderer, the
+    // second lets three's own buffers follow it.
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => setReady(true));
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+    // Re-armed whenever the target size changes, so an orientation flip during
+    // entry can't leave stereo running against a stale render target. Once
+    // `ready` is true it stays true — CardboardStereoView tracks size itself
+    // from then on, and unmounting it mid-session would be a worse flicker
+    // than the one being avoided.
+  }, [size.width, size.height, viewportDpr]);
+
+  return ready ? <CardboardStereoView /> : null;
+}
+
+/**
  * Renders exactly one room's geometry/artifacts at a time — the spec's
  * "jangan load semua ruangan sekaligus" requirement. Switching rooms
  * fetches that room's artifact list (today from local JSON, tomorrow from
@@ -250,7 +308,7 @@ export function MuseumExperience() {
     <>
       <Canvas
         shadows={graphicsPreset.shadowsEnabled}
-        // far was a fixed 200 — much deeper than either hall (max ~35m
+        // far was a fixed 200 much deeper than either hall (max ~35m
         // across); a preset-driven, shorter far plane on mobile (spec 4b.5
         // "fog/draw distance dipendekkan") gives three.js's own frustum
         // culling a tighter volume to reject geometry against, on top of
@@ -337,7 +395,7 @@ export function MuseumExperience() {
                 passes render. */}
             <VRInfoPanel />
             {isVRMode
-              ? <CardboardStereoView />
+              ? <VRStereoStage dpr={graphicsPreset.vrDpr} />
               : graphicsPreset.postProcessingEnabled && <PostProcessing />}
           </Suspense>
           {!isVRMode && (

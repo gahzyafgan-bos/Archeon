@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { barrelNormalizer, eyeLensCenterShift } from "@/utils/vrOptics";
 import { GRAPHICS_PRESETS } from "@/utils/graphicsPresets";
-import { VR_DIAG_ENABLED, publishVrDiagFrame } from "@/utils/vrDiagnostics";
+import { VR_DIAG_ENABLED, countVrResource, publishVrDiagFrame } from "@/utils/vrDiagnostics";
 
 // Per-eye render resolution and MSAA now come from the active tier's VR row in
 // GRAPHICS_PRESETS (vrEyeScale / vrMsaaSamples), so there is exactly one place
@@ -234,11 +234,23 @@ export function CardboardStereoView() {
 
   // Dispose the previous pair when the tier changes, not only on unmount.
   useEffect(() => {
+    countVrResource("eyeRenderTargets", 1);
+    countVrResource("eyeRenderTargets", 1);
     return () => {
       targetL.dispose();
       targetR.dispose();
+      countVrResource("eyeRenderTargets", -1);
+      countVrResource("eyeRenderTargets", -1);
     };
   }, [targetL, targetR]);
+
+  // The stereo frame loop itself. Registered as its own effect purely so the
+  // audit counter brackets exactly the lifetime of the useFrame subscription
+  // below (r3f unsubscribes it on unmount; this proves it).
+  useEffect(() => {
+    countVrResource("stereoLoops", 1);
+    return () => countVrResource("stereoLoops", -1);
+  }, []);
 
   const distortionMaterial = useMemo(
     () =>
@@ -330,15 +342,25 @@ export function CardboardStereoView() {
 
   useEffect(() => {
     return () => {
-      // Hand the renderer back a full-screen viewport. WebGLRenderer keeps the
-      // last `setViewport` indefinitely, so leaving VR would otherwise resume
-      // r3f's auto-render still scissored/clipped to the right eye's half of
-      // the canvas — the scene drawn into one half of the screen until some
-      // unrelated resize happened to reset it.
+      // Put the renderer back into a clean MONO state. WebGLRenderer keeps
+      // every one of these settings indefinitely, so anything left behind here
+      // is inherited by r3f's auto-render the moment VR exits — and inherited
+      // again by the NEXT entry into VR, which is why leaving VR dirty shows up
+      // as a second entry that looks worse than the first.
       const canvasSize = gl.getSize(new THREE.Vector2());
       gl.setScissorTest(false);
       gl.setViewport(0, 0, canvasSize.width, canvasSize.height);
       gl.setScissor(0, 0, canvasSize.width, canvasSize.height);
+      // The frame loop always ends on the default framebuffer, but a frame
+      // interrupted between the eye passes and the composite (an unmount
+      // mid-frame, a lost context) does not. Leaving an eye target bound sends
+      // the first mono frames into an off-screen buffer nobody displays.
+      gl.setRenderTarget(null);
+      // Shadow maps are taken under manual control per frame below and handed
+      // back at the end of each one; assert the mono default here too, so an
+      // exit on a frame that did not complete cannot leave shadows frozen.
+      gl.shadowMap.autoUpdate = true;
+      gl.shadowMap.needsUpdate = true;
 
       // The eye targets are disposed by their own effect above, which also
       // covers a mid-session tier change — doing it here too would double-free.

@@ -28,6 +28,14 @@ import { useEffect, useState } from "react";
  */
 const HAS_WEBGL = detectWebGLSupport();
 
+/**
+ * How long the page has to sit in the background before returning to it counts
+ * as a new visit rather than a pause. Ten minutes is comfortably longer than
+ * taking the phone out of a viewer to read a message, and comfortably shorter
+ * than "someone else picked this device up".
+ */
+const SESSION_IDLE_RESET_MS = 10 * 60 * 1000;
+
 export default function App() {
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null);
   const isRendererLost = useMuseumStore((s) => s.isRendererLost);
@@ -39,9 +47,47 @@ export default function App() {
   useMouseLookControls(rootEl);
   useInteractionKeys();
 
+  /**
+   * A new visit starts at the beginning — including a "visit" the browser
+   * hands back without ever remounting this component.
+   *
+   * A fresh load is covered by the mount below. The other two paths are not,
+   * and they are the ones a phone actually takes:
+   *
+   *  - `pageshow` with `persisted` is the back/forward cache: the tab was put
+   *    to sleep with its JavaScript intact and woken up later. No mount runs,
+   *    so whatever mode the last person left behind is still switched on. This
+   *    is how someone who tried Mode VR yesterday opens the link today and
+   *    lands directly in a split-screen stereo view, which on a phone without a
+   *    Cardboard viewer reads as an app that is broken, not as a feature.
+   *  - Coming back after a long spell in the background is the same situation
+   *    on devices that keep the page resident instead of freezing it. Long, not
+   *    any: stepping out of a headset to answer a message and coming straight
+   *    back must not throw the visitor out of the museum.
+   */
   useEffect(() => {
-    // Reset onboarding state on every mount (fresh page load)
-    useMuseumStore.getState().setHasCompletedOnboarding(false);
+    const reset = () => useMuseumStore.getState().resetSessionState();
+    reset();
+
+    let hiddenSince = 0;
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) reset();
+    };
+    const onVisibility = () => {
+      if (document.hidden) {
+        hiddenSince = Date.now();
+        return;
+      }
+      if (hiddenSince && Date.now() - hiddenSince >= SESSION_IDLE_RESET_MS) reset();
+      hiddenSince = 0;
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   // Publishes "Mode Kontras Tinggi" as an attribute on <html>, which is what

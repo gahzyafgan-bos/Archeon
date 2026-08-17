@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { wrapAngle } from "@/utils/angle";
+import { countVrResource } from "@/utils/vrDiagnostics";
 
 // Reusable scratch objects (avoid GC pressure in a ~60Hz event handler).
 const euler = new THREE.Euler();
@@ -170,7 +171,11 @@ export function useDeviceOrientationLook() {
     };
 
     window.addEventListener("deviceorientation", handleOrientation);
-    return () => window.removeEventListener("deviceorientation", handleOrientation);
+    countVrResource("orientationListeners", 1);
+    return () => {
+      window.removeEventListener("deviceorientation", handleOrientation);
+      countVrResource("orientationListeners", -1);
+    };
   }, [isVRMode]);
 
   // "Kalibrasi Ulang Arah Depan" — dropping the baseline makes the very next
