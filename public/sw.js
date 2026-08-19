@@ -34,7 +34,26 @@ const SHELL_CACHE = `museum-shell-${CACHE_VERSION}`;
 const MEDIA_CACHE = `museum-media-${CACHE_VERSION}`;
 const KEEP = [SHELL_CACHE, MEDIA_CACHE];
 
-/** Heavy, immutable-by-convention assets: models, decoders, audio, images. */
+/**
+ * Heavy, immutable-by-convention assets: models, decoders, audio, images.
+ *
+ * `/audio/` covers the eleven audio-guide narrations under `/audio/guide/`, and
+ * covering them *here* — runtime, cache-first, on first use — rather than in a
+ * precache list is the deliberate choice. Precaching the folder would add ~2.5
+ * MB to the very first load of a museum where most visitors open three or four
+ * artifacts and listen to none of them. Cached on first play, the second
+ * visitor to that artifact pays nothing, which is the same bargain every model
+ * in here already makes.
+ *
+ * If a precache manifest is ever introduced for the shell, `/audio/guide/` must
+ * be excluded from it.
+ *
+ * One requirement this places on the player: guide audio is loaded through Web
+ * Audio (`html5: false` in audio/guideAudio.ts), so it arrives as an ordinary
+ * XHR and lands in the cache below. An HTML5 <audio> element would fetch it
+ * with `Range:` instead and be handed straight to the network by the guard
+ * further down, caching nothing, forever.
+ */
 const MEDIA_PREFIXES = ["/models/", "/draco/", "/basis/", "/audio/", "/images/", "/icons/"];
 
 self.addEventListener("install", () => {

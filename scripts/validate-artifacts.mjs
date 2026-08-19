@@ -11,12 +11,32 @@
  *
  * Usage: node scripts/validate-artifacts.mjs
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const DATA_PATH = join(here, "..", "src", "data", "artifacts.json");
+
+/**
+ * Where narration files live. Static assets under `public/`, never imported —
+ * see the audio-guide notes in types/artifact.ts and public/sw.js.
+ */
+const GUIDE_AUDIO_DIR = join(here, "..", "public", "audio", "guide");
+const GUIDE_AUDIO_URL_PREFIX = "/audio/guide/";
+
+/**
+ * The one narration format this project ships.
+ *
+ * An earlier batch of guide recordings was MP3, and it was cancelled and
+ * replaced wholesale — different script, different voice, durations two to
+ * three times longer. The danger is not the container, it is that a surviving
+ * MP3 from the old batch would put a second narrator in the same room as the
+ * new one. So the extension is checked as a proxy for "this file came from the
+ * batch we actually shipped", and any `.mp3` left in the guide folder fails the
+ * build rather than waiting to be noticed by a visitor.
+ */
+const GUIDE_AUDIO_EXT = ".m4a";
 
 /** Text that must never appear in anything a visitor can read. */
 const FORBIDDEN = [
@@ -141,6 +161,8 @@ if (!Array.isArray(artifacts) || artifacts.length === 0) {
 }
 
 const seenDescriptions = new Map();
+/** audioGuide.src -> id artefak pertama yang memakainya (lihat pemeriksaan audioGuide). */
+const seenAudioSrc = new Map();
 const seenIds = new Set();
 const known = new Set(KNOWN_IDS);
 
@@ -227,6 +249,53 @@ for (const artifact of artifacts) {
     seenDescriptions.set(normalized, id);
   }
 
+  // --- audioGuide ---------------------------------------------------------
+  // Absent is the normal case: 21 of the 32 artifacts have no recording, and
+  // the player renders nothing at all for those. What must never happen is a
+  // registered narration that points at a file which is not there, or — far
+  // worse — two artifacts pointing at the same one, which is exactly how the
+  // two bicycles in the same zone would end up narrating each other.
+  if ("audioGuide" in artifact) {
+    const guide = artifact.audioGuide;
+    if (typeof guide !== "object" || guide === null || Array.isArray(guide)) {
+      fail(id, "audioGuide harus berupa objek { src, durationSec, contentVerified }");
+    } else {
+      const src = guide.src;
+      if (typeof src !== "string" || src.trim() === "") {
+        fail(id, "audioGuide.src kosong");
+      } else if (!src.startsWith(GUIDE_AUDIO_URL_PREFIX)) {
+        fail(id, `audioGuide.src harus dimulai dengan "${GUIDE_AUDIO_URL_PREFIX}" (sekarang: "${src}")`);
+      } else if (!src.endsWith(GUIDE_AUDIO_EXT)) {
+        fail(
+          id,
+          `audioGuide.src harus berekstensi "${GUIDE_AUDIO_EXT}" — "${src}" ditolak. ` +
+            "Batch MP3 lama dibatalkan; jangan campur dua set narasi."
+        );
+      } else {
+        const fileName = src.slice(GUIDE_AUDIO_URL_PREFIX.length);
+        const onDisk = join(GUIDE_AUDIO_DIR, fileName);
+        if (!existsSync(onDisk)) {
+          fail(id, `berkas audio tidak ada: dicari di "public${src}" untuk audioGuide.src "${src}"`);
+        }
+        const owner = seenAudioSrc.get(src);
+        if (owner) {
+          fail(id, `audioGuide.src "${src}" sudah dipakai ${owner} — dua artefak tidak boleh menunjuk berkas yang sama`);
+        } else {
+          seenAudioSrc.set(src, id);
+        }
+      }
+
+      const duration = guide.durationSec;
+      if (typeof duration !== "number" || !Number.isFinite(duration) || duration <= 0) {
+        fail(id, `audioGuide.durationSec harus angka positif (sekarang: ${JSON.stringify(duration)})`);
+      }
+
+      if (typeof guide.contentVerified !== "boolean") {
+        fail(id, "audioGuide.contentVerified harus true/false — false menyembunyikan tombolnya, bukan menghapus datanya");
+      }
+    }
+  }
+
   // --- fakta_menarik ------------------------------------------------------
   // Absent is a valid, expected state: most artifacts have no fact that can be
   // sourced, and the UI renders nothing at all for them. What is NOT valid is
@@ -250,6 +319,30 @@ for (const artifact of artifacts) {
   }
 }
 
+// --- guide audio folder ---------------------------------------------------
+// Two directions, both of which have bitten this project already:
+//   1. a leftover from the cancelled MP3 batch sitting in the folder, waiting
+//      for someone to wire it back up and put a second narrator in the room;
+//   2. a narration that was delivered and then never registered in the data,
+//      which is invisible — no error anywhere, the piece is simply silent.
+// The first fails the build. The second only prints, because a file arriving
+// before the data entry is a normal ordering during authoring.
+const orphanAudio = [];
+if (existsSync(GUIDE_AUDIO_DIR)) {
+  const referenced = new Set([...seenAudioSrc.keys()].map((src) => src.slice(GUIDE_AUDIO_URL_PREFIX.length)));
+  for (const fileName of readdirSync(GUIDE_AUDIO_DIR)) {
+    if (fileName.startsWith(".")) continue; // .gitkeep and friends
+    if (!fileName.endsWith(GUIDE_AUDIO_EXT)) {
+      errors.push(
+        `public${GUIDE_AUDIO_URL_PREFIX}${fileName}: bukan "${GUIDE_AUDIO_EXT}". ` +
+          "Sisa batch narasi lama — hapus berkasnya, jangan dipakai untuk menambal artefak yang belum bersuara."
+      );
+      continue;
+    }
+    if (!referenced.has(fileName)) orphanAudio.push(fileName);
+  }
+}
+
 for (const id of KNOWN_IDS) {
   if (!seenIds.has(id)) fail(id, "id tercatat tapi tidak ada lagi di artifacts.json");
 }
@@ -262,6 +355,19 @@ if (errors.length > 0) {
 }
 
 const withFact = artifacts.filter((a) => a.fakta_menarik).length;
+const withAudio = artifacts.filter((a) => a.audioGuide).length;
+const audioHeld = artifacts.filter((a) => a.audioGuide && !a.audioGuide.contentVerified);
 console.log(
-  `✓ Validasi artefak lolos (${artifacts.length} artefak diperiksa, ${withFact} punya fakta menarik).`
+  `✓ Validasi artefak lolos (${artifacts.length} artefak diperiksa, ${withFact} punya fakta menarik, ` +
+    `${withAudio} punya pemandu audio).`
 );
+for (const artifact of audioHeld) {
+  console.log(
+    `  ℹ ${artifact.id}: audio terdaftar tapi contentVerified=false — tombolnya sengaja tidak ditayangkan.`
+  );
+}
+for (const fileName of orphanAudio) {
+  console.log(
+    `  ℹ public${GUIDE_AUDIO_URL_PREFIX}${fileName}: ada di folder tapi belum dipakai artefak mana pun.`
+  );
+}

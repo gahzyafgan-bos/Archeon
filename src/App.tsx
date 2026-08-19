@@ -14,6 +14,7 @@ import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { useKeyboardControls } from "@/hooks/useKeyboardControls";
 import { useMouseLookControls } from "@/hooks/useMouseLookControls";
 import { useInteractionKeys } from "@/hooks/useInteractionKeys";
+import { useGuideAudioLifecycle } from "@/hooks/useAudioGuide";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import { useEffect, useState } from "react";
 
@@ -46,6 +47,10 @@ export default function App() {
   useKeyboardControls();
   useMouseLookControls(rootEl);
   useInteractionKeys();
+  // Mounted here, not in a panel: the audio guide has to keep following the
+  // volume settings and has to stop on a hall change or a VR toggle even when
+  // no panel happens to be rendered at that instant.
+  useGuideAudioLifecycle();
 
   /**
    * A new visit starts at the beginning — including a "visit" the browser

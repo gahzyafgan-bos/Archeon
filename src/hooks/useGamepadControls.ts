@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useMuseumStore } from "@/store/useMuseumStore";
+import { guideAudio } from "@/audio/guideAudio";
 import {
   LENS_SEPARATION_MAX_MM,
   LENS_SEPARATION_MIN_MM,
@@ -13,6 +14,17 @@ import {
  */
 const BUTTON_INTERACT = 0; // A / X — same action as the touch "X" / desktop "E" prompt
 const BUTTON_BACK = 1; // B — step back out of a focused artifact
+/**
+ * X — play/pause the audio guide for the focused artifact.
+ *
+ * The pad is the only input a headset visitor has, and this is the only way to
+ * reach the narration in VR: the touch HUD is hidden there and the flat
+ * InfoPanel with its play button is not rendered at all. Bound outside VR too,
+ * so the same button does the same thing in both modes rather than being a
+ * mode-specific trick to remember. Artifacts with no verified narration ignore
+ * it — see hasPlayableGuide.
+ */
+const BUTTON_AUDIO_GUIDE = 2;
 const BUTTON_RECENTER = 8; // Back/Select — recenter the gyro's "forward"
 const BUTTON_EXIT_VR = 9; // Start — leave VR mode without touching the screen
 const BUTTON_DPAD_LEFT = 14; // narrow the gap between the two eye images
@@ -225,6 +237,10 @@ export function useGamepadControls() {
         firePress(pad, BUTTON_BACK, () => {
           const s = useMuseumStore.getState();
           if (s.focusedArtifact) s.focusArtifact(null);
+        });
+        firePress(pad, BUTTON_AUDIO_GUIDE, () => {
+          const s = useMuseumStore.getState();
+          if (s.focusedArtifact) guideAudio.toggle(s.focusedArtifact);
         });
         if (isVRMode) {
           firePress(pad, BUTTON_RECENTER, () => {

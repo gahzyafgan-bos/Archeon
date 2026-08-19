@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
+import { useAudioGuide } from "@/hooks/useAudioGuide";
 
 /** Batik Modern palette — panel ground, frame, and text. */
 const INDIGO = "#2E4A7D";
@@ -23,6 +24,18 @@ const BODY_SIZE = 0.032;
 const FACT_LABEL_SIZE = 0.022;
 const FACT_SIZE = 0.027;
 const FOOTER_SIZE = 0.026;
+const AUDIO_SIZE = 0.026;
+const AUDIO_BAR_HEIGHT = 0.006;
+const AUDIO_BAR_GAP = 0.014;
+
+/**
+ * How many consecutive motionless frames end the "follow the camera" phase.
+ *
+ * Six is about a tenth of a second at 60fps: long enough that a momentary pause
+ * partway through the approach does not freeze the panel early, short enough
+ * that it is parked before the visitor has finished looking up.
+ */
+const STILL_FRAMES_BEFORE_PARKED = 6;
 
 const PAD_TOP = 0.06;
 const PAD_BOTTOM = 0.05;
@@ -69,20 +82,59 @@ export function VRInfoPanel() {
   const isVRMode = useMuseumStore((s) => s.isVRMode);
   const focusedArtifact = useMuseumStore((s) => s.focusedArtifact);
   const { camera } = useThree();
+  /**
+   * The same shared player the flat panel drives — read here, never started
+   * from here.
+   *
+   * Drawn as scene geometry rather than as a DOM overlay for the same reason
+   * the whole panel is: the stereo camera renders this twice, so both eyes get
+   * an identical control at an identical depth. A DOM button would be painted
+   * once, across the seam between the two eye viewports and outside the barrel
+   * distortion, which is exactly the "tombolnya berbeda antara mata kiri dan
+   * kanan" failure this had to avoid.
+   */
+  const audio = useAudioGuide(focusedArtifact);
   const groupRef = useRef<THREE.Group>(null);
   const placed = useRef(false);
+  /**
+   * Where the camera was on the previous frame, and how long it has been there.
+   *
+   * The panel used to park itself on the very first frame after opening, and
+   * that frame is the worst possible moment to choose: focusing an artifact
+   * starts a camera move towards it, so the panel was left standing at the spot
+   * the visitor was walking away from and the rig then flew straight past it.
+   * In a headset the result was simply nothing — press A, get no panel — with
+   * the panel sitting somewhere behind the viewer the whole time.
+   *
+   * So placement now waits for the approach to finish. The panel is re-parked
+   * every frame the camera is still travelling and freezes once it has been
+   * still for a few frames, which is the same "parked in world space, does not
+   * follow the head" behaviour, just anchored to where the visitor ends up
+   * instead of where they started.
+   */
+  const lastCameraPos = useRef(new THREE.Vector3());
+  const stillFrames = useRef(0);
 
   const isOpen = isVRMode && !!focusedArtifact;
 
   useEffect(() => {
-    // Re-place on the next frame each time the panel opens (or the artifact
-    // changes), so it appears in front of wherever the visitor is now.
+    // Re-place each time the panel opens (or the artifact changes), so it
+    // appears in front of wherever the visitor ends up.
     placed.current = false;
+    stillFrames.current = 0;
+    lastCameraPos.current.set(Infinity, Infinity, Infinity);
   }, [focusedArtifact, isVRMode]);
 
   useFrame(() => {
     const group = groupRef.current;
     if (!group || !isOpen || placed.current) return;
+
+    // "Still" is generous on purpose: the approach eases out, so the last
+    // centimetres are covered very slowly and a tight threshold would freeze
+    // the panel just short of the visitor's final position.
+    const moved = camera.position.distanceToSquared(lastCameraPos.current) > 1e-6;
+    lastCameraPos.current.copy(camera.position);
+    stillFrames.current = moved ? 0 : stillFrames.current + 1;
 
     // Park the panel a fixed distance along the direction the viewer is facing,
     // flattened to the horizontal plane so it never ends up above or below them
@@ -98,7 +150,9 @@ export function VRInfoPanel() {
       .addScaledVector(forward, PANEL_DISTANCE)
       .setY(camera.position.y - PANEL_EYE_DROP);
     group.lookAt(camera.position.x, group.position.y, camera.position.z);
-    placed.current = true;
+
+    // ~6 frames of stillness, then it stops following for good.
+    if (stillFrames.current >= STILL_FRAMES_BEFORE_PARKED) placed.current = true;
   });
 
   /**
@@ -121,9 +175,27 @@ export function VRInfoPanel() {
     const factLabelH = FACT_LABEL_SIZE * 1.5;
     const factH = fact ? factLabelH + estimateLines(fact, FACT_SIZE) * FACT_SIZE * 1.3 : 0;
     const footerH = FOOTER_SIZE * 1.2;
+    /**
+     * The audio row reserves its full height — label, gap and progress bar —
+     * from the moment the panel opens, even though the bar only means anything
+     * once something is playing. Sizing it to the current state instead would
+     * make the panel grow the instant the visitor pressed X, and a panel that
+     * changes size in front of a headset visitor is the kind of motion this
+     * whole component is built to avoid.
+     */
+    const hasAudio = Boolean(focusedArtifact.audioGuide?.contentVerified);
+    const audioH = hasAudio ? AUDIO_SIZE * 1.2 + AUDIO_BAR_GAP + AUDIO_BAR_HEIGHT : 0;
 
     const height =
-      PAD_TOP + titleH + GAP + bodyH + (fact ? GAP + factH : 0) + GAP + footerH + PAD_BOTTOM;
+      PAD_TOP +
+      titleH +
+      GAP +
+      bodyH +
+      (fact ? GAP + factH : 0) +
+      (hasAudio ? GAP + audioH : 0) +
+      GAP +
+      footerH +
+      PAD_BOTTOM;
 
     let cursor = height / 2 - PAD_TOP;
     const titleY = cursor;
@@ -132,12 +204,41 @@ export function VRInfoPanel() {
     cursor -= bodyH + GAP;
     const factY = cursor;
 
-    return { body, fact, height, titleY, bodyY, factY, factH, factLabelH };
+    // The audio row is anchored from the bottom, above the footer, so it sits
+    // in the same place whether or not the artifact has a "Tahukah Anda?" block.
+    const audioBarY = -height / 2 + PAD_BOTTOM + footerH + GAP;
+    const audioTextY = audioBarY + AUDIO_BAR_HEIGHT + AUDIO_BAR_GAP;
+
+    return {
+      body,
+      fact,
+      height,
+      titleY,
+      bodyY,
+      factY,
+      factH,
+      factLabelH,
+      hasAudio,
+      audioBarY,
+      audioTextY,
+    };
   }, [focusedArtifact]);
 
   if (!isOpen || !focusedArtifact || !layout) return null;
 
-  const { body, fact, height, titleY, bodyY, factY, factH, factLabelH } = layout;
+  const {
+    body,
+    fact,
+    height,
+    titleY,
+    bodyY,
+    factY,
+    factH,
+    factLabelH,
+    hasAudio,
+    audioBarY,
+    audioTextY,
+  } = layout;
 
   return (
     <group ref={groupRef}>
@@ -214,6 +315,43 @@ export function VRInfoPanel() {
         </>
       )}
 
+      {/* Audio guide. Present only for artifacts with a verified narration,
+          and the only way to reach one in VR: there is no touch HUD in this
+          mode, so the gamepad X button is the control and this row is its
+          entire display. */}
+      {hasAudio && (
+        <>
+          <Text
+            position={[-PANEL_WIDTH / 2 + 0.06, audioTextY, 0.001]}
+            anchorX="left"
+            anchorY="bottom"
+            fontSize={AUDIO_SIZE}
+            maxWidth={TEXT_WIDTH}
+            color={audio.isError ? SAND : BRASS}
+          >
+            {audioLabel(audio)}
+          </Text>
+          {/* Track. Kept visible at rest too, so the row does not appear to
+              gain a component the moment playback starts. */}
+          <mesh position={[0, audioBarY + AUDIO_BAR_HEIGHT / 2, 0.001]}>
+            <planeGeometry args={[TEXT_WIDTH, AUDIO_BAR_HEIGHT]} />
+            <meshBasicMaterial color={INDIGO} toneMapped={false} />
+          </mesh>
+          {audio.progress > 0 && (
+            <mesh
+              position={[
+                -TEXT_WIDTH / 2 + (TEXT_WIDTH * audio.progress) / 2,
+                audioBarY + AUDIO_BAR_HEIGHT / 2,
+                0.002,
+              ]}
+            >
+              <planeGeometry args={[TEXT_WIDTH * audio.progress, AUDIO_BAR_HEIGHT]} />
+              <meshBasicMaterial color={BRASS} toneMapped={false} />
+            </mesh>
+          )}
+        </>
+      )}
+
       <Text
         position={[0, -height / 2 + PAD_BOTTOM, 0.001]}
         anchorX="center"
@@ -225,4 +363,21 @@ export function VRInfoPanel() {
       </Text>
     </group>
   );
+}
+
+/**
+ * One line of text carrying the whole player: what state it is in, how far
+ * along it is, and which button changes that.
+ *
+ * Spelled out rather than reduced to icons because inside a headset there is no
+ * tooltip, no hover and no second glance — whatever this line says is all the
+ * visitor will ever be told about the control.
+ */
+function audioLabel(audio: ReturnType<typeof useAudioGuide>): string {
+  if (audio.isError) return "Narasi gagal dimuat \u2014 tombol X untuk mencoba lagi";
+  if (audio.isLoading) return "Memuat narasi\u2026";
+  const [, total] = audio.timeLabel.split(" / ");
+  if (audio.isPlaying) return "\u275a\u275a  " + audio.timeLabel + "  \u00b7  tombol X untuk jeda";
+  if (audio.status === "paused") return "\u25b6  " + audio.timeLabel + "  \u00b7  tombol X untuk lanjut";
+  return "\u25b6  Pemandu audio  \u00b7  " + total + "  \u00b7  tombol X";
 }

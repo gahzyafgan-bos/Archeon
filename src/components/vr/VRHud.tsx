@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useMuseumStore } from "@/store/useMuseumStore";
-import { useAudioGuide } from "@/hooks/useAudioGuide";
 import { eyeLensCenterShift } from "@/utils/vrOptics";
 import { VR_DIAG_ENABLED, vrDiag } from "@/utils/vrDiagnostics";
 
@@ -173,12 +172,23 @@ const VR_EXIT_HOLD_MS = 900;
 
 export function VRHud() {
   const isVRMode = useMuseumStore((s) => s.isVRMode);
-  const focusedArtifact = useMuseumStore((s) => s.focusedArtifact);
-
-  // InfoPanel's own 360°-drag panel is unusable without touch, so in VR mode
-  // the audio guide plays itself as soon as an artifact is focused instead —
-  // see the matching `isVRMode ? null : focusedArtifact` guard in InfoPanel.
-  useAudioGuide(isVRMode ? focusedArtifact : null, isVRMode);
+  /**
+   * The audio guide no longer starts itself here.
+   *
+   * It used to: the touch HUD is hidden in VR, so autoplay-on-focus was the
+   * only way a narration could ever begin inside a headset. Two things were
+   * wrong with that. A voice that starts on its own in a gallery is startling
+   * for the visitor and rude to everyone standing near them, and browsers
+   * increasingly refuse to allow it at all — so the feature was unreliable on
+   * exactly the phones it was written for.
+   *
+   * What replaced it is a real control: the X button on the gamepad toggles the
+   * narration (useGamepadControls), and VRInfoPanel shows its state in-scene,
+   * where the stereo camera draws it identically to both eyes. Visitors in a
+   * Cardboard viewer with no pad have no way to start the guide — a known
+   * limitation, recorded in docs/artefak-butuh-verifikasi-kurator.md, and the
+   * honest trade against a narration nobody asked for.
+   */
 
   useEffect(() => {
     if (isVRMode) return;

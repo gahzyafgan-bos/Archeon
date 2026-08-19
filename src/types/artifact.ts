@@ -47,8 +47,49 @@ export interface Artifact {
   url_model_3d: string;
   /** Placeholder shape used while there's no real model yet. */
   placeholder_shape: "box" | "sphere" | "cylinder" | "cone" | "torus";
-  /** Path to the audio guide file (mp3/ogg), or empty string if none yet. */
+  /**
+   * Legacy audio field from the backend contract. Superseded by `audioGuide`
+   * and empty on every entry — nothing in the app reads it any more. Kept only
+   * so the shape still mirrors the REST payload documented above; new work must
+   * use `audioGuide`.
+   *
+   * @deprecated pakai `audioGuide`.
+   */
   url_audio: string;
+  /**
+   * Narasi pemandu audio berbahasa Indonesia untuk artefak ini.
+   *
+   * Optional, and absent for most of the collection — only 11 of the 32
+   * artifacts have a recording. Absent is a normal, expected state: the player
+   * renders **nothing at all** for those, rather than a dead grey button. A
+   * button that is not there reads as "this piece has no narration"; a disabled
+   * one reads as "the app is broken".
+   *
+   * Deliberately stored on the artifact rather than in a side-car mapping file:
+   * a separate map is one more thing to keep in sync by hand, and the failure
+   * mode of getting it wrong (narration playing over the wrong object) is the
+   * worst one this feature has.
+   */
+  audioGuide?: {
+    /** Absolute path under `public/`, e.g. "/audio/guide/garudeya.m4a". Must be
+     * `.m4a` (AAC) — enforced by scripts/validate-artifacts.mjs. */
+    src: string;
+    /** Length in seconds, recorded here so the panel can show "0:12 / 1:05"
+     * before a single byte of audio has been fetched. */
+    durationSec: number;
+    /**
+     * Whether the narration's *content* has been confirmed to describe this
+     * object. `false` hides the play button entirely — the file is registered
+     * and validated, it just does not play yet.
+     *
+     * Exists because of `r2-surya-stambha`, whose written script describes a
+     * bronze ceremonial axe while the object on display is a pillar (see
+     * docs/artefak-butuh-verifikasi-kurator.md 0.1/0.2). The recording was made
+     * from that script, so it may narrate the wrong object. Once the museum
+     * confirms, flipping this to `true` is the entire fix — no code change.
+     */
+    contentVerified: boolean;
+  };
   /** Transcript of the audio guide for subtitles/accessibility. */
   transkrip_audio?: string;
   /** Position of the artifact inside its room, in 3D world units. */

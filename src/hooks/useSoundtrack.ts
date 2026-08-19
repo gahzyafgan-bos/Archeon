@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Howl } from "howler";
 import { useMuseumStore } from "@/store/useMuseumStore";
+import { GUIDE_DUCK_FACTOR } from "@/audio/guideAudio";
 
 /**
  * Single looping background soundtrack for the whole experience ("Suling
@@ -40,8 +41,24 @@ export function useSoundtrack() {
    */
   const [hasUserGesture, setHasUserGesture] = useState(false);
 
-  const targetVolume =
+  /**
+   * Music ducks under the audio guide.
+   *
+   * Both channels are set by the visitor and both are correct, but they cannot
+   * both be at their setting at the same time: a narrator and a gamelan at
+   * equal level fight for the same attention, and the visitor settles it by
+   * muting one of them. Dropping the music to ~28% for the length of the
+   * narration and restoring it afterwards means neither has to be switched off.
+   *
+   * The fade is the existing 400ms volume fade below — nothing extra is needed,
+   * because `targetVolume` changing is exactly what that effect already
+   * responds to. `isGuideAudioPlaying` is written by audio/guideAudio.ts, and
+   * only on a real start/stop, so this does not re-run on progress ticks.
+   */
+  const isGuidePlaying = useMuseumStore((s) => s.isGuideAudioPlaying);
+  const settingVolume =
     settings.masterMuted || isAmbienceMuted ? 0 : settings.volumeAmbience / 100;
+  const targetVolume = isGuidePlaying ? settingVolume * GUIDE_DUCK_FACTOR : settingVolume;
   // Read the latest target from inside the once-only setup effect without
   // re-creating the Howl when volume/mute change (that's the other effect's job).
   const targetRef = useRef(targetVolume);

@@ -13,10 +13,10 @@ export function InfoPanel() {
   const toggleInfoPanel = useMuseumStore((s) => s.toggleInfoPanel);
   const focusArtifact = useMuseumStore((s) => s.focusArtifact);
   const isVRMode = useMuseumStore((s) => s.isVRMode);
-  // VR mode plays the guide itself (see VRHud) and shows a minimal stereo
-  // indicator instead of this drag-to-rotate panel, which needs touch input
-  // that's unreachable inside a Cardboard headset.
-  const audio = useAudioGuide(isVRMode ? null : focusedArtifact);
+  // Both panels drive the same shared player (audio/guideAudio.ts), so there is
+  // nothing to gate here: this panel is not rendered in VR, and VRInfoPanel —
+  // which is, and is driven by the gamepad — reads the same playback state.
+  const audio = useAudioGuide(focusedArtifact);
   const settings = useMuseumStore((s) => s.settings);
   const modelFailed = useMuseumStore(
     (s) => focusedArtifact != null && s.failedModelIds.has(focusedArtifact.id)
@@ -168,20 +168,89 @@ export function InfoPanel() {
               </div>
             )}
 
-            <div className="flex items-center gap-3 pt-2 border-t border-white/10">
-              <button
-                onClick={audio.toggle}
-                disabled={!audio.hasAudio}
-                className="flex items-center gap-2 px-4 py-2 rounded-full border border-museum-gold/50 text-museum-gold text-sm hover:bg-museum-gold/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                {audio.isPlaying ? "❚❚ Jeda" : "▶ Pemandu Audio"}
-              </button>
-              {!audio.hasAudio && (
-                <span className="text-museum-mist/60 text-xs italic">
-                  Pemandu audio belum tersedia
-                </span>
-              )}
-            </div>
+            {/* Audio guide.
+                Rendered only when this piece actually has a verified narration
+                — 11 of the 32 do, and one of those is held back pending curator
+                confirmation, so most artifacts show nothing here at all. That
+                is the intended outcome: a control that is absent reads as "this
+                object has no narration", while a greyed-out one reads as "the
+                app is broken", and the second is a worse thing to say about a
+                museum than silence. There is no explanatory placeholder either
+                — an empty space needs no apology. */}
+            {audio.available && (
+              <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={audio.toggle}
+                    aria-label={
+                      audio.isPlaying
+                        ? `Jeda pemandu audio ${focusedArtifact.nama}`
+                        : `Putar pemandu audio ${focusedArtifact.nama}, durasi ${audio.timeLabel.split(" / ")[1]}`
+                    }
+                    // min-h/min-w rather than padding alone: this is the one
+                    // control in the panel a visitor hunts for mid-walk, and
+                    // 44x44 is the smallest target a thumb hits reliably.
+                    className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center gap-2 px-4 rounded-full border border-museum-gold/50 text-museum-gold text-sm hover:bg-museum-gold/10 transition-colors"
+                  >
+                    {audio.isLoading
+                      ? "◠ Memuat…"
+                      : audio.isPlaying
+                        ? "❚❚ Jeda"
+                        : "▶ Pemandu Audio"}
+                  </button>
+
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className="h-1 rounded-full bg-white/10 overflow-hidden"
+                      role="progressbar"
+                      aria-label="Posisi pemutaran narasi"
+                      aria-valuemin={0}
+                      aria-valuemax={Math.round(audio.durationSec)}
+                      aria-valuenow={Math.round(audio.positionSec)}
+                    >
+                      <div
+                        className="h-full bg-museum-gold/80"
+                        style={{ width: `${audio.progress * 100}%` }}
+                      />
+                    </div>
+                    {/* Follows "Ukuran Teks" like every other label here — the
+                        readout is the only way to know how long the narration
+                        still has to run, so it cannot be the one line that
+                        stays small when a visitor asks for large text. */}
+                    <p
+                      className="mt-1.5 text-xs tabular-nums text-museum-mist/80"
+                      style={{
+                        fontSize:
+                          settings.textSize === "small"
+                            ? "0.6875rem"
+                            : settings.textSize === "large"
+                              ? "1rem"
+                              : undefined,
+                      }}
+                    >
+                      {audio.timeLabel}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Failure is stated in one line, in the visitor's own terms,
+                    and the button above has already returned to "▶" — pressing
+                    it again is a fair retry. Nothing gets stuck on "Memuat…". */}
+                {audio.isError && (
+                  <p className="text-museum-gold/90 text-xs" role="status">
+                    Narasi tidak bisa dimuat. Periksa koneksi Anda, lalu coba lagi.
+                  </p>
+                )}
+
+                {/* Otherwise pressing play does nothing audible and the app
+                    looks broken, when in fact the visitor turned it down. */}
+                {audio.isSilenced && !audio.isError && (
+                  <p className="text-museum-mist/70 text-xs">
+                    Volume pemandu audio sedang di 0 — atur lewat Pengaturan.
+                  </p>
+                )}
+              </div>
+            )}
 
             <button
               onClick={() => toggleInfoPanel()}

@@ -61,6 +61,11 @@
     "url_model_3d": "/models/r1-kapak-persegi-a.glb",
     "placeholder_shape": "box",
     "url_audio": "",
+    "audioGuide": {
+      "src": "/audio/guide/kapak-perimbas.m4a",
+      "durationSec": 26.4,
+      "contentVerified": true
+    },
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -3.53,
@@ -169,6 +174,11 @@
     "url_model_3d": "/models/kapak-persegi.glb",
     "placeholder_shape": "box",
     "url_audio": "",
+    "audioGuide": {
+      "src": "/audio/guide/kapak-persegi.m4a",
+      "durationSec": 24.1,
+      "contentVerified": true
+    },
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -4.0,
@@ -223,6 +233,11 @@
     "url_model_3d": "/models/fossil-kepala-kerbau.glb",
     "placeholder_shape": "box",
     "url_audio": "",
+    "audioGuide": {
+      "src": "/audio/guide/fosil-kepala-kerbau.m4a",
+      "durationSec": 38.9,
+      "contentVerified": true
+    },
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -6.6,
@@ -250,6 +265,11 @@
     "url_model_3d": "/models/manusia-purba.glb",
     "placeholder_shape": "cylinder",
     "url_audio": "",
+    "audioGuide": {
+      "src": "/audio/guide/manusia-purba.m4a",
+      "durationSec": 28.8,
+      "contentVerified": true
+    },
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -9.5,
@@ -277,6 +297,11 @@
     "url_model_3d": "/models/ganesha.glb",
     "placeholder_shape": "cone",
     "url_audio": "",
+    "audioGuide": {
+      "src": "/audio/guide/ganesha.m4a",
+      "durationSec": 35.5,
+      "contentVerified": true
+    },
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 6.8,
@@ -305,6 +330,11 @@
     "url_model_3d": "/models/durga-mahisasuramardhini.glb",
     "placeholder_shape": "cone",
     "url_audio": "",
+    "audioGuide": {
+      "src": "/audio/guide/durga-mahisasuramardini.m4a",
+      "durationSec": 47.4,
+      "contentVerified": true
+    },
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 5.5,
@@ -549,6 +579,11 @@
     "url_model_3d": "/models/garudeya.glb",
     "placeholder_shape": "torus",
     "url_audio": "",
+    "audioGuide": {
+      "src": "/audio/guide/garudeya.m4a",
+      "durationSec": 59.6,
+      "contentVerified": true
+    },
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 10.0,
@@ -631,6 +666,11 @@
     "url_model_3d": "/models/surya-stambha.glb",
     "placeholder_shape": "cylinder",
     "url_audio": "",
+    "audioGuide": {
+      "src": "/audio/guide/surya-stambha.m4a",
+      "durationSec": 65,
+      "contentVerified": false
+    },
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 3.8,
@@ -659,6 +699,11 @@
     "url_model_3d": "/models/pesawat-telepon.glb",
     "placeholder_shape": "box",
     "url_audio": "",
+    "audioGuide": {
+      "src": "/audio/guide/pesawat-telepon-dinding.m4a",
+      "durationSec": 32.5,
+      "contentVerified": true
+    },
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 2.6,
@@ -687,6 +732,11 @@
     "url_model_3d": "/models/sepeda-tinggi.glb",
     "placeholder_shape": "torus",
     "url_audio": "",
+    "audioGuide": {
+      "src": "/audio/guide/sepeda-tinggi.m4a",
+      "durationSec": 51.9,
+      "contentVerified": true
+    },
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": -2.8,
@@ -715,6 +765,11 @@
     "url_model_3d": "/models/sepeda-daimler.glb",
     "placeholder_shape": "cylinder",
     "url_audio": "",
+    "audioGuide": {
+      "src": "/audio/guide/sepeda-daimler.m4a",
+      "durationSec": 66.5,
+      "contentVerified": true
+    },
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 0,

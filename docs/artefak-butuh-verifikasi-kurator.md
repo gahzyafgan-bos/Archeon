@@ -114,6 +114,44 @@ Deskripsinya sudah diganti mengikuti naskah, dan semua penyebutan "batu" dihapus
 3. **Model 3D.** `surya-stambha.glb` kemungkinan dimodelkan sebagai benda batu. Kalau
    aslinya perunggu, materialnya perlu ditinjau.
 
+### 0.2.1 — 🚨 Narasi audio Surya Stambha DITAHAN (tombolnya tidak ditayangkan)
+
+Museum mengirim 11 rekaman narasi berbahasa Indonesia, satu di antaranya
+`surya-stambha.m4a` (65 detik). Rekaman itu **sudah terdaftar di data**, ikut
+divalidasi, dan berkasnya ada di `public/audio/guide/` — tapi
+**tombol putarnya sengaja tidak ditampilkan** kepada pengunjung.
+
+Alasannya persis alasan di bagian 0.1 dan 0.2 di atas: naskah teks Surya Stambha
+mendeskripsikan **kapak perunggu bermotif kedok**, sementara benda yang dipajang
+adalah **pilar/tugu**. Kalau rekaman itu dibuat dari naskah yang sama, narasinya
+menceritakan benda yang salah — dan narasi yang salah jauh lebih merusak daripada
+artefak yang diam, karena pengunjung tidak punya cara membantahnya.
+
+Petunjuk tambahan: durasi rekamannya melonjak dari ±25 detik (batch lama) ke
+**65 detik**. Naskahnya jelas berubah; yang belum ketahuan adalah apakah isi yang
+keliru itu ikut diperbaiki.
+
+**Yang perlu dilakukan pihak museum:** dengarkan `surya-stambha.m4a` dan pastikan
+narasinya benar-benar menceritakan pilar Surya Stambha dari Pulau Sawu, bukan
+kapak perunggu.
+
+**Cara menyalakannya setelah dikonfirmasi:** buka `src/data/artifacts.json`, cari
+entri `r2-surya-stambha`, ubah satu baris:
+
+```json
+"audioGuide": {
+  "src": "/audio/guide/surya-stambha.m4a",
+  "durationSec": 65,
+  "contentVerified": false   ← ubah jadi true
+}
+```
+
+Tidak ada kode yang perlu disentuh. Kalau ternyata narasinya memang keliru,
+hapus seluruh blok `audioGuide` dari entri itu dan hapus berkasnya — artefaknya
+akan diperlakukan sama seperti 21 artefak lain yang belum bersuara.
+
+---
+
 ## 0.3 — `r3-telepon-antik`: telepon meja atau telepon dinding?
 
 - **Data lama:** "Telepon Genggam/Meja Antik" — pesawat bergaya meja dengan gagang bicara
@@ -327,12 +365,73 @@ bukan logika highlight: material objek tidak disentuh sama sekali saat fokus (di
 dengan membandingkan uuid + seluruh properti material sebelum dan sesudah `focusArtifact`,
 keduanya identik). Yang dulu terlihat "putih" adalah `baseColorFactor` 0.8 abu-abu bawaan glTF.
 
-## D. Yang masih kosong di seluruh dataset
+## D. Status pemandu audio per artefak
 
-**`transkrip_audio` kosong untuk ke-32 artefak, dan `url_audio` juga kosong.** Artinya
-fitur Audio Guide dan tampilan Transkrip Audio di panel informasi tidak pernah punya isi
-untuk ditampilkan. Ini bukan bug pada kode — datanya memang belum ada. Kalau museum
-menyediakan rekaman narasi, dua kolom itu tinggal diisi dan fiturnya langsung hidup.
+Museum sudah mengirim **11 rekaman narasi** (M4A/AAC, mono 16 kHz, total ±8 menit /
+±2,4 MB). Semuanya ada di `public/audio/guide/` dan terdaftar di `artifacts.json`
+lewat field `audioGuide`. **10 di antaranya tayang**; satu ditahan (lihat 0.2.1).
+
+Dari 32 artefak, **21 belum punya narasi** — dan itu keadaan yang normal, bukan bug.
+Artefak tanpa narasi **tidak menampilkan tombol apa pun**: bukan tombol abu-abu mati,
+bukan tulisan "belum tersedia", tidak ada apa-apa di tempat itu.
+
+### Sudah tayang (10)
+
+| ID | Artefak | Berkas | Durasi |
+|---|---|---|---|
+| `r1-kapak-perimbas` | Kapak Perimbas | `kapak-perimbas.m4a` | 0:26 |
+| `r1-kapak-persegi` | Kapak Persegi | `kapak-persegi.m4a` | 0:24 |
+| `r1-fosil-kepala-kerbau` | Fosil Kepala Kerbau | `fosil-kepala-kerbau.m4a` | 0:39 |
+| `r1-manusia-purba` | Manusia Purba | `manusia-purba.m4a` | 0:29 |
+| `r2-arca-ganesha` | Ganesha | `ganesha.m4a` | 0:36 |
+| `r2-arca-durga-mahisasuramardhini` | Durga Mahisasuramardini | `durga-mahisasuramardini.m4a` | 0:47 |
+| `r2-garudeya-emas` | Garudeya | `garudeya.m4a` | 1:00 |
+| `r3-telepon-antik` | Pesawat Telepon Dinding | `pesawat-telepon-dinding.m4a` | 0:33 |
+| `r3-sepeda-tinggi` | Sepeda Tinggi | `sepeda-tinggi.m4a` | 0:52 |
+| `r3-sepeda-motor-uap` | Sepeda Daimler | `sepeda-daimler.m4a` | 1:07 |
+
+> ⚠️ **Dua sepeda di zona yang sama.** `r3-sepeda-tinggi` dan `r3-sepeda-motor-uap`
+> (namanya "Sepeda Daimler") berdiri berdekatan di zona `transisi-iptek`, dan tertukarnya
+> dua narasi ini adalah kesalahan paling mudah terjadi di seluruh daftar. Pemetaan di atas
+> dicocokkan lewat durasi tiap berkas: `sepeda-daimler.m4a` terukur 66,5 detik dan
+> `sepeda-tinggi.m4a` 51,9 detik, persis seperti daftar yang dikirim pemilik project.
+> **Yang belum bisa diperiksa dari sisi ini adalah isi ucapannya.** Mohon dengarkan
+> pembuka kedua berkas sekali untuk memastikan penamaannya sudah benar sejak dari studio.
+
+### Ditahan (1)
+
+| ID | Artefak | Berkas | Alasan |
+|---|---|---|---|
+| `r2-surya-stambha` | Surya Stambha | `surya-stambha.m4a` (1:05) | Isi narasinya berpotensi salah benda — lihat **0.2.1** |
+
+### Belum punya narasi (21)
+
+`r1-fosil-pithecanthropus-erectus`, `r1-fosil-homo-erectus`, `r1-kapak-genggam`,
+`r1-nekara-perunggu`, `r1-koleksi-batuan`, **`r1-fosil-kepala-buaya`**,
+`r2-arca-siwa-mahadewa`, `r2-arca-wisnu`, `r2-arca-brahma`, `r2-arca-parwati`,
+`r2-nandi`, `r2-dwarapala-1`, `r2-dwarapala-2`, `r2-relief-bentang-alam`,
+`r2-prasasti-loceret`, `r2-prasasti-sangguran-info`, `r3-jam-matahari`, `r3-teleskop`,
+`r3-model-plta`, `r3-senjata-api-kolonial`, **`r3-simponion`**.
+
+> ⚠️ **Fosil Kepala Buaya dan Symphonion sempat punya narasi, sekarang tidak.**
+> Batch narasi sebelumnya (format MP3) memuat kedua artefak ini; batch M4A yang dipakai
+> sekarang tidak. Berkas MP3 lamanya **tidak dipakai untuk menambal** dan sudah dihapus
+> dari repo. Alasannya: durasi antar-batch berbeda jauh (Surya Stambha 25 detik di batch
+> lama vs 65 detik di batch baru), jadi naskah dan/atau pengisi suaranya sudah berganti.
+> Menambal dengan berkas lama berarti pengunjung mendengar **dua narator berbeda di satu
+> ruangan** — lebih merusak daripada dua artefak yang diam. Kalau museum ingin keduanya
+> bersuara, mohon kirim rekaman ulang dengan pengisi suara yang sama seperti batch ini.
+
+### Yang masih benar-benar kosong
+
+**`transkrip_audio` masih kosong untuk ke-32 artefak.** Panel informasi punya blok
+"Transkrip Audio" yang muncul kalau pengaturan "Tampilkan Subtitle" menyala, tapi tidak
+ada teks untuk ditampilkan. Kalau naskah tertulis dari 11 rekaman di atas dikirim,
+kolom itu tinggal diisi dan blok transkripnya langsung hidup — sekaligus membuat narasi
+bisa diakses pengunjung yang tuli atau yang menonton tanpa suara.
+
+Field lama `url_audio` sudah tidak dipakai lagi (digantikan `audioGuide`) dan dibiarkan
+kosong di semua entri.
 
 ---
 
@@ -355,7 +454,12 @@ build** kalau menemukan di `artifacts.json`:
 - paragraf yang berakhir tanpa titik, spasi ganda, atau spasi di akhir baris;
 - `fakta_menarik` yang ada tapi kosong, atau yang isinya cuma mengulang `deskripsi`;
 - `id` duplikat, `id` baru yang belum terdaftar, atau `id` lama yang hilang — daftar
-  resminya ada di `KNOWN_IDS` dalam `scripts/validate-artifacts.mjs`.
+  resminya ada di `KNOWN_IDS` dalam `scripts/validate-artifacts.mjs`;
+- **pemandu audio**: `audioGuide.src` yang berkasnya tidak ada di
+  `public/audio/guide/`, `durationSec` yang bukan angka positif, `contentVerified`
+  yang bukan `true`/`false`, dua artefak yang menunjuk berkas yang sama (penjaga
+  utama untuk pasangan dua sepeda), berkas berekstensi selain `.m4a`, dan berkas
+  non-`.m4a` yang masih tersisa di folder narasi.
 
 Catatan hasil dari dokumen ini **tidak boleh** dipindahkan ke `artifacts.json`. Kalau sebuah
 data belum tersedia, biarkan deskripsinya berhenti di kalimat terakhir yang valid — jangan

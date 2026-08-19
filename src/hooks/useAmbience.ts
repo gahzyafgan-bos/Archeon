@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Howl } from "howler";
 import { useMuseumStore } from "@/store/useMuseumStore";
 import type { RoomId } from "@/store/useMuseumStore";
+import { GUIDE_DUCK_FACTOR } from "@/audio/guideAudio";
 
 /**
  * Panduan karakter musik ambience per hall:
@@ -20,8 +21,13 @@ export function useAmbience(activeRoom: RoomId) {
   const settings = useMuseumStore((s) => s.settings);
   const howlRef = useRef<Howl | null>(null);
 
-  const targetVolume =
+  // Ducks under a running narration, same rule and same reasoning as the
+  // soundtrack — see the long note in useSoundtrack.ts. Kept in step here so
+  // the two cannot drift if this per-hall layer is ever mounted again.
+  const isGuidePlaying = useMuseumStore((s) => s.isGuideAudioPlaying);
+  const settingVolume =
     settings.masterMuted || isAmbienceMuted ? 0 : settings.volumeAmbience / 100;
+  const targetVolume = isGuidePlaying ? settingVolume * GUIDE_DUCK_FACTOR : settingVolume;
 
   // Update volume whenever target changes
   useEffect(() => {
