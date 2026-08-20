@@ -125,3 +125,60 @@ canvas {
 .animate-slide-up-fade {
   animation: slide-up-fade 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/* ---------------------------------------------------------------------------
+   Mode VR: a symmetric drawing surface, on a screen that is not symmetric.
+
+   `viewport-fit=cover` (index.html) is what lets the museum use the whole
+   panel. In portrait that is free. In landscape on a phone with a notch or a
+   Dynamic Island it is not: the cutout sits on ONE side — the left or the
+   right, depending on which way the phone was turned — and the browser reports
+   it as `safe-area-inset-left` OR `safe-area-inset-right`, one of them ~44-59px
+   and the other zero.
+
+   For a normal page that asymmetry is a padding question. For a stereo pair it
+   is fatal. The left half of the screen is one eye's whole world and the right
+   half is the other's; if a cutout swallows 50px of the left eye's outer edge,
+   the two eyes are shown images of different widths, cropped differently,
+   centred differently. The visual system cannot fuse that — it keeps hunting
+   for a match between two pictures that do not correspond — and the result is
+   not "slightly off", it is a headache in under a minute. For an app aimed at
+   school groups that is a comfort and safety problem, not a cosmetic one.
+
+   So Mode VR takes the LARGER of the two insets off BOTH sides. A few
+   millimetres of panel go unused on the side with no cutout, and in exchange
+   the canvas is a rectangle centred on the physical screen — which is the one
+   thing the Cardboard optics assume, since the lenses are symmetric about that
+   centre too.
+
+   Declared as a custom property, not inlined, because three things have to
+   agree about it: the canvas (via #root's padding), the DOM overlay drawn on
+   top of it (VRHud), and the lens-centre maths that converts screen width into
+   millimetres (vrOptics.drawableWidthMm). One value, one place.
+
+   Vertical is deliberately left alone. The home indicator is an overlay on
+   live pixels, not a cutout, so nothing is hidden there — and insetting it
+   would throw away vertical field of view for no gain.
+   --------------------------------------------------------------------------- */
+:root {
+  --vr-side-inset: 0px;
+
+  /* The four insets, republished under names JavaScript can read back with
+     getComputedStyle. Nothing lays out against these — they exist so a
+     diagnostic dump taken on a phone in a viewer can print the actual numbers
+     (utils/vrDiagnostics.ts, safeAreaInsets). There is no other way to see
+     them: `env()` is resolvable only inside CSS. */
+  --sai-top: env(safe-area-inset-top, 0px);
+  --sai-right: env(safe-area-inset-right, 0px);
+  --sai-bottom: env(safe-area-inset-bottom, 0px);
+  --sai-left: env(safe-area-inset-left, 0px);
+}
+
+:root[data-vr="on"] {
+  --vr-side-inset: max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+}
+
+:root[data-vr="on"] #root {
+  padding-left: var(--vr-side-inset);
+  padding-right: var(--vr-side-inset);
+}

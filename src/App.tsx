@@ -16,6 +16,7 @@ import { useMouseLookControls } from "@/hooks/useMouseLookControls";
 import { useInteractionKeys } from "@/hooks/useInteractionKeys";
 import { useGuideAudioLifecycle } from "@/hooks/useAudioGuide";
 import { useMuseumStore } from "@/store/useMuseumStore";
+import { VR_ROOT_ATTR } from "@/utils/vrViewport";
 import { useEffect, useState } from "react";
 
 /**
@@ -41,6 +42,7 @@ export default function App() {
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null);
   const isRendererLost = useMuseumStore((s) => s.isRendererLost);
   const highContrast = useMuseumStore((s) => s.settings.highContrast);
+  const isVRMode = useMuseumStore((s) => s.isVRMode);
 
   useViewportHeight();
   useDeviceDetection();
@@ -105,6 +107,28 @@ export default function App() {
     if (highContrast) root.setAttribute("data-contrast", "high");
     else root.removeAttribute("data-contrast");
   }, [highContrast]);
+
+  /**
+   * Publishes Mode VR as an attribute on <html>, for the same reason the
+   * contrast flag is published there: the rules it drives are CSS, on elements
+   * this component does not own.
+   *
+   * What it switches on is `--vr-side-inset` (see index.css) — the symmetric
+   * safe-area margin that stops a landscape notch from eating one eye's outer
+   * edge. It has to reach #root, which lives outside the React tree, and the VR
+   * overlay, which is `position: fixed` and therefore ignores #root's padding
+   * entirely. An attribute at the root reaches both; threading a number through
+   * props would reach neither.
+   *
+   * Cleared on unmount as well as on exit, so a crash inside the Canvas cannot
+   * leave the page permanently inset.
+   */
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isVRMode) root.setAttribute(VR_ROOT_ATTR, "on");
+    else root.removeAttribute(VR_ROOT_ATTR);
+    return () => root.removeAttribute(VR_ROOT_ATTR);
+  }, [isVRMode]);
 
   if (!HAS_WEBGL) {
     return (

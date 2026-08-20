@@ -1,7 +1,51 @@
 import { useEffect, useRef, useState } from "react";
 import { useMuseumStore } from "@/store/useMuseumStore";
-import { eyeLensCenterShift } from "@/utils/vrOptics";
 import { VR_DIAG_ENABLED, vrDiag } from "@/utils/vrDiagnostics";
+import { checkVrInvariant, vrInvariantSummary } from "@/utils/vrInvariants";
+
+/**
+ * How far one eye's overlay must move INBOARD, as a CSS length.
+ *
+ * This is `eyeLensCenterShift` (see vrOptics) rewritten so the browser
+ * evaluates it instead of JavaScript. Same derivation, same physics — the
+ * algebra is unrolled here only so the result stays live:
+ *
+ *   shift          = 1 - 2·L / Wmm            (fraction of an eye's half-width)
+ *   Wmm            = S · surface / viewport   (the canvas is inset, the panel is not)
+ *   surface        = 100vw - 2·inset
+ *   offset(px)     = shift · surface / 4
+ *                  = 25vw - inset/2 - (L/S)·50vw
+ *
+ * L and S are the viewer's lens separation and the phone's screen width, both
+ * in millimetres and both plain numbers from settings; everything else is a CSS
+ * unit the engine re-resolves on its own.
+ *
+ * Live matters here specifically. The JS version of this had to be recomputed
+ * on rotation, and a React overlay does not necessarily re-render when a phone
+ * is turned — so a visitor who flipped the handset from one landscape to the
+ * other kept the offset computed for the previous orientation, which is the
+ * exact asymmetry this whole change is about. In `vw` and `var()` the browser
+ * owns that problem.
+ *
+ * The clamp in eyeLensCenterShift is deliberately not reproduced: across the
+ * full range the settings allow (lens 55-72mm, screen 120-190mm) the shift runs
+ * -0.20 to +0.42, comfortably inside the -0.4..0.6 the clamp guards, so it
+ * never binds and adding a CSS `clamp()` would only obscure the formula.
+ */
+function lensAxisOffset(screenWidthMm: number, lensSeparationMm: number, eye: "left" | "right") {
+  const lensFraction = screenWidthMm > 0 ? lensSeparationMm / screenWidthMm : 0.5;
+  const lensTerm = `${(lensFraction * 50).toFixed(4)}vw`;
+  const halfInset = `var(--vr-side-inset, 0px) / 2`;
+  // The right eye's expression is the left's negation, written out rather than
+  // multiplied by -1: a flat sum of three terms is the shape every calc()
+  // implementation has always handled, and this file has been the subject of
+  // enough "works everywhere except the one phone" reports already.
+  const offset =
+    eye === "left"
+      ? `calc(25vw - (${halfInset}) - ${lensTerm})`
+      : `calc(${lensTerm} + (${halfInset}) - 25vw)`;
+  return `translateX(${offset})`;
+}
 
 /**
  * Dev-only numbers, on screen, inside each eye.
@@ -18,10 +62,14 @@ import { VR_DIAG_ENABLED, vrDiag } from "@/utils/vrDiagnostics";
  */
 function VrDiagReadout() {
   const [frame, setFrame] = useState(vrDiag.frame);
+  const [invariants, setInvariants] = useState("");
 
   useEffect(() => {
     if (!VR_DIAG_ENABLED) return;
-    const id = setInterval(() => setFrame({ ...(vrDiag.frame ?? ({} as never)) }), 250);
+    const id = setInterval(() => {
+      setFrame({ ...(vrDiag.frame ?? ({} as never)) });
+      setInvariants(vrInvariantSummary());
+    }, 250);
     return () => clearInterval(id);
   }, []);
 
@@ -52,11 +100,21 @@ function VrDiagReadout() {
         {frame.drawCalls} calls · {(frame.triangles / 1000).toFixed(0)}k tris ·{" "}
         {frame.shadowPassesPerFrame}× shadow
       </p>
+      {/* Silence here means all three invariants held on the frames since the
+          last sample. Anything printed is a rule that broke, named, with a
+          count — readable from inside the viewer without a cable. */}
+      {invariants && <p className="text-red-400">⚠ {invariants}</p>}
     </div>
   );
 }
 
-function EyeOverlay({ eye }: { eye: "left" | "right" }) {
+function EyeOverlay({
+  eye,
+  reticleRef,
+}: {
+  eye: "left" | "right";
+  reticleRef?: (el: HTMLDivElement | null) => void;
+}) {
   const nearbyArtifact = useMuseumStore((s) => s.nearbyArtifact);
   const focusedArtifact = useMuseumStore((s) => s.focusedArtifact);
   const nearbyDoorLabel = useMuseumStore((s) => s.nearbyDoorLabel);
@@ -74,18 +132,24 @@ function EyeOverlay({ eye }: { eye: "left" | "right" }) {
   // look at: the eyes have to diverge to fuse it, which is impossible, so
   // either the reticle doubles or fusing it pulls the whole world apart.
   //
-  // shift is a fraction of this half-viewport's HALF-width, and one half of the
-  // screen is 50vw wide, so its half-width is 25vw.
-  const shift = eyeLensCenterShift(screenWidthMm, lensSeparationMm);
-  const inboard = eye === "left" ? shift : -shift;
+  // The offset is now a CSS expression rather than a number — same physics, but
+  // it accounts for the symmetric safe-area inset and survives a rotation
+  // without a re-render. See lensAxisOffset.
+  const transform = lensAxisOffset(screenWidthMm, lensSeparationMm, eye);
 
   return (
+    // Exactly half the surface, and no divider between the halves. `flex-1`
+    // shared out whatever a sibling 1px rule left behind, which made each
+    // overlay half (W-1)/2 wide while the canvas underneath was drawing halves
+    // of floor(W/2) — overlay and image centred on two different axes, in every
+    // eye, on every device. `shrink-0` because a flex item is allowed to shrink
+    // below its width and this one must not.
     <div
-      className="relative flex-1 h-full flex items-center justify-center"
-      style={{ transform: `translateX(calc(${inboard} * 25vw))` }}
+      className="relative w-1/2 shrink-0 h-full flex items-center justify-center"
+      style={{ transform }}
     >
       {/* Crosshair to help the eye focus while looking around */}
-      <div className="w-3 h-3 rounded-full border border-museum-bone/60" />
+      <div ref={reticleRef} className="w-3 h-3 rounded-full border border-museum-bone/60" />
 
       <VrDiagReadout />
 
@@ -273,6 +337,58 @@ function VRTouchLayer() {
 }
 
 function VRHudOverlay() {
+  const leftReticle = useRef<HTMLDivElement | null>(null);
+  const rightReticle = useRef<HTMLDivElement | null>(null);
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * Invariant 2: the two overlays are mirror images of each other.
+   *
+   * Measured from the DOM rather than reasoned about from the classes, because
+   * the failure this catches is exactly the one that survives review: the CSS
+   * looks symmetric and the rendered boxes are not. A stray divider, a rounding
+   * difference, a safe-area inset landing on one side — each of them produces
+   * markup that reads fine and a headset that does not.
+   *
+   * The reticle is the probe. It is the one element the visitor is asked to
+   * look straight at, it sits on the lens axis by construction, and if it is
+   * off-axis in one eye the whole overlay is.
+   *
+   * 2 Hz, dev only. A per-frame layout read would force a reflow every frame,
+   * which would distort the frame time the readout above is reporting.
+   */
+  useEffect(() => {
+    if (!VR_DIAG_ENABLED) return;
+    const id = setInterval(() => {
+      const surface = surfaceRef.current;
+      const l = leftReticle.current?.getBoundingClientRect();
+      const r = rightReticle.current?.getBoundingClientRect();
+      if (!surface || !l || !r) return;
+
+      const box = surface.getBoundingClientRect();
+      const half = box.width / 2;
+      // Each reticle's horizontal offset from the centre of ITS OWN eye half.
+      const dxL = l.left + l.width / 2 - (box.left + half / 2);
+      const dxR = r.left + r.width / 2 - (box.left + half + half / 2);
+      const dyL = l.top + l.height / 2 - (box.top + box.height / 2);
+      const dyR = r.top + r.height / 2 - (box.top + box.height / 2);
+
+      checkVrInvariant(
+        "hud-symmetry-x",
+        Math.abs(dxL + dxR) <= 1,
+        () =>
+          `reticle tidak simetris: kiri ${dxL.toFixed(2)}px dari pusat matanya, ` +
+          `kanan ${dxR.toFixed(2)}px (jumlahnya harus 0, sekarang ${(dxL + dxR).toFixed(2)}px)`
+      );
+      checkVrInvariant(
+        "hud-symmetry-y",
+        Math.abs(dyL - dyR) <= 1,
+        () => `reticle beda tinggi antar-mata: ${(dyL - dyR).toFixed(2)}px`
+      );
+    }, 500);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     // Height comes from --app-height (visualViewport) with a 100dvh fallback,
     // NOT from `inset-0`. On a mobile browser that can't be taken fullscreen,
@@ -281,13 +397,30 @@ function VRHudOverlay() {
     // halves would then be centred on a different mid-line than the canvas's,
     // and the reticle/control text would drift off each lens axis. Same source
     // of truth as #root and the <Canvas> wrapper (see useViewportHeight).
+    //
+    // Left and right come from --vr-side-inset rather than being pinned to 0.
+    // This layer is `position: fixed`, so it is laid out against the viewport
+    // and never sees the padding that inset gives #root — pinned to 0 it would
+    // keep spanning the full panel, including the strip behind the notch, while
+    // the canvas underneath it had already moved inboard. The overlay would
+    // then be split about a different mid-line than the image it annotates.
     <div
-      className="fixed left-0 top-0 w-full z-40 flex pointer-events-none"
-      style={{ height: "var(--app-height, 100dvh)" }}
+      ref={surfaceRef}
+      className="fixed top-0 z-40 flex pointer-events-none"
+      style={{
+        height: "var(--app-height, 100dvh)",
+        left: "var(--vr-side-inset, 0px)",
+        right: "var(--vr-side-inset, 0px)",
+      }}
     >
-      <EyeOverlay eye="left" />
-      <div className="w-px h-full bg-white/5" />
-      <EyeOverlay eye="right" />
+      {/* No divider between the halves any more. A 1px rule looks like nothing
+          and is not: it made each `flex-1` half (W-1)/2 wide while the canvas
+          underneath was drawing halves of floor(W/2), so overlay and image were
+          centred on two different axes in every eye. The seam is already drawn
+          — the frame's full clear leaves the spare middle column black — and
+          the viewer's own nose divider covers it physically. */}
+      <EyeOverlay eye="left" reticleRef={(el) => (leftReticle.current = el)} />
+      <EyeOverlay eye="right" reticleRef={(el) => (rightReticle.current = el)} />
     </div>
   );
 }

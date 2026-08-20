@@ -2,9 +2,17 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMuseumStore } from "@/store/useMuseumStore";
-import { barrelNormalizer, eyeLensCenterShift } from "@/utils/vrOptics";
+import { barrelNormalizer, drawableWidthMm, eyeLensCenterShift } from "@/utils/vrOptics";
 import { GRAPHICS_PRESETS } from "@/utils/graphicsPresets";
 import { VR_DIAG_ENABLED, countVrResource, publishVrDiagFrame } from "@/utils/vrDiagnostics";
+import { computeVrEyeLayout, readVrSideInsetPx } from "@/utils/vrViewport";
+import { supportedHalfFloatSamples } from "@/utils/vrRenderTargets";
+import {
+  checkVrInvariant,
+  resetVrInvariants,
+  snapshotHeadPose,
+  verifyHeadPoseUnchanged,
+} from "@/utils/vrInvariants";
 
 // Per-eye render resolution and MSAA now come from the active tier's VR row in
 // GRAPHICS_PRESETS (vrEyeScale / vrMsaaSamples), so there is exactly one place
@@ -213,17 +221,28 @@ export function CardboardStereoView() {
   const graphicsQuality = useMuseumStore((s) => s.settings.graphicsQuality);
   const preset = GRAPHICS_PRESETS[graphicsQuality];
 
-  // MSAA on a half-float target needs WebGL2 plus EXT_color_buffer_float —
-  // without the extension the multisampled renderbuffer is not color-renderable
-  // and the framebuffer comes back incomplete, which in this component's
-  // history means a black headset, not a warning. Detect, don't assume.
+  // MSAA on a half-float target is not something to assume — it is something to
+  // prove, per format, on this device. EXT_color_buffer_float being present only
+  // says half-float can be RENDERED to; whether it can be MULTISAMPLED is a
+  // separate question the driver answers separately, and three never asks it.
+  //
+  // This is the whole of the ghosting bug. Where the answer is no, three still
+  // allocates the multisampled renderbuffer, the framebuffer comes back
+  // incomplete, and from then on every clear and every draw into that eye target
+  // is dropped on the floor while the texture keeps its last contents — one
+  // stale image per eye, redrawn over by nothing, for as long as VR is on. The
+  // preset boundary matched exactly: Rendah asks for 0 samples and was clean,
+  // Sedang and Tinggi ask for 4 and smeared. See utils/vrRenderTargets.ts.
   const eyeSamples = useMemo(() => {
-    if (preset.vrMsaaSamples <= 0) return 0;
-    const ctx = gl.getContext();
-    const isWebGL2 =
-      typeof WebGL2RenderingContext !== "undefined" && ctx instanceof WebGL2RenderingContext;
-    if (!isWebGL2 || !ctx.getExtension("EXT_color_buffer_float")) return 0;
-    return preset.vrMsaaSamples;
+    const supported = supportedHalfFloatSamples(gl.getContext(), preset.vrMsaaSamples);
+    if (VR_DIAG_ENABLED && supported !== preset.vrMsaaSamples) {
+      // eslint-disable-next-line no-console
+      console.info(
+        `[vr] MSAA per mata: diminta ${preset.vrMsaaSamples}x, perangkat ini sanggup ${supported}x ` +
+          `(target half-float). Turun ke ${supported}x agar buffer tetap bisa dibersihkan.`
+      );
+    }
+    return supported;
   }, [gl, preset.vrMsaaSamples]);
 
   // Keyed on the sample count: `samples` is baked into the framebuffer three
@@ -249,6 +268,9 @@ export function CardboardStereoView() {
   // below (r3f unsubscribes it on unmount; this proves it).
   useEffect(() => {
     countVrResource("stereoLoops", 1);
+    // Failure counts describe THIS entry into VR, so a check that fired once
+    // three sessions ago is not still on screen pretending to be current.
+    resetVrInvariants();
     return () => countVrResource("stereoLoops", -1);
   }, []);
 
@@ -391,19 +413,53 @@ export function CardboardStereoView() {
     const buffer = gl.getDrawingBufferSize(bufferSize.current);
     const pixelRatio = gl.getPixelRatio() || 1;
 
-    // Integer split, and the right eye gets the remainder. An odd buffer width
-    // (e.g. 915) divided by two is 457.5; three floors viewport rectangles, so
-    // a naive halfWidth left column 914 in neither eye's scissor — never drawn,
-    // never cleared, a stale stripe down the edge of the screen.
-    const eyeBufferW = Math.floor(buffer.x / 2);
-    const rightEyeBufferW = buffer.x - eyeBufferW;
-    const eyeBufferH = buffer.y;
+    // The split is computed once, in one module, and both this file and the DOM
+    // overlay read it from there. Both eyes get Math.floor(width / 2) — the SAME
+    // number — and an odd leftover column is dropped on the seam rather than
+    // handed to one eye. See utils/vrViewport.ts for why "within a pixel" is not
+    // good enough for a stereo pair.
+    const layout = computeVrEyeLayout(buffer.x, buffer.y, pixelRatio);
+    const eyeBufferW = layout.eyeBufferW;
+    const eyeBufferH = layout.eyeBufferH;
+
+    // --- One full clear per frame, before any viewport or scissor is set -----
+    //
+    // Order is the whole point. `gl.clear()` obeys the scissor test, so a clear
+    // issued while a scissor rectangle is active erases that rectangle and
+    // leaves everything outside it holding the previous frame. Doing it here,
+    // with the scissor test explicitly off and the viewport spanning the whole
+    // canvas, means the seam column and both eye halves start every frame black
+    // no matter what the rest of the loop does afterwards.
+    //
+    // It is also the frame's insurance policy against the eye targets: those are
+    // cleared again individually below, and if a driver drops one of those
+    // clears the visitor sees black rather than yesterday's greeter.
+    gl.setScissorTest(false);
+    gl.setRenderTarget(null);
+    gl.setViewport(0, 0, buffer.x / pixelRatio, buffer.y / pixelRatio);
+    gl.setScissor(0, 0, buffer.x / pixelRatio, buffer.y / pixelRatio);
+    gl.clear(true, true, true);
+
+    // autoClear is renderer-global and sticky, and post-processing libraries
+    // routinely switch it off. Nothing in VR mounts a composer today — the
+    // stereo view replaces it rather than sitting behind it (see
+    // MuseumExperience) — but "today" is exactly how this file has been broken
+    // before. Assert it rather than inherit it.
+    if (gl.autoClear !== true) {
+      checkVrInvariant(
+        "auto-clear",
+        false,
+        () => "renderer.autoClear mati saat masuk frame VR — dipaksa nyala lagi."
+      );
+      gl.autoClear = true;
+    }
 
     // setViewport/setScissor take CSS pixels and multiply by the pixel ratio
     // internally, so convert back at the boundary rather than mixing units.
-    const halfWidth = eyeBufferW / pixelRatio;
-    const rightHalfWidth = rightEyeBufferW / pixelRatio;
-    const viewHeight = eyeBufferH / pixelRatio;
+    const halfWidth = layout.cssEyeWidth;
+    const viewHeight = layout.cssEyeHeight;
+    const leftX = layout.cssLeftX;
+    const rightX = layout.cssRightX;
 
     // Per-eye scene resolution. eyeBufferW is already half the drawing buffer,
     // so the division by two happens exactly once in the whole path — the scale
@@ -442,7 +498,17 @@ export function CardboardStereoView() {
     // off turned into a ~100% error here, leaving each eye's image ~4mm too far
     // inboard — roughly 11° of vergence error where a fixed-focus viewer allows
     // 1-2°. That is what "double-double" was.
-    const lensShift = eyeLensCenterShift(vrScreenWidthMm, vrLensSeparationMm);
+    //
+    // Measured against the width the canvas actually spans, not the panel's.
+    // Mode VR now subtracts a symmetric safe-area inset from both sides so a
+    // notch cannot eat one eye's outer edge (see index.css / --vr-side-inset),
+    // and the shift is a ratio of two physical lengths — feed it the wrong one
+    // and both lens axes land in the wrong place. On a phone with no cutout the
+    // inset is zero and this is its own input, unchanged.
+    const lensShift = eyeLensCenterShift(
+      drawableWidthMm(vrScreenWidthMm, gl.domElement.clientWidth, window.innerWidth),
+      vrLensSeparationMm
+    );
 
     // Push the shift into the projection matrices rather than sliding the
     // finished image sideways: element 8 is the frustum's x-asymmetry term, so
@@ -472,8 +538,6 @@ export function CardboardStereoView() {
     // uses three's own tonemapping/colorspace chunks, which three feeds from
     // renderer.toneMappingExposure itself. See A.4 — one source of truth.
 
-    gl.setScissorTest(false);
-
     // --- Shadow maps: once per FRAME, not once per eye ----------------------
     // three calls shadowMap.render() inside every renderer.render(), and with
     // autoUpdate on it redoes the whole pass each time — so drawing two eyes
@@ -491,11 +555,36 @@ export function CardboardStereoView() {
     gl.shadowMap.needsUpdate = true;
 
     // Pass 1: render each eye's scene into its own off-screen target.
+    //
+    // The clear is written out rather than left to autoClear. three does issue
+    // one (WebGLBackground.render calls renderer.clear when autoClear is on), so
+    // on a healthy device this is a duplicate costing one glClear per eye — and
+    // that is a price worth paying for a rule that no longer depends on a flag
+    // some other component might have flipped, on a scissor rectangle set three
+    // calls ago, or on this scene never being given a background. The clear that
+    // did not happen is the bug this file exists to prevent.
+    // Both eyes must be drawn from ONE head pose, and the pair of calls below is
+    // the window in which that can quietly stop being true. Not from another
+    // useFrame — r3f has already run every priority-0 callback before this one
+    // starts, so the rig is settled — but from inside the renders themselves:
+    // `renderer.render` walks the scene graph and re-derives world matrices, and
+    // any onBeforeRender handler, any object parented to the camera, any
+    // lazily-attached helper gets to run twice, once per eye, with the second
+    // run able to see what the first one changed.
+    //
+    // So the check brackets both renders and compares the matrix three actually
+    // used, at a tolerance of zero. Dev only; the whole module tree-shakes away.
+    if (VR_DIAG_ENABLED) snapshotHeadPose(camera.matrixWorld.elements);
+
     gl.setRenderTarget(targetL);
+    gl.clear(true, true, true);
     gl.render(scene, stereoCamera.cameraL);
 
     gl.setRenderTarget(targetR);
+    gl.clear(true, true, true);
     gl.render(scene, stereoCamera.cameraR);
+
+    if (VR_DIAG_ENABLED) verifyHeadPoseUnchanged(camera.matrixWorld.elements);
 
     gl.setRenderTarget(null);
 
@@ -521,19 +610,39 @@ export function CardboardStereoView() {
     // other number checks out, swapping these two blocks is the 30-second test
     // — render a big "L" to targetL only and confirm through the viewer that
     // the left eye sees it.
-    gl.setViewport(0, 0, halfWidth, viewHeight);
-    gl.setScissor(0, 0, halfWidth, viewHeight);
+    gl.setViewport(leftX, 0, halfWidth, viewHeight);
+    gl.setScissor(leftX, 0, halfWidth, viewHeight);
     distortionUniforms.map.value = targetL.texture;
     distortionUniforms.lensCenterX.value = lensShift; // left eye's lens sits inboard, i.e. to the right
     gl.render(distortionScene, distortionCamera);
 
-    gl.setViewport(halfWidth, 0, rightHalfWidth, viewHeight);
-    gl.setScissor(halfWidth, 0, rightHalfWidth, viewHeight);
+    // Same WIDTH as the left eye, not "the rest of the canvas". On an odd
+    // buffer width the right eye starts one pixel further in and the spare
+    // column stays black on the seam, where the viewer's nose divider already
+    // covers it — rather than making the right image one pixel wider than the
+    // left, which is a scale mismatch the eyes cannot fuse away.
+    gl.setViewport(rightX, 0, halfWidth, viewHeight);
+    gl.setScissor(rightX, 0, halfWidth, viewHeight);
     distortionUniforms.map.value = targetR.texture;
     distortionUniforms.lensCenterX.value = -lensShift;
     gl.render(distortionScene, distortionCamera);
 
     gl.setScissorTest(false);
+
+    // Invariant 1: the two eye viewports are the same size, to the pixel.
+    // Cheap enough to run every frame, and it is the check that would have
+    // caught the odd-width split the moment a phone with an odd drawing buffer
+    // was picked up. See utils/vrInvariants.ts.
+    if (VR_DIAG_ENABLED) {
+      checkVrInvariant(
+        "eye-viewport-width",
+        layout.gutterBufferW >= 0 && layout.rightBufferX + layout.eyeBufferW <= buffer.x,
+        () =>
+          `viewport mata keluar dari kanvas: kiri 0..${layout.eyeBufferW}, ` +
+          `kanan ${layout.rightBufferX}..${layout.rightBufferX + layout.eyeBufferW}, ` +
+          `kanvas ${buffer.x}px`
+      );
+    }
 
     // ---- dev-only measurement (A.2 / A.3 / A.4 / A.6 / A.7) -----------------
     if (VR_DIAG_ENABLED) {
@@ -595,11 +704,15 @@ export function CardboardStereoView() {
         rtWidth: eyeWidth,
         rtHeight: eyeHeight,
         eyeViewportWidth: eyeBufferW,
+        eyeViewportWidthRight: eyeBufferW,
         eyeViewportHeight: eyeBufferH,
+        eyeSeamWidth: layout.gutterBufferW,
+        sideInsetCssPx: readVrSideInsetPx(),
         pxPerEyeRatio,
         pxPerEyeRatioAtCenter: pxPerEyeRatio / centerMagnification,
         centerMagnification,
 
+        msaaRequested: preset.vrMsaaSamples,
         rtSamples: targetL.samples,
         rtMinFilter: filterName(targetL.texture.minFilter),
         rtMagFilter: filterName(targetL.texture.magFilter),

@@ -129,3 +129,41 @@ export function eyeLensCenterShift(screenWidthMm: number, lensSeparationMm: numb
 export function barrelNormalizer(k1: number, k2: number): number {
   return Math.max(0.001, 1 + k1 + k2);
 }
+
+/**
+ * The physical width, in millimetres, of the part of the screen the stereo view
+ * is actually allowed to draw on.
+ *
+ * `eyeLensCenterShift` above is derived on the assumption that the canvas spans
+ * the whole panel, which held until Mode VR started subtracting a symmetric
+ * safe-area inset from both sides (see index.css, `--vr-side-inset`). On a
+ * notched iPhone in landscape that inset is real — around 44-59 CSS px per side
+ * on the current generation — and feeding the full panel width into a formula
+ * describing a narrower canvas puts both lens axes in the wrong place, which is
+ * the same class of error that made "double-double" in the first place.
+ *
+ * Scaling by the ratio of the two widths is exact rather than approximate, for
+ * the same reason the shift itself is: it is a ratio of two lengths measured in
+ * the same units, so the units cancel and no pixel density is involved.
+ *
+ * On a phone with no cutout the two widths are equal and this returns its input
+ * unchanged — the correction cannot regress a device that never needed it.
+ *
+ * @param screenWidthMm    the panel's physical width along its long edge
+ * @param canvasCssWidth   the canvas's client width, in CSS px
+ * @param viewportCssWidth the layout viewport's width, in CSS px (the page uses
+ *                         viewport-fit=cover, so this spans the whole panel)
+ */
+export function drawableWidthMm(
+  screenWidthMm: number,
+  canvasCssWidth: number,
+  viewportCssWidth: number
+): number {
+  if (!Number.isFinite(screenWidthMm) || screenWidthMm <= 0) return screenWidthMm;
+  if (!Number.isFinite(canvasCssWidth) || canvasCssWidth <= 0) return screenWidthMm;
+  if (!Number.isFinite(viewportCssWidth) || viewportCssWidth <= 0) return screenWidthMm;
+  // Guard against a transient mid-rotation measurement making the canvas look
+  // wider than the screen; the inset can only ever make it narrower.
+  const fraction = Math.min(1, canvasCssWidth / viewportCssWidth);
+  return screenWidthMm * fraction;
+}
