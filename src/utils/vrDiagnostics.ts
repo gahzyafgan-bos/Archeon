@@ -19,6 +19,37 @@
 
 export const VR_DIAG_ENABLED = import.meta.env.DEV;
 
+/**
+ * The four `env(safe-area-inset-*)` values, in CSS pixels, read back at runtime.
+ *
+ * There is no JavaScript API for these — they exist only inside CSS — so the
+ * only way to put a number on them is to let the engine resolve them into a
+ * property and read the computed value back. index.css publishes all four onto
+ * :root purely so this can be done; nothing lays out against them.
+ *
+ * Worth the trouble because the asymmetry they describe is invisible from the
+ * code and decisive for stereo: in landscape a notched iPhone reports a large
+ * inset on ONE side and zero on the other, which is exactly what made the two
+ * eyes different widths before the fix. Printed in every dump so a bug report
+ * from a phone nobody here owns still carries the number.
+ */
+export function safeAreaInsets(): { top: number; right: number; bottom: number; left: number } {
+  const read = (name: string) => {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue(name);
+    const px = Number.parseFloat(raw);
+    return Number.isFinite(px) ? px : 0;
+  };
+  return {
+    top: read("--sai-top"),
+    right: read("--sai-right"),
+    bottom: read("--sai-bottom"),
+    left: read("--sai-left"),
+  };
+}
+
+// Imported for the dump below; both modules are dev-only and tree-shake together.
+import { vrInvariantSummary } from "./vrInvariants";
+
 export interface VrDiagFrame {
   // --- timing ---
   fps: number;
@@ -39,7 +70,13 @@ export interface VrDiagFrame {
   rtWidth: number;
   rtHeight: number;
   eyeViewportWidth: number;
+  /** The RIGHT eye's viewport width. Must equal eyeViewportWidth exactly. */
+  eyeViewportWidthRight: number;
   eyeViewportHeight: number;
+  /** Drawing-buffer columns dropped on the seam so both eyes stay equal (0 or 1). */
+  eyeSeamWidth: number;
+  /** Symmetric safe-area inset taken off each side of the VR surface, in CSS px. */
+  sideInsetCssPx: number;
   /** rendered px per eye / physical screen px per eye. < 1 means upscaling. */
   pxPerEyeRatio: number;
   /** Same ratio at the lens axis, where barrel distortion magnifies the source. */
@@ -48,6 +85,8 @@ export interface VrDiagFrame {
   centerMagnification: number;
 
   // --- render target quality (A.3 / H3 / H4 / H6) ---
+  /** MSAA the preset asked for, before the device's own answer. */
+  msaaRequested: number;
   rtSamples: number;
   rtMinFilter: string;
   rtMagFilter: string;
@@ -150,6 +189,20 @@ export function dumpVrDiag(label = "snapshot") {
     [
       ``,
       `================ [VR DIAGNOSTIK — ${label}] ================`,
+      // Every VR bug this project has had was device-shaped: a notch, a driver,
+      // a WebKit version. A report without these lines cannot be acted on, so
+      // they go at the top of every dump rather than being asked for later.
+      `PERANGKAT & PERAMBAN`,
+      `     userAgent                   : ${navigator.userAgent}`,
+      `     layar (CSS px)              : ${window.screen.width} × ${window.screen.height}`,
+      `     orientasi                   : ${screen.orientation?.type ?? "(tidak dilaporkan)"}`,
+      `     safe-area kiri / kanan      : ${safeAreaInsets().left} / ${safeAreaInsets().right}  ← beda = poni di satu sisi`,
+      `     safe-area atas / bawah      : ${safeAreaInsets().top} / ${safeAreaInsets().bottom}`,
+      `     inset simetris dipakai VR   : ${f.sideInsetCssPx}px per sisi`,
+      ``,
+      `INVARIAN (kosong = semua aman)`,
+      `     ${vrInvariantSummary() || "— tidak ada pelanggaran sejak masuk VR —"}`,
+      ``,
       `A.2  POSE PER FRAME (harus 0 semua, termasuk saat kepala diputar cepat)`,
       `     yaw delta antar-mata        : ${f.yawDeltaDeg.toFixed(6)}°`,
       `     pitch delta antar-mata      : ${f.pitchDeltaDeg.toFixed(6)}°`,
@@ -167,11 +220,21 @@ export function dumpVrDiag(label = "snapshot") {
       `     dpr yang dipaksa mode VR    : 1  ← preset TIDAK berpengaruh ke resolusi di VR`,
       `     RENDER_SCALE khusus VR      : ${f.renderScale}`,
       `     ukuran render target/mata   : ${f.rtWidth} × ${f.rtHeight}`,
-      `     viewport per mata (buffer)  : ${f.eyeViewportWidth} × ${f.eyeViewportHeight}`,
+      `     viewport mata KIRI (buffer) : ${f.eyeViewportWidth} × ${f.eyeViewportHeight}`,
+      `     viewport mata KANAN (buffer): ${f.eyeViewportWidthRight} × ${f.eyeViewportHeight}`,
+      `     selisih lebar kiri-kanan    : ${f.eyeViewportWidth - f.eyeViewportWidthRight} px  ← WAJIB 0`,
+      `     kolom sambungan dibuang     : ${f.eyeSeamWidth} px (hitam, di tengah)`,
       `     px per mata / px layar/mata : ${f.pxPerEyeRatio.toFixed(3)}  ← ${verdict}`,
       `     perbesaran barrel di tengah : ${f.centerMagnification.toFixed(3)}×`,
       `     rasio efektif di pusat lensa: ${f.pxPerEyeRatioAtCenter.toFixed(3)}  ← yang benar-benar dilihat mata`,
-      `     rt.samples (MSAA)           : ${f.rtSamples}${f.rtSamples === 0 ? "  ← TANPA MSAA" : ""}`,
+      `     MSAA diminta preset         : ${f.msaaRequested}×`,
+      `     rt.samples (MSAA) terpakai  : ${f.rtSamples}${
+        f.rtSamples === 0
+          ? "  ← TANPA MSAA"
+          : f.rtSamples < f.msaaRequested
+            ? "  ← diturunkan, perangkat tak sanggup multisample half-float"
+            : ""
+      }`,
       `     rt min/magFilter            : ${f.rtMinFilter} / ${f.rtMagFilter}`,
       `     rt.generateMipmaps          : ${f.rtGenerateMipmaps}`,
       `     rt.texture.colorSpace       : ${f.rtColorSpace || "(linear/no-color-space)"}`,
