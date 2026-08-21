@@ -37,7 +37,7 @@ const KEEP = [SHELL_CACHE, MEDIA_CACHE];
 /**
  * Heavy, immutable-by-convention assets: models, decoders, audio, images.
  *
- * `/audio/` covers the eleven audio-guide narrations under `/audio/guide/`, and
+ * `/audio/` covers the twelve audio-guide narrations under `/audio/guide/`, and
  * covering them *here* — runtime, cache-first, on first use — rather than in a
  * precache list is the deliberate choice. Precaching the folder would add ~2.5
  * MB to the very first load of a museum where most visitors open three or four
