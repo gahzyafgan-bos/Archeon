@@ -59,7 +59,7 @@ export interface Artifact {
   /**
    * Narasi pemandu audio berbahasa Indonesia untuk artefak ini.
    *
-   * Optional, and absent for most of the collection — only 11 of the 32
+   * Optional, and absent for most of the collection — only 12 of the 32
    * artifacts have a recording. Absent is a normal, expected state: the player
    * renders **nothing at all** for those, rather than a dead grey button. A
    * button that is not there reads as "this piece has no narration"; a disabled

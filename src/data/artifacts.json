@@ -580,8 +580,8 @@
     "placeholder_shape": "torus",
     "url_audio": "",
     "audioGuide": {
-      "src": "/audio/guide/garudeya.m4a",
-      "durationSec": 59.6,
+      "src": "/audio/guide/garudeya2.m4a",
+      "durationSec": 48.4,
       "contentVerified": true
     },
     "transkrip_audio": "",
@@ -733,8 +733,8 @@
     "placeholder_shape": "torus",
     "url_audio": "",
     "audioGuide": {
-      "src": "/audio/guide/sepeda-tinggi.m4a",
-      "durationSec": 51.9,
+      "src": "/audio/guide/sepeda-tinggi2.m4a",
+      "durationSec": 49.3,
       "contentVerified": true
     },
     "transkrip_audio": "",
@@ -906,6 +906,11 @@
     "url_model_3d": "/models/simponion.glb",
     "placeholder_shape": "box",
     "url_audio": "",
+    "audioGuide": {
+      "src": "/audio/guide/simponion2.m4a",
+      "durationSec": 47.7,
+      "contentVerified": true
+    },
     "transkrip_audio": "",
     "koordinat_ruangan": {
       "x": 2.4,

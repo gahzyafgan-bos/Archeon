@@ -367,15 +367,15 @@ keduanya identik). Yang dulu terlihat "putih" adalah `baseColorFactor` 0.8 abu-a
 
 ## D. Status pemandu audio per artefak
 
-Museum sudah mengirim **11 rekaman narasi** (M4A/AAC, mono 16 kHz, total ±8 menit /
+Museum sudah mengirim **12 rekaman narasi** (M4A/AAC, mono 16 kHz, total ±8 menit /
 ±2,4 MB). Semuanya ada di `public/audio/guide/` dan terdaftar di `artifacts.json`
-lewat field `audioGuide`. **10 di antaranya tayang**; satu ditahan (lihat 0.2.1).
+lewat field `audioGuide`. **11 di antaranya tayang**; satu ditahan (lihat 0.2.1).
 
-Dari 32 artefak, **21 belum punya narasi** — dan itu keadaan yang normal, bukan bug.
+Dari 32 artefak, **20 belum punya narasi** — dan itu keadaan yang normal, bukan bug.
 Artefak tanpa narasi **tidak menampilkan tombol apa pun**: bukan tombol abu-abu mati,
 bukan tulisan "belum tersedia", tidak ada apa-apa di tempat itu.
 
-### Sudah tayang (10)
+### Sudah tayang (11)
 
 | ID | Artefak | Berkas | Durasi |
 |---|---|---|---|
@@ -385,16 +385,17 @@ bukan tulisan "belum tersedia", tidak ada apa-apa di tempat itu.
 | `r1-manusia-purba` | Manusia Purba | `manusia-purba.m4a` | 0:29 |
 | `r2-arca-ganesha` | Ganesha | `ganesha.m4a` | 0:36 |
 | `r2-arca-durga-mahisasuramardhini` | Durga Mahisasuramardini | `durga-mahisasuramardini.m4a` | 0:47 |
-| `r2-garudeya-emas` | Garudeya | `garudeya.m4a` | 1:00 |
+| `r2-garudeya-emas` | Garudeya | `garudeya2.m4a` | 0:48 |
 | `r3-telepon-antik` | Pesawat Telepon Dinding | `pesawat-telepon-dinding.m4a` | 0:33 |
-| `r3-sepeda-tinggi` | Sepeda Tinggi | `sepeda-tinggi.m4a` | 0:52 |
+| `r3-sepeda-tinggi` | Sepeda Tinggi | `sepeda-tinggi2.m4a` | 0:49 |
+| `r3-simponion` | Symphonion | `simponion2.m4a` | 0:48 |
 | `r3-sepeda-motor-uap` | Sepeda Daimler | `sepeda-daimler.m4a` | 1:07 |
 
 > ⚠️ **Dua sepeda di zona yang sama.** `r3-sepeda-tinggi` dan `r3-sepeda-motor-uap`
 > (namanya "Sepeda Daimler") berdiri berdekatan di zona `transisi-iptek`, dan tertukarnya
 > dua narasi ini adalah kesalahan paling mudah terjadi di seluruh daftar. Pemetaan di atas
 > dicocokkan lewat durasi tiap berkas: `sepeda-daimler.m4a` terukur 66,5 detik dan
-> `sepeda-tinggi.m4a` 51,9 detik, persis seperti daftar yang dikirim pemilik project.
+> `sepeda-tinggi2.m4a` 49,3 detik (rekaman pengganti kiriman terbaru).
 > **Yang belum bisa diperiksa dari sisi ini adalah isi ucapannya.** Mohon dengarkan
 > pembuka kedua berkas sekali untuk memastikan penamaannya sudah benar sejak dari studio.
 
